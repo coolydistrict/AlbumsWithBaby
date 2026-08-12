@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Albums Of The Year with Baby</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Inter+Tight:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ground:#CFE2F3; --raised:#DFEBF7; --raised-2:#EEF5FB;
+  --line:rgba(16,38,58,.16); --line-2:rgba(16,38,58,.28);
+  --ink:#0F2536; --dim:#42607A; --faint:#7591A9;
+  --accent:#175A8C; --accent-soft:rgba(23,90,140,.42);
+  --a:#C13A3A; --b:#C67A22; --c:#A98314; --d:#2C7D51;
+  --pad:clamp(1.1rem,4vw,2.75rem);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:var(--ground); color:var(--ink);
+  font-family:"Inter Tight",system-ui,sans-serif; font-size:15px; line-height:1.55;
+  padding:0 var(--pad) 6rem; max-width:1180px; margin:0 auto;
+}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--accent); outline-offset:3px; border-radius:3px}
+
+header{padding:clamp(2.5rem,7vw,5rem) 0 1.75rem}
+.eyebrow{
+  font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:.22em;
+  text-transform:uppercase; color:var(--accent); margin-bottom:1rem;
+}
+h1{
+  font-family:"Bricolage Grotesque",sans-serif; font-weight:800;
+  font-size:clamp(2.3rem,7.5vw,4.6rem); line-height:.95; letter-spacing:-.035em;
+}
+h1 em{font-style:normal; color:var(--accent)}
+.tagline{color:var(--dim); margin-top:1rem; max-width:44ch; font-size:15px}
+
+.notice{
+  margin:1.75rem 0 0; padding:.85rem 1.1rem; border:1px solid rgba(16,38,58,.24);
+  border-radius:10px; background:var(--raised); color:var(--dim); font-size:13.5px;
+}
+.notice strong{color:var(--accent); font-weight:600}
+.notice code{font-family:"JetBrains Mono",monospace; font-size:12px; color:var(--accent)}
+
+.tally{display:flex; gap:2.25rem; flex-wrap:wrap; margin:2.25rem 0 0}
+.tally div{display:flex; flex-direction:column; gap:.15rem}
+.tally b{font-family:"JetBrains Mono",monospace; font-size:1.7rem; font-weight:600; letter-spacing:-.02em}
+.tally span{font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--faint); font-family:"JetBrains Mono",monospace}
+
+.controls{
+  display:flex; gap:.6rem; flex-wrap:wrap; align-items:center;
+  padding:1.25rem 0; margin:2rem 0 0;
+  border-top:1px solid var(--line); border-bottom:1px solid var(--line);
+  position:sticky; top:0; background:var(--ground); z-index:20;
+}
+input[type=search],select{
+  font-family:inherit; font-size:14px; color:var(--ink);
+  background:var(--raised); border:1px solid var(--line-2);
+  border-radius:8px; padding:.55rem .8rem; appearance:none;
+}
+input[type=search]{flex:1 1 200px; min-width:0}
+input[type=search]::placeholder{color:var(--faint)}
+select{padding-right:2rem; background-image:linear-gradient(45deg,transparent 50%,var(--dim) 50%),linear-gradient(135deg,var(--dim) 50%,transparent 50%); background-position:calc(100% - 15px) 51%,calc(100% - 10px) 51%; background-size:5px 5px,5px 5px; background-repeat:no-repeat}
+select:hover,input[type=search]:hover{border-color:rgba(16,38,58,.45)}
+.count{font-family:"JetBrains Mono",monospace; font-size:12px; color:var(--faint); margin-left:auto; white-space:nowrap}
+
+.artist{padding:2.5rem 0 .5rem; border-bottom:1px solid var(--line)}
+.artist:last-child{border-bottom:0}
+.artist-head{display:flex; align-items:center; gap:1rem; margin-bottom:1.25rem}
+.artist-head img{width:56px; height:56px; border-radius:50%; object-fit:cover; background:var(--raised-2); flex:none}
+.artist-head .ph{width:56px; height:56px; border-radius:50%; background:var(--raised-2); flex:none}
+.artist-head h2{
+  font-family:"Bricolage Grotesque",sans-serif; font-weight:600;
+  font-size:clamp(1.3rem,3.4vw,1.9rem); letter-spacing:-.025em; line-height:1.1;
+}
+.genre{
+  font-family:"JetBrains Mono",monospace; font-size:10.5px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--faint); margin-top:.2rem;
+}
+
+.album{
+  display:grid; grid-template-columns:64px minmax(0,1fr) minmax(150px,240px);
+  gap:1.1rem; align-items:center; padding:.85rem 0; border-top:1px solid var(--line);
+  cursor:pointer;
+}
+.album:first-of-type{border-top:0}
+.album:hover{background:rgba(255,255,255,.42)}
+.cover{width:64px; height:64px; border-radius:5px; object-fit:cover; background:var(--raised-2); flex:none}
+.album-title{font-weight:500; letter-spacing:-.012em}
+.album-sub{font-family:"JetBrains Mono",monospace; font-size:11.5px; color:var(--faint); margin-top:.15rem}
+.album-sub .who{color:var(--dim)}
+
+.gauge{position:relative; height:34px}
+.track{position:absolute; top:16px; left:0; right:0; height:2px; background:var(--raised-2); border-radius:2px}
+.span{position:absolute; top:16px; height:2px; background:var(--accent-soft)}
+.pip{position:absolute; top:8px; width:19px; height:19px; border-radius:50%; transform:translateX(-50%);
+  display:flex; align-items:center; justify-content:center;
+  font-family:"JetBrains Mono",monospace; font-size:9px; font-weight:600; color:#FFFFFF;
+  border:2px solid var(--ground);}
+.val{position:absolute; top:-3px; font-family:"JetBrains Mono",monospace; font-size:11px; transform:translateX(-50%); color:var(--dim)}
+
+.detail{display:none; grid-column:1/-1; padding:.4rem 0 1.1rem}
+.album.open .detail{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:1.5rem}
+.take h4{font-family:"JetBrains Mono",monospace; font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--faint); font-weight:400; margin-bottom:.45rem}
+.take p{font-size:14px; color:var(--dim)}
+.take .songs{margin-top:.5rem; display:flex; flex-wrap:wrap; gap:.3rem}
+.song{background:var(--raised); border:1px solid var(--line); border-radius:20px; padding:.15rem .6rem; font-size:12px; color:var(--dim); transition:border-color .15s,color .15s}
+.song:hover{border-color:var(--accent-soft); color:var(--accent)}
+
+.empty{padding:4rem 0; text-align:center; color:var(--faint)}
+.empty b{display:block; font-family:"Bricolage Grotesque",sans-serif; font-size:1.2rem; color:var(--accent); margin-bottom:.4rem; font-weight:600}
+
+footer{margin-top:4rem; padding-top:1.5rem; border-top:1px solid var(--line); color:var(--faint); font-size:12.5px; font-family:"JetBrains Mono",monospace}
+
+@media(max-width:620px){
+  .album{grid-template-columns:52px minmax(0,1fr); gap:.85rem}
+  .cover{width:52px; height:52px}
+  .gauge{grid-column:1/-1; margin-top:.2rem}
+  .count{width:100%; margin-left:0; text-align:right}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<header>
+  <p class="eyebrow">Anthony &amp; Annette · a listening log</p>
+  <h1>Albums Of<br>The Year <em>with Baby</em></h1>
+  <p class="tagline">Everything we've put on and had an opinion about. Two ratings per record, and the space between them.</p>
+  <div class="notice" id="notice"></div>
+  <div class="tally" id="tally"></div>
+</header>
+
+<div class="controls">
+  <input type="search" id="q" placeholder="Search artist, album, or song" aria-label="Search">
+  <select id="genre" aria-label="Filter by genre"><option value="">All genres</option></select>
+  <select id="sort" aria-label="Sort">
+    <option value="artist">By artist</option>
+    <option value="rating">Highest rated</option>
+    <option value="new">Newest first</option>
+    <option value="old">Oldest first</option>
+    <option value="gap">Biggest disagreement</option>
+  </select>
+  <span class="count" id="count"></span>
+</div>
+
+<main id="out"></main>
+
+<footer id="foot"></footer>
+
+<script>
+/* ─── Paste your published CSV link between the quotes ─────────────────
+   In the sheet: File › Share › Publish to web › pick the Albums tab ›
+   choose "Comma-separated values (.csv)" › Publish › copy the link.
+   Leave it empty to keep browsing the sample data below.            */
+const SHEET_CSV_URL = "";
+/* ──────────────────────────────────────────────────────────────────── */
+
+const SAMPLE = [
+["","goodkid","Alt rock","Sialia","2021","84","Bad Dream, Nomad, Mistake","choruses hit every single time","91","Nomad, Mistake, Slingshot, Radio","best thing they've done"],
+["","goodkid","Alt rock","By Design","2023","76","Madison, Beluga","cleaner but safer","81","Madison, Beluga, Nomad II","the production finally caught up"],
+["","porter robinson","Electronic","Worlds","2014","95","Sad Machine, Sea of Voices, Goodbye","nothing else sounds like it","88","Sad Machine, Flicker","gorgeous, drags near the end"],
+["","porter robinson","Electronic","Nurture","2021","89","Musician, Look at the Sky","the one I put on when I'm low","94","Musician, Mirror, Something Comforting","cried on a bus to this"],
+["","the weeknd","R&B","After Hours","2020","81","Blinding Lights, Alone Again","the singles carry it","86","Save Your Tears, Faith","best sequenced thing he's made"],
+["","mac demarco","Indie","Salad Days","2014","72","Chamber of Reflection","pleasant, a bit samey","90","Chamber of Reflection, Passing Out Pieces","perfect summer record"],
+["","nujabes","Lo-fi","Modal Soul","2005","93","Luv(sic) Pt3, Feather","the standard everything else is measured against","89","Luv(sic) Pt3, Ordinary Joe","warm all the way through"],
+["","loathe","Metal","I Let It In And It Took Everything","2020","31","Two-Way Mirror","not for me at all","92","Two-Way Mirror, Aggressive Evolution","shoegaze and metalcore shouldn't work together"],
+["","MARINA","Pop","Electra Heart","2012","68","Primadonna, Bubblegum Bitch","fun, a little dated now","95","Primadonna, Teen Idle, Lies","formative, no notes"],
+["","tame impala","Psych rock","Currents","2015","87","Let It Happen, The Less I Know","that opener is 8 minutes and earns it","83","New Person Same Old Mistakes","great, slightly overplayed"],
+["","cigarettes after sex","Indie","Cry","2019","64","Heavenly","one mood for 40 minutes","79","Heavenly, Falling in Love","the one mood is a good mood"],
+["","lorde","Pop","Melodrama","2017","91","Green Light, Supercut","the best pop record of its decade","93","Supercut, Liability","every song is about a specific feeling"]
+];
+
+const $ = id => document.getElementById(id);
+let ROWS = [], usingSample = true;
+
+/* ── colour ramp: 0 red → 50 yellow → 100 green ── */
+const STOPS = [[0,193,58,58],[50,169,131,20],[100,44,125,81]];
+function ramp(v){
+  v = Math.max(0, Math.min(100, v));
+  for(let i=0;i<STOPS.length-1;i++){
+    const [p1,r1,g1,b1] = STOPS[i], [p2,r2,g2,b2] = STOPS[i+1];
+    if(v<=p2){
+      const t=(v-p1)/(p2-p1);
+      return `rgb(${Math.round(r1+(r2-r1)*t)},${Math.round(g1+(g2-g1)*t)},${Math.round(b1+(b2-b1)*t)})`;
+    }
+  }
+  return "rgb(44,125,81)";
+}
+
+/* ── CSV parser that survives commas inside quoted song lists ── */
+function parseCSV(text){
+  const rows=[]; let row=[], cell="", q=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(q){
+      if(ch==='"'){ if(text[i+1]==='"'){cell+='"';i++;} else q=false; }
+      else cell+=ch;
+    } else if(ch==='"') q=true;
+    else if(ch===','){ row.push(cell); cell=""; }
+    else if(ch==='\n'){ row.push(cell); rows.push(row); row=[]; cell=""; }
+    else if(ch!=='\r') cell+=ch;
+  }
+  if(cell||row.length){ row.push(cell); rows.push(row); }
+  return rows;
+}
+
+function shape(raw){
+  const out=[]; let lastArtist="", lastGenre="";
+  for(const r of raw){
+    const artist=(r[1]||"").trim()||lastArtist;
+    const genre=(r[2]||"").trim()||(artist===lastArtist?lastGenre:"");
+    const album=(r[3]||"").trim();
+    if(artist){ lastArtist=artist; lastGenre=genre; }
+    if(!album) continue;
+    const A=parseInt(r[5],10), N=parseInt(r[8],10);
+    if(isNaN(A)&&isNaN(N)) continue;
+    out.push({
+      artist, genre, album, year:(r[4]||"").trim(),
+      a:isNaN(A)?null:A, n:isNaN(N)?null:N,
+      aSongs:splitSongs(r[6]), aText:(r[7]||"").trim(),
+      nSongs:splitSongs(r[9]), nText:(r[10]||"").trim(),
+      get avg(){ const v=[this.a,this.n].filter(x=>x!==null); return v.reduce((s,x)=>s+x,0)/v.length; },
+      get gap(){ return (this.a===null||this.n===null)?-1:Math.abs(this.a-this.n); }
+    });
+  }
+  return out;
+}
+const splitSongs = s => (s||"").split(",").map(x=>x.trim()).filter(Boolean);
+
+/* ── cover art, free and keyless, via the iTunes search endpoint ── */
+const artCache=new Map();
+function art(term, el, round){
+  if(artCache.has(term)){ apply(artCache.get(term)); return; }
+  const cb="cb"+Math.random().toString(36).slice(2);
+  const s=document.createElement("script");
+  window[cb]=data=>{
+    const url=data?.results?.[0]?.artworkUrl100?.replace("100x100","300x300")||null;
+    artCache.set(term,url); apply(url);
+    delete window[cb]; s.remove();
+  };
+  s.onerror=()=>{ artCache.set(term,null); delete window[cb]; s.remove(); };
+  s.src=`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&entity=album&limit=1&callback=${cb}`;
+  document.head.appendChild(s);
+  function apply(url){
+    if(!url||!el.isConnected) return;
+    const img=document.createElement("img");
+    img.src=url; img.alt=""; img.loading="lazy";
+    img.className=round?"":"cover";
+    if(round) img.style.cssText="width:56px;height:56px;border-radius:50%;object-fit:cover;flex:none";
+    el.replaceWith(img);
+  }
+}
+
+function esc(s){ return (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+function gauge(d){
+  const pips=[]; const vals=[d.a,d.n].filter(v=>v!==null);
+  if(!vals.length) return "";
+  const lo=Math.min(...vals), hi=Math.max(...vals);
+  let html=`<div class="gauge"><div class="track"></div>`;
+  if(d.a!==null&&d.n!==null&&d.gap>0)
+    html+=`<div class="span" style="left:${lo}%;width:${hi-lo}%"></div>`;
+  for(const [label,v] of [["A",d.a],["N",d.n]]){
+    if(v===null) continue;
+    html+=`<div class="pip" style="left:${v}%;background:${ramp(v)}" title="${label==="A"?"Anthony":"Annette"}: ${v}">${label}</div>`;
+  }
+  html+=`</div>`;
+  return html;
+}
+
+function albumHTML(d){
+  const who=[];
+  if(d.a!==null) who.push(`A ${d.a}`);
+  if(d.n!==null) who.push(`N ${d.n}`);
+  return `<article class="album" tabindex="0" role="button" aria-expanded="false">
+    <div class="cover" data-art="${esc(d.artist+" "+d.album)}"></div>
+    <div>
+      <div class="album-title">${esc(d.album)}</div>
+      <div class="album-sub">${esc(d.year)}${d.year?" · ":""}<span class="who">${who.join("  ")}</span></div>
+    </div>
+    ${gauge(d)}
+    <div class="detail">
+      ${take("Anthony",d.a,d.aSongs,d.aText)}
+      ${take("Annette",d.n,d.nSongs,d.nText)}
+    </div>
+  </article>`;
+}
+function take(name,v,songs,text){
+  if(v===null&&!songs.length&&!text) return "";
+  return `<div class="take"><h4>${name}${v!==null?" — "+v:""}</h4>
+    ${text?`<p>${esc(text)}</p>`:""}
+    ${songs.length?`<div class="songs">${songs.map(s=>`<span class="song">${esc(s)}</span>`).join("")}</div>`:""}
+  </div>`;
+}
+
+function render(){
+  const q=$("q").value.trim().toLowerCase();
+  const g=$("genre").value, sort=$("sort").value;
+  let list=ROWS.filter(d=>{
+    if(g&&d.genre!==g) return false;
+    if(!q) return true;
+    return (d.artist+" "+d.album+" "+d.aSongs.join(" ")+" "+d.nSongs.join(" ")).toLowerCase().includes(q);
+  });
+
+  $("count").textContent=`${list.length} album${list.length===1?"":"s"}`;
+  const out=$("out");
+
+  if(!list.length){
+    out.innerHTML=`<div class="empty"><b>Nothing matches</b>Try a different search, or clear the genre filter.</div>`;
+    return;
+  }
+
+  if(sort==="artist"){
+    const groups=new Map();
+    for(const d of list){ if(!groups.has(d.artist)) groups.set(d.artist,[]); groups.get(d.artist).push(d); }
+    const names=[...groups.keys()].sort((a,b)=>a.toLowerCase().localeCompare(b.toLowerCase()));
+    out.innerHTML=names.map(name=>{
+      const al=groups.get(name).slice().sort((x,y)=>(x.year||"").localeCompare(y.year||""));
+      return `<section class="artist">
+        <div class="artist-head">
+          <div class="ph" data-art="${esc(name)}" data-round="1"></div>
+          <div><h2>${esc(name)}</h2>${al[0].genre?`<div class="genre">${esc(al[0].genre)}</div>`:""}</div>
+        </div>
+        ${al.map(albumHTML).join("")}
+      </section>`;
+    }).join("");
+  } else {
+    const cmp={
+      rating:(x,y)=>y.avg-x.avg,
+      new:(x,y)=>(y.year||"").localeCompare(x.year||""),
+      old:(x,y)=>(x.year||"").localeCompare(y.year||""),
+      gap:(x,y)=>y.gap-x.gap
+    }[sort];
+    out.innerHTML=`<section class="artist">${list.slice().sort(cmp).map(d=>
+      albumHTML(d).replace('<div class="album-title">',`<div class="album-title">${esc(d.artist)} — `)
+    ).join("")}</section>`;
+  }
+
+  out.querySelectorAll("[data-art]").forEach(el=>art(el.dataset.art,el,el.dataset.round));
+}
+
+document.addEventListener("click",e=>{
+  const card=e.target.closest(".album");
+  if(!card) return;
+  const open=card.classList.toggle("open");
+  card.setAttribute("aria-expanded",open);
+});
+document.addEventListener("keydown",e=>{
+  if((e.key==="Enter"||e.key===" ")&&e.target.classList.contains("album")){
+    e.preventDefault(); e.target.click();
+  }
+});
+
+function boot(rows,sample){
+  ROWS=shape(rows); usingSample=sample;
+  const genres=[...new Set(ROWS.map(d=>d.genre).filter(Boolean))].sort();
+  $("genre").insertAdjacentHTML("beforeend",genres.map(g=>`<option>${esc(g)}</option>`).join(""));
+
+  const artists=new Set(ROWS.map(d=>d.artist));
+  const rated=ROWS.filter(d=>d.a!==null&&d.n!==null);
+  const avg=ROWS.length?Math.round(ROWS.reduce((s,d)=>s+d.avg,0)/ROWS.length):0;
+  const widest=rated.slice().sort((a,b)=>b.gap-a.gap)[0];
+  $("tally").innerHTML=`
+    <div><b>${ROWS.length}</b><span>albums</span></div>
+    <div><b>${artists.size}</b><span>artists</span></div>
+    <div><b style="color:${ramp(avg)}">${avg}</b><span>our average</span></div>
+    ${widest?`<div><b>${widest.gap}</b><span>widest split</span></div>`:""}`;
+
+  $("notice").innerHTML = sample
+    ? `<strong>You're looking at made-up data.</strong> These ratings and thoughts are placeholders so you can see the layout — none of them are yours. Open this file in a text editor, find <code>SHEET_CSV_URL</code> near the top of the script, and paste your published sheet link between the quotes.`
+    : `Reading live from your sheet. Add a row there, refresh here.`;
+
+  $("foot").textContent = sample
+    ? "Sample data · covers from the iTunes catalogue"
+    : "Live from Google Sheets · covers from the iTunes catalogue";
+
+  ["q","genre","sort"].forEach(id=>$(id).addEventListener("input",render));
+  render();
+}
+
+if(SHEET_CSV_URL){
+  fetch(SHEET_CSV_URL)
+    .then(r=>{ if(!r.ok) throw new Error(r.status); return r.text(); })
+    .then(t=>boot(parseCSV(t).slice(1),false))
+    .catch(()=>{
+      boot(SAMPLE,true);
+      $("notice").innerHTML=`<strong>Couldn't reach the sheet.</strong> Showing sample data instead. Check that the link came from File › Share › Publish to web, and that the format is CSV — a normal sheet link won't work here.`;
+    });
+}else{
+  boot(SAMPLE,true);
+}
+</script>
+</body>
+</html>
