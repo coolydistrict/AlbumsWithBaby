@@ -255,28 +255,55 @@ function shape(raw){
 }
 const splitSongs = s => (s||"").split(",").map(x=>x.trim()).filter(Boolean);
 
-/* ── cover art, free and keyless, via the iTunes search endpoint ── */
-const artCache=new Map();
-function art(term, el, round){
-  if(artCache.has(term)){ apply(artCache.get(term)); return; }
-  const cb="cb"+Math.random().toString(36).slice(2);
-  const s=document.createElement("script");
-  window[cb]=data=>{
-    const url=data?.results?.[0]?.artworkUrl100?.replace("100x100","300x300")||null;
-    artCache.set(term,url); apply(url);
-    delete window[cb]; s.remove();
-  };
-  s.onerror=()=>{ artCache.set(term,null); delete window[cb]; s.remove(); };
-  s.src=`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&entity=album&limit=1&callback=${cb}`;
-  document.head.appendChild(s);
-  function apply(url){
-    if(!url||!el.isConnected) return;
-    const img=document.createElement("img");
-    img.src=url; img.alt=""; img.loading="lazy";
-    img.className=round?"":(el.className.indexOf("thumb")>-1?"":"cover");
-    if(round) img.style.cssText="width:56px;height:56px;border-radius:50%;object-fit:cover;flex:none";
-    el.replaceWith(img);
-  }
+/* ── artwork: Deezer for artist portraits, iTunes for album covers.
+      Both keyless, both via JSONP. Artist lookups fall back to cover art. ── */
+const imgCache=new Map();
+
+function jsonp(src){
+  return new Promise(res=>{
+    const cb="cb"+Math.random().toString(36).slice(2);
+    const tag=document.createElement("script");
+    let done=false;
+    const finish=v=>{ if(done) return; done=true;
+      delete window[cb]; tag.remove(); res(v); };
+    window[cb]=finish;
+    tag.onerror=()=>finish(null);
+    setTimeout(()=>finish(null),8000);
+    tag.src=src+"&callback="+cb;
+    document.head.appendChild(tag);
+  });
+}
+
+const artistShot = name => jsonp(
+  "https://api.deezer.com/search/artist?limit=1&output=jsonp&q="+encodeURIComponent(name)
+).then(d=>{
+  const hit=d&&d.data&&d.data[0];
+  if(!hit||!hit.picture_big) return null;
+  return hit.picture_big.indexOf("/artist//")>-1 ? null : hit.picture_big;
+});
+
+const albumShot = term => jsonp(
+  "https://itunes.apple.com/search?entity=album&limit=1&term="+encodeURIComponent(term)
+).then(d=>{
+  const hit=d&&d.results&&d.results[0];
+  return hit&&hit.artworkUrl100 ? hit.artworkUrl100.replace("100x100","400x400") : null;
+});
+
+function place(el,url){
+  if(!url||!el.isConnected) return;
+  el.style.backgroundImage='url("'+url+'")';
+  el.style.backgroundSize="cover";
+  el.style.backgroundPosition="center";
+}
+
+function loadImage(el){
+  const term=el.dataset.art, kind=el.dataset.kind||"album", key=kind+"|"+term;
+  if(imgCache.has(key)){ place(el,imgCache.get(key)); return; }
+  const first = kind==="artist" ? artistShot(term) : albumShot(term);
+  first.then(url=>{
+    if(url||kind!=="artist"){ imgCache.set(key,url); place(el,url); return; }
+    return albumShot(term).then(alt=>{ imgCache.set(key,alt); place(el,alt); });
+  });
 }
 
 function esc(s){ return (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
@@ -336,7 +363,7 @@ function render(){
   if(!list.length){
     out.innerHTML=`<div class="empty"><b>Nothing rated yet</b>Anything you've listened to and scored shows up here.</div>`;
     out.insertAdjacentHTML("beforeend", queueHTML(q,g));
-    out.querySelectorAll("[data-art]").forEach(el=>art(el.dataset.art,el,el.dataset.round));
+    out.querySelectorAll("[data-art]").forEach(loadImage);
     return;
   }
 
@@ -348,7 +375,7 @@ function render(){
       const al=groups.get(name).slice().sort((x,y)=>(x.year||"").localeCompare(y.year||""));
       return `<section class="artist">
         <div class="artist-head">
-          <div class="ph" data-art="${esc(name)}" data-round="1"></div>
+          <div class="ph" data-art="${esc(name)}" data-kind="artist"></div>
           <div><h2>${esc(name)}</h2>${al[0].genre?`<div class="genre">${esc(al[0].genre)}</div>`:""}</div>
         </div>
         ${al.map(albumHTML).join("")}
@@ -367,7 +394,7 @@ function render(){
   }
 
   out.insertAdjacentHTML("beforeend", queueHTML(q,g));
-  out.querySelectorAll("[data-art]").forEach(el=>art(el.dataset.art,el,el.dataset.round));
+  out.querySelectorAll("[data-art]").forEach(loadImage);
 }
 
 function queueHTML(q,g){
@@ -381,7 +408,7 @@ function queueHTML(q,g){
     <div class="queue-head"><h2>To listen</h2><span>${list.length}</span></div>
     <p>On the list, nothing rated yet.</p>
     <div class="shelf">${list.map(x=>`<figure>
-      <div class="thumb" data-art="${esc(x.artist)}"></div>
+      <div class="thumb" data-art="${esc(x.artist)}" data-kind="artist"></div>
       <figcaption>${esc(x.artist)}${x.genre?`<span class="g">${esc(x.genre)}</span>`:""}</figcaption>
     </figure>`).join("")}</div>
   </section>`;
