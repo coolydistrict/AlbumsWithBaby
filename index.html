@@ -383,7 +383,8 @@ function boot(rows,sample){
 }
 
 if(SHEET_CSV_URL){
-  fetch(SHEET_CSV_URL)
+  const fresh = SHEET_CSV_URL + (SHEET_CSV_URL.includes("?") ? "&" : "?") + "cb=" + Date.now();
+  fetch(fresh)
     .then(r=>{ if(!r.ok) throw new Error(r.status); return r.text(); })
     .then(t=>boot(parseCSV(t).slice(1),false))
     .catch(()=>{
