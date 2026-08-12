@@ -110,6 +110,16 @@ select:hover,input[type=search]:hover{border-color:rgba(16,38,58,.45)}
 .song{background:var(--raised); border:1px solid var(--line); border-radius:20px; padding:.15rem .6rem; font-size:12px; color:var(--dim); transition:border-color .15s,color .15s}
 .song:hover{border-color:var(--accent-soft); color:var(--accent)}
 
+.queue{margin-top:3.5rem; padding-top:2rem; border-top:1px solid var(--line-2)}
+.queue-head{display:flex; align-items:baseline; gap:.7rem; margin-bottom:.4rem}
+.queue-head h2{font-family:"Bricolage Grotesque",sans-serif; font-weight:600; font-size:clamp(1.2rem,3vw,1.6rem); letter-spacing:-.025em}
+.queue-head span{font-family:"JetBrains Mono",monospace; font-size:11px; color:var(--faint)}
+.queue>p{color:var(--dim); font-size:14px; max-width:52ch; margin-bottom:1.5rem}
+.shelf{display:grid; grid-template-columns:repeat(auto-fill,minmax(108px,1fr)); gap:1.1rem .9rem}
+.shelf figure{margin:0; min-width:0}
+.shelf .thumb,.shelf img{width:100%; aspect-ratio:1; border-radius:6px; object-fit:cover; background:var(--raised-2); display:block}
+.shelf figcaption{margin-top:.45rem; font-size:12.5px; line-height:1.3; overflow-wrap:anywhere}
+.shelf .g{display:block; font-family:"JetBrains Mono",monospace; font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--faint); margin-top:.15rem}
 .empty{padding:4rem 0; text-align:center; color:var(--faint)}
 .empty b{display:block; font-family:"Bricolage Grotesque",sans-serif; font-size:1.2rem; color:var(--accent); margin-bottom:.4rem; font-weight:600}
 
@@ -171,7 +181,15 @@ const SAMPLE = [
 ["","MARINA","Pop","Electra Heart","2012","68","Primadonna, Bubblegum Bitch","fun, a little dated now","95","Primadonna, Teen Idle, Lies","formative, no notes"],
 ["","tame impala","Psych rock","Currents","2015","87","Let It Happen, The Less I Know","that opener is 8 minutes and earns it","83","New Person Same Old Mistakes","great, slightly overplayed"],
 ["","cigarettes after sex","Indie","Cry","2019","64","Heavenly","one mood for 40 minutes","79","Heavenly, Falling in Love","the one mood is a good mood"],
-["","lorde","Pop","Melodrama","2017","91","Green Light, Supercut","the best pop record of its decade","93","Supercut, Liability","every song is about a specific feeling"]
+["","lorde","Pop","Melodrama","2017","91","Green Light, Supercut","the best pop record of its decade","93","Supercut, Liability","every song is about a specific feeling"],
+["","Slowdive","Indie","","","","","","","",""],
+["","Panchiko","Indie","","","","","","","",""],
+["","Djo","Psych rock","","","","","","","",""],
+["","Kneecap","Hip hop","","","","","","","",""],
+["","Hiatus Kaiyote","Jazz","","","","","","","",""],
+["","Electric Light Orchestra","Rock","","","","","","","",""],
+["","black midi","Rock","","","","","","","",""],
+["","Trash Boat","Punk","","","","","","","",""]
 ];
 
 const $ = id => document.getElementById(id);
@@ -209,15 +227,19 @@ function parseCSV(text){
 }
 
 function shape(raw){
-  const out=[]; let lastArtist="", lastGenre="";
+  const out=[], roster=new Map(), rated=new Set();
+  let lastArtist="", lastGenre="";
   for(const r of raw){
     const artist=(r[1]||"").trim()||lastArtist;
     const genre=(r[2]||"").trim()||(artist===lastArtist?lastGenre:"");
     const album=(r[3]||"").trim();
     if(artist){ lastArtist=artist; lastGenre=genre; }
+    if(artist && !roster.has(artist)) roster.set(artist,genre);
+    if(artist && genre && !roster.get(artist)) roster.set(artist,genre);
     if(!album) continue;
     const A=parseInt(r[5],10), N=parseInt(r[8],10);
     if(isNaN(A)&&isNaN(N)) continue;
+    rated.add(artist);
     out.push({
       artist, genre, album, year:(r[4]||"").trim(),
       a:isNaN(A)?null:A, n:isNaN(N)?null:N,
@@ -227,7 +249,9 @@ function shape(raw){
       get gap(){ return (this.a===null||this.n===null)?-1:Math.abs(this.a-this.n); }
     });
   }
-  return out;
+  const queue=[];
+  roster.forEach((genre,artist)=>{ if(!rated.has(artist)) queue.push({artist,genre}); });
+  return {rows:out, queue};
 }
 const splitSongs = s => (s||"").split(",").map(x=>x.trim()).filter(Boolean);
 
@@ -249,7 +273,7 @@ function art(term, el, round){
     if(!url||!el.isConnected) return;
     const img=document.createElement("img");
     img.src=url; img.alt=""; img.loading="lazy";
-    img.className=round?"":"cover";
+    img.className=round?"":(el.className.indexOf("thumb")>-1?"":"cover");
     if(round) img.style.cssText="width:56px;height:56px;border-radius:50%;object-fit:cover;flex:none";
     el.replaceWith(img);
   }
@@ -310,7 +334,9 @@ function render(){
   const out=$("out");
 
   if(!list.length){
-    out.innerHTML=`<div class="empty"><b>Nothing matches</b>Try a different search, or clear the genre filter.</div>`;
+    out.innerHTML=`<div class="empty"><b>Nothing rated yet</b>Anything you've listened to and scored shows up here.</div>`;
+    out.insertAdjacentHTML("beforeend", queueHTML(q,g));
+    out.querySelectorAll("[data-art]").forEach(el=>art(el.dataset.art,el,el.dataset.round));
     return;
   }
 
@@ -340,7 +366,25 @@ function render(){
     ).join("")}</section>`;
   }
 
+  out.insertAdjacentHTML("beforeend", queueHTML(q,g));
   out.querySelectorAll("[data-art]").forEach(el=>art(el.dataset.art,el,el.dataset.round));
+}
+
+function queueHTML(q,g){
+  const list=QUEUE.filter(x=>{
+    if(g&&x.genre!==g) return false;
+    if(q&&!x.artist.toLowerCase().includes(q)) return false;
+    return true;
+  }).sort((a,b)=>a.artist.toLowerCase().localeCompare(b.artist.toLowerCase()));
+  if(!list.length) return "";
+  return `<section class="queue">
+    <div class="queue-head"><h2>To listen</h2><span>${list.length}</span></div>
+    <p>On the list, nothing rated yet.</p>
+    <div class="shelf">${list.map(x=>`<figure>
+      <div class="thumb" data-art="${esc(x.artist)}"></div>
+      <figcaption>${esc(x.artist)}${x.genre?`<span class="g">${esc(x.genre)}</span>`:""}</figcaption>
+    </figure>`).join("")}</div>
+  </section>`;
 }
 
 document.addEventListener("click",e=>{
@@ -356,7 +400,8 @@ document.addEventListener("keydown",e=>{
 });
 
 function boot(rows,sample){
-  ROWS=shape(rows); usingSample=sample;
+  const shaped=shape(rows);
+  ROWS=shaped.rows; QUEUE=shaped.queue; usingSample=sample;
   const genres=[...new Set(ROWS.map(d=>d.genre).filter(Boolean))].sort();
   $("genre").insertAdjacentHTML("beforeend",genres.map(g=>`<option>${esc(g)}</option>`).join(""));
 
@@ -368,7 +413,8 @@ function boot(rows,sample){
     <div><b>${ROWS.length}</b><span>albums</span></div>
     <div><b>${artists.size}</b><span>artists</span></div>
     <div><b style="color:${ramp(avg)}">${avg}</b><span>our average</span></div>
-    ${widest?`<div><b>${widest.gap}</b><span>widest split</span></div>`:""}`;
+    ${widest?`<div><b>${widest.gap}</b><span>widest split</span></div>`:""}
+    ${QUEUE.length?`<div><b style="color:var(--faint)">${QUEUE.length}</b><span>to listen</span></div>`:""}`;
 
   $("notice").innerHTML = sample
     ? `<strong>You're looking at made-up data.</strong> These ratings and thoughts are placeholders so you can see the layout — none of them are yours. Open this file in a text editor, find <code>SHEET_CSV_URL</code> near the top of the script, and paste your published sheet link between the quotes.`
