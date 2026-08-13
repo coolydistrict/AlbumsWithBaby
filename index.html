@@ -59,6 +59,25 @@ button{font:inherit; color:inherit; background:none; border:0; cursor:pointer}
   display:none; align-items:center; justify-content:center; padding:1rem}
 .modal.on{display:flex}
 .sheet{background:var(--raised-2); border-radius:14px; padding:1.4rem; width:min(340px,100%)}
+.sheet.wide{width:min(780px,100%); max-height:86vh; overflow-y:auto; padding:1.6rem 1.8rem 1.9rem;
+  position:relative}
+.modal-x{position:absolute; top:.9rem; right:1.1rem; font-size:20px; color:var(--dim); line-height:1}
+.modal-x:hover{color:var(--accent)}
+.m-head{display:flex; gap:1.2rem; align-items:flex-start; margin-bottom:1.3rem; padding-right:1.5rem}
+.m-shot{width:96px; height:110px; flex:none; background:var(--raised) center/cover;
+  border:4px solid #fff; border-bottom:15px solid #fff; border-radius:2px;
+  box-shadow:.25em .3em .7em rgba(15,37,54,.22); display:grid; place-items:center;
+  font-family:"Bricolage Grotesque",sans-serif; font-weight:600; color:var(--faint)}
+.m-title{font-family:"Bricolage Grotesque",sans-serif; font-size:1.35rem; font-weight:600;
+  letter-spacing:-.02em; line-height:1.15}
+.m-sub{font-family:"JetBrains Mono",monospace; font-size:11.5px; color:var(--faint); margin-top:.3rem}
+.m-head>div:last-child{flex:1; min-width:0}
+.m-head .gauge{margin-top:1rem; max-width:340px}
+.m-sub button{color:var(--accent); text-decoration:underline; text-underline-offset:2px}
+.m-body .detail{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,320px); gap:2rem;
+  background:none; padding:0; margin:0; opacity:1; transform:none}
+@media(max-width:700px){.m-body .detail{grid-template-columns:minmax(0,1fr); gap:1.5rem}
+  .m-shot{width:76px; height:88px}}
 .sheet h3{font-family:"Bricolage Grotesque",sans-serif; font-size:16px; font-weight:600; margin-bottom:.15rem}
 .sheet .note{font-size:12.5px; color:var(--faint); margin-bottom:1rem}
 .stage{width:240px; height:240px; margin:0 auto 1rem; border-radius:50%;
@@ -173,15 +192,15 @@ button.artist-head:hover h2{color:var(--accent)}
 .album-title{font-weight:500; letter-spacing:-.012em}
 .album-sub{font-family:"JetBrains Mono",monospace; font-size:11.5px; color:var(--faint); margin-top:.15rem}
 
-.gauge{position:relative; height:34px}
-.track{position:absolute; top:16px; left:0; right:0; height:2px; background:var(--raised-2); border-radius:2px}
-.span{position:absolute; top:16px; height:2px; background:var(--accent-soft)}
-.pip{position:absolute; top:5px; width:24px; height:24px; border-radius:50%; transform:translateX(-50%);
-  display:grid; place-items:center; font-family:"JetBrains Mono",monospace;
-  font-size:9px; font-weight:600; color:#FFF; background-size:cover; background-position:center;
+.gauge{position:relative; height:44px; min-width:120px}
+.track{position:absolute; top:21px; left:0; right:0; height:3px;
+  background:rgba(16,38,58,.16); border-radius:3px}
+.span{position:absolute; top:21px; height:3px; border-radius:3px; background:var(--accent-soft)}
+.pip{position:absolute; top:10px; width:24px; height:24px; border-radius:50%;
+  transform:translateX(-50%); display:grid; place-items:center;
+  font-family:"JetBrains Mono",monospace; font-size:9px; font-weight:600; color:#FFF;
+  background-size:cover; background-position:center;
   box-shadow:0 0 0 2px var(--ground), 0 0 0 4px currentColor}
-.gauge{height:38px}
-.track,.span{top:17px}
 
 .detail-wrap{grid-column:1/-1; display:grid; grid-template-rows:0fr; cursor:default;
   transition:grid-template-rows .5s cubic-bezier(.32,.72,.28,1)}
@@ -279,6 +298,65 @@ button.artist-head:hover h2{color:var(--accent)}
 .stat-block.in .rail i{width:var(--w)}
 @media(prefers-reduced-motion:reduce){.rail i{transition:none}}
 
+.chart-row{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
+  gap:1.1rem; margin-bottom:1.1rem}
+.chart{background:var(--raised-2); border-radius:14px; padding:1.3rem 1.4rem 1.5rem}
+.chart h3{font-family:"JetBrains Mono",monospace; font-size:10px; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--faint); font-weight:400; margin-bottom:.2rem}
+.chart .cap{font-size:12.5px; color:var(--faint); margin-bottom:1.1rem}
+
+.scatter{position:relative; width:100%; aspect-ratio:1; max-width:420px; margin:0 auto;
+  border-left:1px solid var(--line-2); border-bottom:1px solid var(--line-2)}
+.scatter .diag{position:absolute; inset:0; overflow:visible}
+.scatter .dot{position:absolute; width:30px; height:30px; border-radius:3px;
+  background:var(--ground) center/cover; transform:translate(-50%,50%);
+  border:2px solid #fff; box-shadow:0 1px 4px rgba(15,37,54,.25);
+  display:grid; place-items:center; font-family:"Bricolage Grotesque",sans-serif;
+  font-size:9px; font-weight:600; color:var(--faint); cursor:pointer;
+  transition:transform .2s ease-out, box-shadow .2s ease-out}
+.scatter .dot:hover{transform:translate(-50%,50%) scale(1.45); z-index:5;
+  box-shadow:0 3px 12px rgba(15,37,54,.35)}
+.ax{position:absolute; font-family:"JetBrains Mono",monospace; font-size:10px;
+  letter-spacing:.12em; text-transform:uppercase; color:var(--faint)}
+.ax.x{bottom:-1.5rem; left:50%; transform:translateX(-50%)}
+.ax.y{left:-1.6rem; top:50%; transform:rotate(-90deg) translateX(50%); transform-origin:left center}
+.scatter-wrap{padding:0 1.8rem 2rem 1.8rem}
+
+.radar{display:block; width:100%; max-width:330px; margin:.4rem auto 0}
+.radar .grid{fill:none; stroke:var(--line); stroke-width:1}
+.radar .spoke{stroke:var(--line); stroke-width:1}
+.radar .lbl{font-family:"JetBrains Mono",monospace; font-size:4.4px; fill:var(--dim);
+  text-transform:uppercase; letter-spacing:.14em}
+.radar .shape{stroke-width:2; fill-opacity:.16}
+.legend{display:flex; gap:1.1rem; justify-content:center; margin-top:.9rem;
+  font-family:"JetBrains Mono",monospace; font-size:10px; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--dim)}
+.legend i{display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:.35rem}
+
+.wall{display:grid; grid-template-columns:repeat(auto-fill,minmax(96px,1fr)); gap:1.1rem .8rem}
+.wall button{display:block; width:100%; text-align:left}
+.wall .w-shot{width:100%; aspect-ratio:1/1.13; background:var(--raised-2) center/cover;
+  border:3px solid #fff; border-bottom:11px solid #fff; border-radius:2px;
+  box-shadow:.2em .25em .6em rgba(15,37,54,.2); display:grid; place-items:center;
+  font-family:"Bricolage Grotesque",sans-serif; font-size:15px; font-weight:600; color:var(--faint);
+  transition:transform .3s ease-out}
+.wall button:hover .w-shot{transform:translateY(-4px) rotate(-1.5deg)}
+.wall .w-cap{margin-top:.4rem; font-size:11.5px; line-height:1.25; height:2.5em; overflow:hidden;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical}
+.wall .w-sc{font-family:"JetBrains Mono",monospace; font-size:10px; color:#FFF;
+  padding:.02rem .3rem; border-radius:3px; margin-right:.3rem}
+.view-tog{display:inline-flex; border:1px solid var(--line-2); border-radius:8px; overflow:hidden}
+.view-tog button{padding:.5rem .85rem; font-size:13px; color:var(--dim)}
+.view-tog button.on{background:var(--accent); color:#EAF3FB}
+
+.play{width:26px; height:26px; border-radius:50%; display:grid; place-items:center;
+  font-size:10px; color:#FFF; background:var(--accent); flex:none; opacity:.85;
+  transition:transform .18s ease-out, opacity .18s}
+.play:hover{transform:scale(1.12); opacity:1}
+.play.on{background:#0C3F63; opacity:1}
+.play.dead{background:none; color:var(--faint); box-shadow:inset 0 0 0 1px var(--line-2); opacity:.6; cursor:default}
+.songlist li .rowend{display:flex; align-items:center; gap:.5rem; flex:none}
+
 .rise{opacity:0; transform:translateY(1.5em);
   transition:transform 1.7s .04s cubic-bezier(0,1,.3,1), opacity .5s .04s ease-out;
   will-change:transform,opacity}
@@ -367,12 +445,22 @@ footer button:hover{border-color:var(--accent)}
     <option value="old">Oldest first</option>
     <option value="gap">Biggest disagreement</option>
   </select>
+  <span class="view-tog" id="view-tog">
+    <button data-view="list" class="on">List</button><button data-view="wall">Wall</button>
+  </span>
   <span class="count" id="count"></span>
 </div>
 
 <main id="out"></main>
 
 <footer><span id="foot"></span><span id="art-stat"></span></footer>
+
+<div class="modal" id="album-modal">
+  <div class="sheet wide">
+    <button class="modal-x" id="album-x" aria-label="Close">×</button>
+    <div id="album-body"></div>
+  </div>
+</div>
 
 <div class="modal" id="crop">
   <div class="sheet">
@@ -408,7 +496,7 @@ const SAMPLE = [
 ];
 
 const $ = id => document.getElementById(id);
-let ROWS=[], QUEUE=[], ROSTER=new Map(), FOCUS=null, usingSample=true;
+let ROWS=[], QUEUE=[], ROSTER=new Map(), FOCUS=null, VIEW="list", usingSample=true;
 
 /* ── colour ramp ─────────────────────────────────────────────── */
 const STOPS=[[0,193,58,58],[50,169,131,20],[100,44,125,81]];
@@ -550,6 +638,28 @@ function reveal(root){
   shots.forEach((el,i)=>{ el.style.transitionDelay=(Math.min(i,7)*0.03)+"s"; shelfSeen.observe(el); });
 }
 
+let AUD=null,NOWPLAYING="";
+function stopPreview(){
+  if(AUD){AUD.pause();AUD=null;}
+  NOWPLAYING="";
+  document.querySelectorAll(".play.on").forEach(b=>{b.classList.remove("on");b.textContent="\u25b6";});
+}
+function preview(btn){
+  const key=btn.dataset.artist+"|"+btn.dataset.song;
+  if(NOWPLAYING===key){stopPreview();return;}
+  stopPreview();
+  btn.textContent="\u00b7\u00b7\u00b7";
+  jsonp("https://itunes.apple.com/search?entity=song&limit=1&term="+
+    encodeURIComponent(btn.dataset.artist+" "+btn.dataset.song)).then(d=>{
+    const hit=d&&d.results&&d.results[0];
+    if(!hit||!hit.previewUrl){btn.classList.add("dead");btn.textContent="\u2013";btn.title="No preview available";return;}
+    AUD=new Audio(hit.previewUrl); AUD.volume=.75;
+    AUD.onended=stopPreview;
+    AUD.play().catch(()=>{btn.classList.add("dead");btn.textContent="\u2013";});
+    NOWPLAYING=key; btn.classList.add("on"); btn.textContent="\u25a0";
+  });
+}
+
 const esc=s=>(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
 /* ── stats ───────────────────────────────────────────────────── */
@@ -575,6 +685,87 @@ function barRows(list,limit){
   </div>`).join("");
 }
 
+function scatterHTML(){
+  const pts=ROWS.filter(d=>d.a!==null&&d.n!==null);
+  if(pts.length<3)return"";
+  return`<div class="chart"><h3>Where you agree</h3>
+    <p class="cap">Each album sits at Anthony's score across, Annette's up. The line is total agreement — the further off it, the more you argued.</p>
+    <div class="scatter-wrap"><div class="scatter">
+      <svg class="diag" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <line x1="0" y1="100" x2="100" y2="0" stroke="var(--line-2)" stroke-width=".6" stroke-dasharray="2 2"/>
+        <line x1="50" y1="0" x2="50" y2="100" stroke="var(--line)" stroke-width=".4"/>
+        <line x1="0" y1="50" x2="100" y2="50" stroke="var(--line)" stroke-width=".4"/>
+      </svg>
+      ${pts.map(d=>`<div class="dot" data-artist="${esc(d.artist)}" data-art="${esc(d.artist+" "+d.album)}"
+        style="left:${d.a}%;bottom:${d.n}%" title="${esc(d.album)} — ${INI.anthony} ${d.a}, ${INI.annette} ${d.n}">${esc(initials(d.album))}</div>`).join("")}
+      <span class="ax x">${INI.anthony} \u2192</span><span class="ax y">${INI.annette} \u2192</span>
+    </div></div></div>`;
+}
+
+function radarHTML(){
+  const aG=groupAvg("genre",d=>d.a), nG=groupAvg("genre",d=>d.n);
+  const shared=aG.filter(x=>nG.some(y=>y.k===x.k));
+  if(shared.length<3)return"";
+  const axes=shared.slice(0,7).map(x=>x.k);
+  const val=(list,k)=>{const h=list.find(y=>y.k===k);return h?h.avg:0;};
+  const C=50,R=38;
+  const pt=(i,v)=>{
+    const ang=(-90+i*360/axes.length)*Math.PI/180, r=R*Math.max(0,Math.min(100,v))/100;
+    return[(C+r*Math.cos(ang)).toFixed(2),(C+r*Math.sin(ang)).toFixed(2)];
+  };
+  const poly=list=>axes.map((k,i)=>pt(i,val(list,k)).join(",")).join(" ");
+  const rings=[25,50,75,100].map(p=>
+    `<polygon class="grid" points="${axes.map((k,i)=>pt(i,p).join(",")).join(" ")}"/>`).join("");
+  const spokes=axes.map((k,i)=>{const[x,y]=pt(i,100);
+    return`<line class="spoke" x1="${C}" y1="${C}" x2="${x}" y2="${y}"/>`}).join("");
+  const labels=axes.map((k,i)=>{
+    const[x,y]=pt(i,128).map(Number);
+    const anchor=x>C+1.5?"start":x<C-1.5?"end":"middle";
+    const dy=y<C-1.5?-1.2:y>C+1.5?3.2:1.4;
+    return`<text class="lbl" x="${x.toFixed(1)}" y="${(y+dy).toFixed(1)}" text-anchor="${anchor}">${esc(k)}</text>`;
+  }).join("");
+  return`<div class="chart"><h3>Taste by genre</h3>
+    <p class="cap">Each of your averages across the genres you've both rated. Where the shapes pull apart is where you differ.</p>
+    <svg class="radar" viewBox="-16 -14 132 128" role="img" aria-label="Genre comparison">
+      ${rings}${spokes}
+      <polygon class="shape" points="${poly(aG)}" stroke="#175A8C" fill="#175A8C"/>
+      <polygon class="shape" points="${poly(nG)}" stroke="#C13A3A" fill="#C13A3A"/>
+      ${labels}
+    </svg>
+    <div class="legend"><span><i style="background:#175A8C"></i>${INI.anthony}</span>
+      <span><i style="background:#C13A3A"></i>${INI.annette}</span></div></div>`;
+}
+
+function wallHTML(list){
+  if(!list.length)return`<div class="empty"><b>Nothing rated yet</b>Rate something and it lands on the wall.</div>`;
+  return`<div class="wall">${list.slice().sort((x,y)=>y.avg-x.avg).map(d=>
+    `<button data-open="${esc(d.artist)}\u241f${esc(d.album)}" title="${esc(d.artist)} — ${esc(d.album)}">
+      <div class="w-shot" data-art="${esc(d.artist+" "+d.album)}">${esc(initials(d.album))}</div>
+      <div class="w-cap"><span class="w-sc" style="background:${ramp(d.avg)}">${Math.round(d.avg)}</span>${esc(d.album)}</div>
+    </button>`).join("")}</div>`;
+}
+
+function openAlbum(key){
+  const[artist,album]=key.split("\u241f");
+  const d=ROWS.find(x=>x.artist===artist&&x.album===album);
+  if(!d)return;
+  const who=[];
+  if(d.a!==null)who.push(INI.anthony+" "+d.a);
+  if(d.n!==null)who.push(INI.annette+" "+d.n);
+  $("album-body").innerHTML=`<div class="m-head">
+      <div class="m-shot" data-art="${esc(d.artist+" "+d.album)}">${esc(initials(d.album))}</div>
+      <div><div class="m-title">${esc(d.album)}</div>
+        <div class="m-sub"><button data-artist="${esc(d.artist)}">${esc(d.artist)}</button>${
+          d.year?" \u00b7 "+esc(d.year):""} \u00b7 ${who.join("  ")}</div>
+        ${gauge(d)}</div></div>
+    <div class="m-body">${detailHTML(d).replace('<div class="detail-wrap"><div class="detail-inner">','').replace(/<\/div><\/div>$/,"")}</div>`;
+  $("album-modal").classList.add("on");
+  const body=$("album-body");
+  body.querySelectorAll("[data-art]").forEach(loadImage);
+  dressAvatars(body);
+}
+function closeAlbum(){ $("album-modal").classList.remove("on"); stopPreview(); }
+
 function statsHTML(){
   if(!ROWS.length)return"";
   const both=groupAvg("genre",d=>d.avg), byArtist=groupAvg("artist",d=>d.avg);
@@ -585,6 +776,7 @@ function statsHTML(){
   return`<section class="stats">
     <h2 class="rise">The numbers</h2>
     <p class="rise">Averages across everything rated so far. The small figure is how many albums each is based on.</p>
+    <div class="chart-row">${scatterHTML()}${radarHTML()}</div>
     <div class="grid2">
       ${blk("Genres, both of us",both,6)}
       ${blk("Artists, both of us",byArtist,6)}
@@ -847,6 +1039,9 @@ $("crop-ok").onclick=()=>{
   paintProfiles(); closeCrop();
 };
 $("crop-x").onclick=closeCrop;
+$("album-x").onclick=closeAlbum;
+$("album-modal").onclick=e=>{ if(e.target.id==="album-modal")closeAlbum(); };
+addEventListener("keydown",e=>{ if(e.key==="Escape"){closeAlbum();closeCrop();} });
 $("crop").onclick=e=>{ if(e.target.id==="crop")closeCrop(); };
 
 let upWho=null;
@@ -914,9 +1109,12 @@ function detailHTML(d){
   const tall=rows.length>10;
   const liked=rows.filter(r=>r.a==="y"||r.n==="y").length;
   const list=rows.length?`<div class="songlist">
-    <div class="tl-head"><span>Tracklist</span><span class="marks"><i>${INI.anthony}</i><i>${INI.annette}</i></span></div>
+    <div class="tl-head"><span>Tracklist \u00b7 tap \u25b6 for a clip</span><span class="marks"><i>${INI.anthony}</i><i>${INI.annette}</i></span></div>
     <div class="tl-wrap${tall?" tall":""}"><ul>${rows.map(r=>`<li><span class="tl-name">${esc(r.label)}</span>
-      <span class="marks">${verdict(r.a,"anthony",INI.anthony)}${verdict(r.n,"annette",INI.annette)}</span></li>`).join("")}</ul></div>
+      <span class="rowend">
+        <button class="play" data-artist="${esc(d.artist)}" data-song="${esc(r.label)}" title="Play a 30s clip" aria-label="Play a clip of ${esc(r.label)}">\u25b6</button>
+        <span class="marks">${verdict(r.a,"anthony",INI.anthony)}${verdict(r.n,"annette",INI.annette)}</span>
+      </span></li>`).join("")}</ul></div>
     <p class="tl-count">${rows.length} track${rows.length>1?"s":""} · ${liked} liked by someone${tall?" · scroll for the rest":""}</p>
   </div>`:"";
   return`<div class="detail-wrap"><div class="detail-inner"><div class="detail"><div class="takes">${takes}</div>${list}</div></div></div>`;
@@ -1008,6 +1206,7 @@ function renderArtist(name){
 }
 
 function render(){
+  stopPreview();
   if(FOCUS){renderArtist(FOCUS);return;}
   const q=$("q").value.trim().toLowerCase();
   const g=$("genre").value,sort=$("sort").value;
@@ -1016,7 +1215,9 @@ function render(){
   const out=$("out");
   let html="";
 
-  if(!list.length){
+  if(VIEW==="wall"){
+    html=wallHTML(list);
+  }else if(!list.length){
     html=`<div class="empty"><b>Nothing rated yet</b>Anything you've listened to and scored shows up here.</div>`;
   }else if(sort==="artist"){
     const groups=new Map();
@@ -1040,34 +1241,64 @@ function render(){
 
 /* ── events ──────────────────────────────────────────────────── */
 let pushed=0;
+function filterState(){
+  return{q:$("q").value,g:$("genre").value,sort:$("sort").value};
+}
+function applyFilterState(f){
+  if(!f)return;
+  $("q").value=f.q||"";
+  $("genre").value=f.g||"";
+  $("sort").value=f.sort||"artist";
+}
+let histOK=true;
+function push(state,url){
+  if(!histOK)return false;
+  try{history.pushState(state,"",url);return true;}
+  catch(e){histOK=false;return false;}
+}
+function swap(state,url){
+  if(!histOK)return false;
+  try{history.replaceState(state,"",url);return true;}
+  catch(e){histOK=false;return false;}
+}
+function syncState(){ swap({artist:FOCUS,f:filterState()},location.href); }
 function goArtist(name){
   if(name){
     if(FOCUS===name)return;
-    history.pushState({artist:name},"","#a="+encodeURIComponent(name));
-    pushed++; FOCUS=name; render();
-  }else if(pushed>0){
-    history.back();                      // popstate does the rendering
+    syncState();                                   // remember the list as it looked
+    FOCUS=name;
+    if(push({artist:name,f:filterState()},"#a="+encodeURIComponent(name)))pushed++;
+    render();
+  }else if(pushed>0&&histOK){
+    syncState();
+    history.back();                                // popstate restores filters and view
   }else{
     FOCUS=null;
-    history.replaceState({artist:null},"",location.pathname+location.search);
+    swap({artist:null,f:filterState()},location.pathname+location.search);
     render();
   }
 }
 addEventListener("popstate",e=>{
   if(pushed>0)pushed--;
-  const next=(e.state&&e.state.artist)||null;
-  FOCUS=next; render();
+  applyFilterState(e.state&&e.state.f);
+  FOCUS=(e.state&&e.state.artist)||null;
+  render();
 });
 function readHash(){
   const m=/^#a=(.+)$/.exec(location.hash);
   FOCUS=m?decodeURIComponent(m[1]):null;
-  history.replaceState({artist:FOCUS},"",location.href);
+  swap({artist:FOCUS,f:filterState()},location.href);
 }
 
 document.addEventListener("click",e=>{
+  const opener=e.target.closest("[data-open]");
+  if(opener){openAlbum(opener.dataset.open);return;}
+  const pb=e.target.closest(".play");
+  if(pb){e.stopPropagation(); if(!pb.classList.contains("dead"))preview(pb); return;}
   const jump=e.target.closest("[data-artist]");
-  if(jump){goArtist(jump.dataset.artist);return;}
+  if(jump){closeAlbum();goArtist(jump.dataset.artist);return;}
   if(e.target.closest(".detail-wrap"))return;
+  
   const card=e.target.closest(".album");
   if(card)card.setAttribute("aria-expanded",card.classList.toggle("open"));
 });
@@ -1075,6 +1306,12 @@ document.addEventListener("keydown",e=>{
   if((e.key==="Enter"||e.key===" ")&&e.target.classList.contains("album")){e.preventDefault();e.target.click();}
 });
 $("gear").onclick=()=>$("panel").classList.toggle("on");
+document.querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>{
+  VIEW=b.dataset.view;
+  document.querySelectorAll("[data-view]").forEach(x=>x.classList.toggle("on",x.dataset.view===VIEW));
+  $("sort").disabled=VIEW==="wall";
+  if(FOCUS)goArtist(null); else render();
+});
 document.querySelectorAll("[data-me]").forEach(b=>b.onclick=()=>{
   store.set("aoty-me",b.dataset.me);paintProfiles();
 });
@@ -1111,7 +1348,7 @@ function boot(rows,sample){
   $("foot").textContent=sample?"Sample data":"Live from Google Sheets";
 
   paintProfiles();
-  ["q","genre","sort"].forEach(id=>$(id).addEventListener("input",render));
+  ["q","genre","sort"].forEach(id=>$(id).addEventListener("input",()=>{render();syncState();}));
   readHash();
   if(!FOCUS)render();
 
