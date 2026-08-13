@@ -709,7 +709,7 @@ const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSud4ctkV
 const INI = { anthony:"AP", annette:"AA" };
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-16s";
+const BUILD = "2026-08-16u";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -747,7 +747,11 @@ const GENRE_HUE={
   "k-pop":"#B0407F",
   "rock":"#8A3A3A","alt rock":"#6B4BA8","psych rock":"#7A4BB8","indie":"#2E7D6B",
   "emo":"#5A4B9A","punk":"#B23A48","metal":"#4A4A55","electronic":"#2F6FA8",
-  "jazz":"#8A6A1F","lo-fi":"#4A7A5A","soundtrack":"#6A6A2F","other":"#5F6B78"
+  "jazz":"#8A6A1F","lo-fi":"#4A7A5A","soundtrack":"#6A6A2F","other":"#5F6B78",
+  "c-pop":"#B34A6A","country":"#9A6B3A","folk":"#7A6A3F","classical":"#5A5A7A",
+  "blues":"#3A5A8A","reggae":"#3F7A4A","latin":"#C05A2F","afrobeats":"#B07A20",
+  "drum & bass":"#2F5F7A","hyperpop":"#D14A9A","post-rock":"#4A5F6B",
+  "gospel":"#8A5A2F","disco":"#A8407A"
 };
 const hueOf = g => GENRE_HUE[String(g||"").trim().toLowerCase()]||"var(--faint)";
 
@@ -1112,7 +1116,16 @@ function preview(btn,alts,override){
       }
     });
     AUD.play().then(()=>fade(AUD,vol(),600))
-      .catch(()=>{btn.classList.add("dead");btn.textContent="\u2013";stopPreview();});
+      .catch(err=>{
+        stopPreview();
+        if(err&&err.name==="NotAllowedError"){
+          // not a dead track: the page has not been clicked yet
+          showPlayer("Click anywhere once to allow previews");
+          setTimeout(()=>{ if(!AUD)showPlayer(""); },4000);
+          return;
+        }
+        btn.classList.add("dead");btn.textContent="\u2013";
+      });
     NOWPLAYING=key; btn.classList.add("on"); btn.textContent="\u25a0";
     markPlaying(btn.closest?.(".album")||HOVER_ROW||null);
     showPlayer(song);
@@ -2034,12 +2047,16 @@ function audioLocked(){
 function popularFirst(d,done){
   const wa=normT(d.artist), wl=normT(d.album);
   if(!wa||!wl){done(null);return;}
-  jsonp("https://itunes.apple.com/search?entity=song&limit=50&term="+
-    encodeURIComponent(d.artist+" "+d.album))
+  const q=`artist:"${d.artist.replace(/"/g,"")}" album:"${d.album.replace(/"/g,"")}"`;
+  jsonp("https://api.deezer.com/search?output=jsonp&limit=100&q="+encodeURIComponent(q))
     .then(r=>{
-      const hit=((r&&r.results)||[]).find(x=>x.previewUrl&&x.trackName&&
-        normT(x.artistName)===wa&&normT(x.collectionName)===wl);
-      done(hit?hit.trackName:null);
+      // the search is a whole-catalogue one, so check each hit really is
+      // this record before letting its rank count for anything
+      const hits=((r&&r.data)||[]).filter(t=>t&&t.title&&
+        normT(t.artist&&t.artist.name)===wa&&normT(t.album&&t.album.title)===wl);
+      if(!hits.length){done(null);return;}
+      hits.sort((a,b)=>(b.rank||0)-(a.rank||0));
+      done(hits[0].title);
     })
     .catch(()=>done(null));
 }
