@@ -237,24 +237,28 @@ button.artist-head:hover h2{color:var(--accent)}
 .artist-head .avg{font-family:"JetBrains Mono",monospace; font-size:11px; color:#FFF;
   padding:.08rem .42rem; border-radius:4px}
 
+@property --wash{syntax:"<number>"; inherits:false; initial-value:.13}
 .album{position:relative; display:grid; grid-template-columns:76px minmax(0,1fr) 380px;
   gap:1.1rem; align-items:center; padding:.55rem 3.1rem .55rem .9rem; cursor:pointer;
   border-radius:10px; transition:background .2s ease-out}
 .album::before{content:""; position:absolute; left:0; top:.5rem; bottom:.5rem; width:3px;
   border-radius:3px; background:var(--gc,var(--line-2)); opacity:.5; transition:opacity .2s}
 .album:hover::before{opacity:1}
-.album{background-image:linear-gradient(90deg,
-  color-mix(in srgb,var(--gc,transparent) 13%,transparent), transparent 46%);
-  transition:background-color .2s ease-out, background-image .55s ease-out}
-.album:hover{background-image:linear-gradient(90deg,
-  color-mix(in srgb,var(--gc,transparent) 22%,transparent), transparent 58%)}
+/* The wash is one gradient whose strength lives in --wash, so every state
+   change cross-fades. Transitioning background-image itself does nothing. */
+.album{--wash:.13; background-image:linear-gradient(90deg,
+  color-mix(in srgb,var(--gc,transparent) calc(var(--wash)*100%),transparent), transparent 52%);
+  transition:background-color .25s ease-out, --wash .5s ease-out}
+.album:hover{--wash:.22}
+.album.open{--wash:.24}
 .album.ranked{padding-left:3rem}
 .rankno{position:absolute; left:.95rem; top:50%; transform:translateY(-50%);
   font-family:"JetBrains Mono",monospace; font-size:12px; color:var(--faint); letter-spacing:.04em}
-.album:hover{background:rgba(255,255,255,.34)}
+.album:hover{background-color:rgba(255,255,255,.34)}
 .album:hover .album-title{color:var(--accent)}
 .album-title{transition:color .18s ease-out}
-.cover{width:76px; height:87px; background:var(--raised-2) center/cover; flex:none;
+.cover{position:relative;
+  width:76px; height:87px; background:var(--raised-2) center/cover; flex:none;
   margin-top:6px; margin-bottom:-6px;
   display:grid; place-items:center; font-family:"Bricolage Grotesque",sans-serif;
   font-size:16px; font-weight:600; color:var(--faint);
@@ -266,22 +270,20 @@ button.artist-head:hover h2{color:var(--accent)}
     box-shadow .55s ease-out;
   will-change:transform,opacity}
 .cover.in{opacity:1; transform:translateY(0) rotateZ(-1.6deg)}
-.album.playing .cover{z-index:2;
-  animation:glowin .62s cubic-bezier(.25,.8,.3,1) both,
-            breathe 1.9s ease-in-out .62s infinite}
-@keyframes glowin{
-  from{box-shadow:.25em .3em .7em .05em rgba(15,37,54,.22),
-       0 0 0 -8px color-mix(in srgb,var(--gc,#7FC5E8) 0%,transparent)}
-  to{box-shadow:.25em .3em .7em .05em rgba(15,37,54,.22),
-     0 0 16px -2px color-mix(in srgb,var(--gc,#7FC5E8) 55%,transparent)}}
-.album.playing{background-image:linear-gradient(90deg,
-  color-mix(in srgb,var(--gc,transparent) 30%,transparent), transparent 62%)!important}
+.cover::after{content:""; position:absolute; inset:-4px -4px -15px -4px;
+  border-radius:3px; pointer-events:none; opacity:0;
+  box-shadow:0 0 20px 0 color-mix(in srgb,var(--gc,#7FC5E8) 60%,transparent);
+  transition:opacity .6s ease-out}
+.album.playing .cover{z-index:2}
+.album.playing .cover::after{opacity:1;
+  animation:breathe 1.9s ease-in-out .3s infinite}
+.album.playing{--wash:.34}
+/* Only the layer breathes. Opacity is left to the transition above so the
+   glow can fade out when the track stops. */
 @keyframes breathe{
-  0%,100%{box-shadow:.25em .3em .7em .05em rgba(15,37,54,.22),
-          0 0 16px -2px color-mix(in srgb,var(--gc,#7FC5E8) 55%,transparent)}
-  50%{box-shadow:.25em .3em 1.1em .05em rgba(15,37,54,.28),
-      0 0 44px 8px color-mix(in srgb,var(--gc,#7FC5E8) 95%,transparent)}}
-@media(prefers-reduced-motion:reduce){.album.playing .cover{animation:none}}
+  0%,100%{box-shadow:0 0 16px -2px color-mix(in srgb,var(--gc,#7FC5E8) 55%,transparent)}
+  50%{box-shadow:0 0 44px 8px color-mix(in srgb,var(--gc,#7FC5E8) 95%,transparent)}}
+@media(prefers-reduced-motion:reduce){.album.playing .cover::after{animation:none}}
 .album:nth-of-type(2n) .cover.in{transform:translateY(0) rotateZ(1.9deg)}
 .album:nth-of-type(3n) .cover.in{transform:translateY(0) rotateZ(-.5deg)}
 .album:hover .cover.in.settled{transform:perspective(620px) translateY(-3px)
@@ -323,12 +325,20 @@ button.artist-head:hover h2{color:var(--accent)}
   transition:grid-template-rows .5s cubic-bezier(.32,.72,.28,1)}
 .album.open .detail-wrap{grid-template-rows:1fr}
 .detail-inner{overflow:hidden; min-height:0}
-.detail{opacity:0; transform:translateY(-6px);
-  transition:opacity .3s ease-out, transform .45s cubic-bezier(.32,.72,.28,1)}
-.album.open .detail{opacity:1; transform:none; transition-delay:.12s}
-.m-body .detail{opacity:1; transform:none}
+@property --pwash{syntax:"<number>"; inherits:false; initial-value:0}
+.detail{--pwash:0; opacity:0; transform:translateY(-6px);
+  transition:opacity .3s ease-out, transform .45s cubic-bezier(.32,.72,.28,1),
+    --pwash .6s ease-out}
+.album.open .detail{--pwash:.16; opacity:1; transform:none; transition-delay:.12s}
+.m-body .detail{--pwash:.16; opacity:1; transform:none}
+/* The same genre colour the row is washed in, carried across the panel and
+   gone before the tracklist, whose bottom fade has to land on flat paper. */
 .detail{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,380px); gap:2.75rem;
-  background:var(--raised-2); border-radius:14px; padding:1.9rem 2.1rem 2rem;
+  background-color:var(--raised-2);
+  background-image:linear-gradient(158deg,
+    color-mix(in srgb,var(--gc,transparent) calc(var(--pwash)*100%),transparent),
+    transparent 55%);
+  border-radius:14px; padding:1.9rem 2.1rem 2rem;
   margin:1rem 1rem}
 @media(max-width:860px){.detail{grid-template-columns:minmax(0,1fr)!important; gap:1.9rem!important;
   padding:1.5rem 1.4rem 1.6rem!important; margin:.9rem 0 .8rem!important}
@@ -689,7 +699,7 @@ const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSud4ctkV
 const INI = { anthony:"AP", annette:"AA" };
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-16h";
+const BUILD = "2026-08-16j";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -1050,10 +1060,12 @@ function preview(btn,alts,override){
   const song=btn.dataset.song,artist=btn.dataset.artist,album=btn.dataset.album||"";
   const key=artist+"|"+song;
   if(NOWPLAYING===key){stopPreview();return;}
+  if(btn.__seq!=null&&btn.__seq!==HOVER_SEQ)return;   // pointer already moved on
   stopPreview();
   btn.textContent="\u00b7\u00b7\u00b7";
   jsonp("https://itunes.apple.com/search?entity=song&limit=25&term="+
     encodeURIComponent(artist+" "+song)).then(d=>{
+    if(btn.__seq!=null&&btn.__seq!==HOVER_SEQ)return;  // left the row mid-lookup
     const hit=pickTrack(d&&d.results,song,artist,album);
     if(!hit){
       if(alts&&alts.length){ preview(btn,alts.slice(1),alts[0]); return; }   // try the next track
@@ -1195,6 +1207,7 @@ function openAlbum(key){
     <div class="m-body">${detailHTML(d).replace('<div class="detail-wrap"><div class="detail-inner">','').replace(/<\/div><\/div>$/,"")}</div>`;
   $("album-modal").classList.add("on");
   const body=$("album-body");
+  body.style.setProperty("--gc",hueOf(d.genre));   // no row above it to inherit from
   body.querySelectorAll("[data-art]").forEach(loadImage);
   dressAvatars(body);
   // nothing here scrolls into view, so reveal it directly
@@ -1949,7 +1962,7 @@ document.querySelectorAll("[data-test]").forEach(b=>b.onclick=()=>celebrate(b.da
 (function(){const m=document.querySelector(".marquee");
   m.addEventListener("mouseenter",()=>{crawlTarget=0;m.classList.add("held");});
   m.addEventListener("mouseleave",()=>{crawlTarget=0.22;m.classList.remove("held");});})();
-let hoverTimer=null,lastScrollAt=0,HOVER_ROW=null;
+let hoverTimer=null,lastScrollAt=0,HOVER_ROW=null,HOVER_SEQ=0,HOVER_ARMED=null;
 addEventListener("scroll",()=>{
   lastScrollAt=Date.now();
   const h=document.documentElement.scrollHeight-innerHeight;
@@ -1978,6 +1991,7 @@ function hoverPlay(row){
     const fake=document.createElement("button");
     fake.dataset.artist=d.artist; fake.dataset.song=queue[0]; fake.dataset.album=d.album;
     HOVER_ROW=row;
+    fake.__seq=HOVER_SEQ;
     preview(fake,queue.slice(1));
   },700);
 }
@@ -1991,14 +2005,33 @@ document.addEventListener("mousemove",e=>{
   cov.style.setProperty("--ty",(Math.max(-1,Math.min(1,dx))*9).toFixed(1)+"deg");
   cov.style.setProperty("--tx",(Math.max(-1,Math.min(1,-dy))*9).toFixed(1)+"deg");
 },{passive:true});
-document.addEventListener("mouseout",e=>{
-  const cov=e.target.closest?.(".album")?.querySelector(".cover");
+/* mouseover and mouseout both fire when the pointer crosses from one child
+   of a row to another. The old pair cancelled the arming timer on every one
+   of those, so the clip only ever started if you held perfectly still, and
+   leaving the row was never distinguished from moving inside it. One row is
+   armed at a time now, and only a change of row counts as anything. */
+function restRow(row){
+  if(!row)return;
+  const cov=row.querySelector(".cover");
   if(cov){cov.style.removeProperty("--tx");cov.style.removeProperty("--ty");}
+}
+function endHover(){
   clearTimeout(hoverTimer);
-},{passive:true});
+  HOVER_SEQ++;                                    // any lookup in flight is now stale
+  if(HOVER_ROW){HOVER_ROW=null;stopPreview();}     // a clip the buttons started is not ours
+}
 document.addEventListener("mouseover",e=>{
   const row=e.target.closest?.(".album");
-  if(row&&row.dataset.idx)hoverPlay(row);
+  const next=(row&&row.dataset.idx)?row:null;
+  if(next===HOVER_ARMED)return;                   // still inside the same row
+  restRow(HOVER_ARMED);
+  HOVER_ARMED=next;
+  endHover();
+  if(next)hoverPlay(next);
+},{passive:true});
+document.addEventListener("mouseout",e=>{
+  if(e.relatedTarget)return;                      // still on the page; mouseover has it
+  restRow(HOVER_ARMED); HOVER_ARMED=null; endHover();
 },{passive:true});
 // belt and braces: whatever sequence of events got us here, if the pointer is
 // no longer on the row that started the clip, the clip ends
