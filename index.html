@@ -47,9 +47,7 @@ button{font:inherit; color:inherit; background:none; border:0; cursor:pointer}
   background:var(--accent); color:#EAF3FB; display:flex; align-items:center; overflow:hidden;
   transition:background-color .8s ease}
 .marquee.held{background:#0C3F63}
-.marquee-in{display:flex; white-space:nowrap; will-change:transform;
-  -webkit-mask-image:linear-gradient(90deg,transparent,#000 3%,#000 97%,transparent);
-  mask-image:linear-gradient(90deg,transparent,#000 3%,#000 97%,transparent)}
+.marquee-in{display:flex; white-space:nowrap; will-change:transform}
 .marquee i{font-style:normal; padding:0; font-size:13.5px; flex:none}
 .marquee i::after{content:"\25C6"; margin:0 1.9rem; opacity:.4; font-size:9px; vertical-align:middle}
 .marquee b{font-weight:500}
@@ -683,7 +681,7 @@ const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSud4ctkV
 const INI = { anthony:"AP", annette:"AA" };
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-16e";
+const BUILD = "2026-08-16g";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -991,7 +989,6 @@ function markPlaying(row){
 }
 function stopPreview(){
   markPlaying(null);
-  HOVER_ROW=null;
   const old=AUD;
   AUD=null;
   NOWPLAYING="";
@@ -1052,6 +1049,7 @@ function preview(btn,alts,override){
     const hit=pickTrack(d&&d.results,song,artist,album);
     if(!hit){
       if(alts&&alts.length){ preview(btn,alts.slice(1),alts[0]); return; }   // try the next track
+      if(!btn.isConnected)HOVER_ROW=null;            // hovering found nothing playable here
       btn.classList.add("dead");btn.textContent="\u2013";btn.title="No preview matching this song";return;
     }
     AUD=new Audio(hit.previewUrl); AUD.volume=0;
@@ -1901,7 +1899,7 @@ document.addEventListener("click",e=>{
   const opener=jumpFirst?null:e.target.closest("[data-open]");
   if(opener){openAlbum(opener.dataset.open);return;}
   const pb=e.target.closest(".play");
-  if(pb){e.stopPropagation(); if(!pb.classList.contains("dead"))preview(pb); return;}
+  if(pb){e.stopPropagation(); HOVER_ROW=null; if(!pb.classList.contains("dead"))preview(pb); return;}
   const jump=e.target.closest("[data-artist]");
   if(jump){closeAlbum();goArtist(jump.dataset.artist);return;}
   if(e.target.closest(".detail-wrap"))return;
@@ -1956,6 +1954,7 @@ function panelOpen(){
       || $("album-modal").classList.contains("on");
 }
 function hoverPlay(row){
+  if(HOVER_ROW===row)return;                        // already ours, don't restart it
   clearTimeout(hoverTimer);
   if(store.get("aoty-hover","on")!=="on")return;
   if(panelOpen())return;                            // a panel is in charge of the audio
@@ -1970,8 +1969,8 @@ function hoverPlay(row){
     if(!queue.length)return;
     const fake=document.createElement("button");
     fake.dataset.artist=d.artist; fake.dataset.song=queue[0]; fake.dataset.album=d.album;
+    HOVER_ROW=row;
     preview(fake,queue.slice(1));
-    HOVER_ROW=row;        // after preview(), which calls stopPreview() and would clear it
   },700);
 }
 
