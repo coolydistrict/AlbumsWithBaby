@@ -281,8 +281,8 @@ button.artist-head:hover h2{color:var(--accent)}
   background:var(--accent); background-size:cover; background-position:center}
 .mark.no{background:none; color:var(--faint); font-size:12px;
   box-shadow:inset 0 0 0 1px var(--line-2)}
-.mark.blank{background:none; box-shadow:none}
-.mark.benched{filter:grayscale(1); opacity:.5}
+.mark.benched{filter:grayscale(1); opacity:.38; box-shadow:inset 0 0 0 1px var(--line-2)}
+.songlist li:hover .mark.benched{opacity:.55}
 .mark.none{background:none; box-shadow:none; position:relative}
 .mark.none::after{content:""; width:4px; height:4px; border-radius:50%; background:var(--line-2)}
 
@@ -1331,6 +1331,9 @@ function take(name,who,v,text,skip){
         :skip?`<span class="sc off">didn\u2019t listen</span>`:""}</div>
     ${text?`<p>${esc(text)}</p>`:""}</div>`;
 }
+function benchMark(who){
+  return`<span class="mark benched" data-who="${who}" title="${who[0].toUpperCase()+who.slice(1)} hasn\u2019t heard this album">${INI[who]}</span>`;
+}
 function verdict(v,who,letter){
   if(v==="y")return`<span class="mark" data-who="${who}" title="liked it">${letter}</span>`;
   if(v==="n")return`<span class="mark no" title="not for them">\u00d7</span>`;
@@ -1345,7 +1348,7 @@ function detailHTML(d){
     <div class="tl-wrap${tall?" tall":""}"><ul>${rows.map(r=>`<li><span class="tl-name">${esc(r.label)}</span>
       <span class="rowend">
         <button class="play" data-artist="${esc(d.artist)}" data-song="${esc(r.label)}" title="Play a 30s clip" aria-label="Play a clip of ${esc(r.label)}">\u25b6</button>
-        <span class="marks">${d.aSkip?`<span class="mark blank"></span>`:verdict(r.a,"anthony",INI.anthony)}${d.nSkip?`<span class="mark blank"></span>`:verdict(r.n,"annette",INI.annette)}</span>
+        <span class="marks">${d.aSkip?benchMark("anthony"):verdict(r.a,"anthony",INI.anthony)}${d.nSkip?benchMark("annette"):verdict(r.n,"annette",INI.annette)}</span>
       </span></li>`).join("")}</ul></div>
   </div>`:"";
   return`<div class="detail-wrap"><div class="detail-inner"><div class="detail"><div class="takes">${takes}</div>${list}</div></div></div>`;
