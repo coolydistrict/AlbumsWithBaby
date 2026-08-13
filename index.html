@@ -28,6 +28,7 @@
   --pad:clamp(1.1rem,4vw,2.75rem);
 }
 *{box-sizing:border-box;margin:0;padding:0}
+[hidden]{display:none!important}
 html{-webkit-text-size-adjust:100%}
 body{background:var(--ground); color:var(--ink);
   font-family:"Inter Tight",system-ui,sans-serif; font-size:15px; line-height:1.55;
@@ -254,7 +255,6 @@ button.artist-head:hover h2{color:var(--accent)}
   font-family:"JetBrains Mono",monospace; font-size:10px; letter-spacing:.16em;
   text-transform:uppercase; color:var(--faint); padding-bottom:.7rem;
   border-bottom:1px solid var(--line-2); margin-bottom:.2rem}
-.tl-head .marks i{font-style:normal; width:26px; text-align:center; display:inline-block; font-size:9px}
 .tl-wrap{position:relative}
 .tl-wrap.tall ul{max-height:340px; overflow-y:auto; padding-right:.5rem;
   scrollbar-width:thin; scrollbar-color:var(--line-2) transparent}
@@ -513,7 +513,15 @@ const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSud4ctkV
 const INI = { anthony:"AP", annette:"AA" };
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-13c";
+const BUILD = "2026-08-13d";
+
+/* Live reads, no five-minute cache. Needs the spreadsheet set to
+   "Anyone with the link - Viewer". If that isn't on, or the request
+   fails for any reason, it quietly falls back to the published CSV
+   below and nothing breaks. Blank this out to disable live mode. */
+const LIVE_SHEET_ID = "1-Iwubxu3slI-0tOc5i1X2Hpm8rWZCTEt5eamIGUeWh0";
+const gviz = tab => "https://docs.google.com/spreadsheets/d/" + LIVE_SHEET_ID +
+  "/gviz/tq?tqx=out:csv&sheet=" + encodeURIComponent(tab) + "&cb=" + Date.now();
 
 const MESSAGES_CSV_URL = "";
 
@@ -712,11 +720,25 @@ const shelfSeen = "IntersectionObserver" in window ? new IntersectionObserver((e
   es.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add("in"); o.unobserve(e.target); } });
 },{rootMargin:"260px 0px 260px 0px",threshold:0}) : null;
 
+function showNow(el){
+  if(el.classList.contains("in"))return;
+  el.classList.add("in");
+  setTimeout(()=>{el.classList.add("settled");el.style.transitionDelay="0s";},2500);
+}
+function sweep(root){
+  const edge=innerHeight+300;
+  (root||document).querySelectorAll(".cover:not(.in),.shelf .thumb:not(.in),.rise:not(.in)")
+    .forEach(el=>{ const r=el.getBoundingClientRect(); if(r.top<edge)showNow(el); });
+}
 function reveal(root){
   const shots=(root||document).querySelectorAll(".cover,.shelf .thumb,.rise");
   if(!shelfSeen){ shots.forEach(el=>el.classList.add("in")); return; }
   shots.forEach((el,i)=>{ el.style.transitionDelay=(Math.min(i,7)*0.03)+"s"; shelfSeen.observe(el); });
+  sweep(root);                      // anything already on screen shows straight away
+  setTimeout(()=>sweep(root),700);  // and again once fonts and images have settled
+  setTimeout(()=>sweep(root),2000);
 }
+addEventListener("load",()=>sweep());
 
 let AUD=null,NOWPLAYING="";
 function vol(){
@@ -1265,7 +1287,7 @@ function detailHTML(d){
   const takes=take("Anthony","anthony",d.a,d.aText)+take("Annette","annette",d.n,d.nText);
   const tall=rows.length>10;
   const list=rows.length?`<div class="songlist">
-    <div class="tl-head"><span>Tracklist \u00b7 tap \u25b6 for a clip</span><span class="marks"><i>${INI.anthony}</i><i>${INI.annette}</i></span></div>
+    <div class="tl-head"><span>Tracklist \u00b7 tap \u25b6 for a clip</span></div>
     <div class="tl-wrap${tall?" tall":""}"><ul>${rows.map(r=>`<li><span class="tl-name">${esc(r.label)}</span>
       <span class="rowend">
         <button class="play" data-artist="${esc(d.artist)}" data-song="${esc(r.label)}" title="Play a 30s clip" aria-label="Play a clip of ${esc(r.label)}">\u25b6</button>
@@ -1395,7 +1417,14 @@ function render(){
 }
 
 /* ── events ──────────────────────────────────────────────────── */
-let pushed=0;
+/* ── navigation ──────────────────────────────────────────────────────
+   Every entry we create is tagged {app:true, depth:n}. The depth lives in
+   the history entry, not in a variable, so reloads, forward, back and any
+   missed event can't desync it. history.back() is only ever called when
+   depth proves there is an entry of ours behind us — so it can never walk
+   out of the site.                                                      */
+let histOK=true;
+
 function filterState(){
   return{q:$("q").value,g:$("genre").value,sort:$("sort").value};
 }
@@ -1405,44 +1434,63 @@ function applyFilterState(f){
   $("genre").value=f.g||"";
   $("sort").value=f.sort||"artist";
 }
-let histOK=true;
-function push(state,url){
-  if(!histOK)return false;
-  try{history.pushState(state,"",url);return true;}
-  catch(e){histOK=false;return false;}
+function ourState(){
+  const st=history.state;
+  return(st&&st.app)?st:null;
 }
-function swap(state,url){
-  if(!histOK)return false;
-  try{history.replaceState(state,"",url);return true;}
-  catch(e){histOK=false;return false;}
+function depth(){
+  const st=ourState();
+  return st&&typeof st.depth==="number"?st.depth:0;
 }
-function syncState(){ swap({artist:FOCUS,f:filterState()},location.href); }
+function stateFor(artist,d){
+  return{app:true,depth:d,artist:artist||null,f:filterState()};
+}
+function mark(state,url,push){
+  if(!histOK)return false;
+  try{
+    if(push)history.pushState(state,"",url);
+    else history.replaceState(state,"",url||location.href);
+    return true;
+  }catch(e){ histOK=false; return false; }
+}
+function syncState(){ mark(stateFor(FOCUS,depth()),null,false); }
+
 function goArtist(name){
   if(name){
     if(FOCUS===name)return;
-    syncState();                                   // remember the list as it looked
+    syncState();                                  // remember the list as it looks
     FOCUS=name;
-    if(push({artist:name,f:filterState()},"#a="+encodeURIComponent(name)))pushed++;
-    render();
-  }else if(pushed>0&&histOK){
-    syncState();
-    history.back();                                // popstate restores filters and view
-  }else{
-    FOCUS=null;
-    swap({artist:null,f:filterState()},location.pathname+location.search);
-    render();
+    if(!mark(stateFor(name,depth()+1),"#a="+encodeURIComponent(name),true))render();
+    else render();
+    return;
   }
+  if(depth()>0&&histOK){                          // proven: an entry of ours is behind us
+    syncState();
+    history.back();                               // popstate renders
+    return;
+  }
+  FOCUS=null;                                     // nothing of ours behind — never call back()
+  mark(stateFor(null,0),location.pathname+location.search,false);
+  render();
 }
+
 addEventListener("popstate",e=>{
-  if(pushed>0)pushed--;
-  applyFilterState(e.state&&e.state.f);
-  FOCUS=(e.state&&e.state.artist)||null;
+  const st=(e.state&&e.state.app)?e.state:null;
+  if(!st){                                        // someone else's entry, or none
+    FOCUS=null;
+    mark(stateFor(null,0),null,false);
+    render();
+    return;
+  }
+  applyFilterState(st.f);
+  FOCUS=st.artist||null;
   render();
 });
+
 function readHash(){
   const m=/^#a=(.+)$/.exec(location.hash);
   FOCUS=m?decodeURIComponent(m[1]):null;
-  swap({artist:FOCUS,f:filterState()},location.href);
+  mark(stateFor(FOCUS,0),null,false);             // whatever we land on is depth 0
 }
 
 document.addEventListener("click",e=>{
@@ -1481,13 +1529,7 @@ addEventListener("resize",()=>{const c=$("confetti");c.width=innerWidth;c.height
 function hideBoot(){ const b=$("boot"); if(b)b.classList.add("done"); }
 
 /* ── boot ────────────────────────────────────────────────────── */
-function boot(rows,sample,header){
-  const shaped=shape(rows,mapCols(header));
-  ROWS=shaped.rows;QUEUE=shaped.queue;ROSTER=shaped.roster;usingSample=sample;
-
-  const genres=[...new Set([...ROWS.map(d=>d.genre),...QUEUE.map(d=>d.genre)].filter(Boolean))].sort();
-  $("genre").insertAdjacentHTML("beforeend",genres.map(g=>`<option>${esc(g)}</option>`).join(""));
-
+function paintTally(){
   const aAll=ROWS.map(d=>d.a).filter(v=>v!==null),nAll=ROWS.map(d=>d.n).filter(v=>v!==null);
   const am=mean(aAll),nm=mean(nAll);
   $("tally").innerHTML=`
@@ -1496,11 +1538,21 @@ function boot(rows,sample,header){
     ${am!==null?`<div><b style="color:${ramp(am)}">${Math.round(am)}</b><span>anthony avg</span></div>`:""}
     ${nm!==null?`<div><b style="color:${ramp(nm)}">${Math.round(nm)}</b><span>annette avg</span></div>`:""}
     ${QUEUE.length?`<div><b style="color:var(--faint)">${QUEUE.length}</b><span>to listen</span></div>`:""}`;
+}
+
+function boot(rows,sample,header){
+  const shaped=shape(rows,mapCols(header));
+  ROWS=shaped.rows;QUEUE=shaped.queue;ROSTER=shaped.roster;usingSample=sample;
+
+  const genres=[...new Set([...ROWS.map(d=>d.genre),...QUEUE.map(d=>d.genre)].filter(Boolean))].sort();
+  $("genre").insertAdjacentHTML("beforeend",genres.map(g=>`<option>${esc(g)}</option>`).join(""));
+
+  paintTally();
 
   $("notice").innerHTML=sample
     ?`<strong>You're looking at made-up data.</strong> These ratings are placeholders so you can see the layout — none of them are yours.`
     :`Reading live from your sheet. Add a row there, refresh here.`;
-  $("foot").textContent=(sample?"Sample data":"Live from Google Sheets")+" \u00b7 build "+BUILD;
+  $("foot").textContent=(sample?"Sample data":(LIVE?"Live from Google Sheets":"Published CSV \u00b7 up to 5 min behind"))+" \u00b7 build "+BUILD;
 
   paintProfiles();
   ["q","genre","sort"].forEach(id=>$(id).addEventListener("input",()=>{render();syncState();}));
@@ -1523,10 +1575,77 @@ function boot(rows,sample,header){
   setTimeout(hideBoot,260);
 }
 
+let LASTCSV="",pollTimer=null,LIVE=false;
+
+/* gviz hands back numbers as "2011.0"; published CSV doesn't. */
+function tidyNum(v){ return String(v==null?"":v).replace(/^(-?\d+)\.0+$/,"$1"); }
+
+function looksRight(text){
+  if(!text)return false;
+  const first=parseCSV(text)[0]||[];
+  return first.some(h=>/^\s*artist\s*$/i.test(String(h)));
+}
+
+/* Live endpoint first, published CSV as the safety net. */
+function fetchSheet(tab,published){
+  const tryFetch=url=>fetch(url).then(r=>r.ok?r.text():Promise.reject(r.status));
+  const fallback=()=>{
+    if(!published)return Promise.reject("no fallback");
+    return tryFetch(published+(published.includes("?")?"&":"?")+"cb="+Date.now())
+      .then(t=>{LIVE=false;return t;});
+  };
+  if(!LIVE_SHEET_ID)return fallback();
+  return tryFetch(gviz(tab))
+    .then(t=>{
+      if(tab==="Albums"&&!looksRight(t))throw new Error("not shared");
+      LIVE=true; return t;
+    })
+    .catch(fallback);
+}
+
+function applyCSV(text,header){
+  LASTCSV=text;
+  const all=parseCSV(text);
+  const shaped=shape(all.slice(1),mapCols(all[0]));
+  ROWS=shaped.rows; QUEUE=shaped.queue; ROSTER=shaped.roster;
+
+  // keep the genre list in step without disturbing the current choice
+  const want=[...new Set([...ROWS.map(d=>d.genre),...QUEUE.map(d=>d.genre)].filter(Boolean))].sort();
+  const sel=$("genre"), had=sel.value;
+  if([...sel.options].slice(1).map(o=>o.value).join("|")!==want.join("|")){
+    sel.innerHTML='<option value="">All genres</option>'+want.map(g=>`<option>${esc(g)}</option>`).join("");
+    sel.value=want.indexOf(had)>-1?had:"";
+  }
+  paintTally();
+  buildMarquee();
+}
+
+function poll(){
+  if(document.hidden)return;
+  fetchSheet("Albums",SHEET_CSV_URL)
+    .then(t=>{
+      if(t===LASTCSV)return;
+      const openKeys=[...document.querySelectorAll(".album.open")]
+        .map(a=>a.querySelector(".album-title").textContent);
+      const y=scrollY;
+      applyCSV(t);
+      render();
+      document.querySelectorAll(".album").forEach(a=>{
+        if(openKeys.indexOf(a.querySelector(".album-title").textContent)>-1){
+          a.classList.add("open"); a.setAttribute("aria-expanded","true");
+        }
+      });
+      scrollTo({top:y});
+      const f=$("foot"); const was=f.textContent;
+      f.textContent="updated just now \u00b7 "+was;
+      setTimeout(()=>{f.textContent=was;},4000);
+    })
+    .catch(()=>{});
+}
+
 function loadMessages(){
-  if(!MESSAGES_CSV_URL)return Promise.resolve();
-  return fetch(MESSAGES_CSV_URL+(MESSAGES_CSV_URL.includes("?")?"&":"?")+"cb="+Date.now())
-    .then(r=>r.ok?r.text():Promise.reject())
+  if(!MESSAGES_CSV_URL&&!LIVE_SHEET_ID)return Promise.resolve();
+  return fetchSheet("Messages",MESSAGES_CSV_URL)
     .then(t=>{
       const yes=v=>/^(true|yes|1|x)$/i.test(String(v).trim());
       CUSTOM=parseCSV(t).slice(1).map(r=>({
@@ -1543,7 +1662,9 @@ function start(){
 if(SHEET_CSV_URL){
   fetch(SHEET_CSV_URL+(SHEET_CSV_URL.includes("?")?"&":"?")+"cb="+Date.now())
     .then(r=>{if(!r.ok)throw new Error(r.status);return r.text();})
-    .then(t=>{const all=parseCSV(t);boot(all.slice(1),false,all[0]);})
+    .then(t=>{LASTCSV=t;const all=parseCSV(t);boot(all.slice(1),false,all[0]);
+      pollTimer=setInterval(poll,45000);
+      addEventListener("visibilitychange",()=>{if(!document.hidden)poll();});})
     .catch(()=>{boot(SAMPLE,true);
       $("notice").innerHTML=`<strong>Couldn't reach the sheet.</strong> Showing sample data instead.`;});
 }else boot(SAMPLE,true);
