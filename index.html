@@ -208,7 +208,7 @@ button.artist-head:hover h2{color:var(--accent)}
 .artist-head .avg{font-family:"JetBrains Mono",monospace; font-size:11px; color:#FFF;
   padding:.08rem .42rem; border-radius:4px}
 
-.album{position:relative; display:grid; grid-template-columns:76px minmax(0,1fr) minmax(215px,290px);
+.album{position:relative; display:grid; grid-template-columns:76px minmax(0,1fr) minmax(280px,360px);
   gap:1.1rem; align-items:center; padding:.55rem 0 .55rem .9rem; cursor:pointer;
   border-radius:10px; transition:background .2s ease-out}
 .album::before{content:""; position:absolute; left:0; top:.5rem; bottom:.5rem; width:3px;
@@ -242,23 +242,24 @@ button.artist-head:hover h2{color:var(--accent)}
   padding:.08rem .42rem; border-radius:20px; box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--gc) 35%,transparent)}
 
 .gauge-wrap{display:flex; align-items:center; gap:.7rem; width:100%}
-.gauge{position:relative; height:54px; flex:1; min-width:0}
-.scale{position:absolute; left:18px; right:18px; top:0; bottom:0}
+.gauge{position:relative; height:58px; flex:1; min-width:0}
+.scale{position:absolute; left:20px; right:20px; top:0; bottom:0}
 .benched{width:24px; height:24px; border-radius:50%; flex:none; display:grid; place-items:center;
   font-family:"JetBrains Mono",monospace; font-size:9px; font-weight:600; color:var(--faint);
   background:var(--raised-2) center/cover; filter:grayscale(1); opacity:.5;
   box-shadow:0 0 0 1px var(--line-2)}
 .none-yet{font-family:"JetBrains Mono",monospace; font-size:10px; letter-spacing:.12em;
   text-transform:uppercase; color:var(--faint)}
-.track{position:absolute; top:26px; left:0; right:0; height:4px;
+.track{position:absolute; top:27px; left:0; right:0; height:5px;
   background:rgba(16,38,58,.16); border-radius:3px}
-.gauge.solo .track{background:none; height:0; border-top:4px dashed rgba(16,38,58,.22)}
-.span{position:absolute; top:26px; left:0; width:0; height:4px; border-radius:4px;
+.gauge.solo .track{background:repeating-linear-gradient(90deg,
+  rgba(16,38,58,.34) 0 6px, transparent 6px 13px)}
+.span{position:absolute; top:27px; left:0; width:0; height:5px; border-radius:5px;
   background:var(--accent-soft); transition:left 1.15s cubic-bezier(.2,.85,.25,1), width 1.15s cubic-bezier(.2,.85,.25,1)}
 .gauge.in .pip{left:var(--v)}
 .gauge.in .span{left:var(--l); width:var(--w)}
 @media(prefers-reduced-motion:reduce){.pip,.span{transition:none}}
-.pip{position:absolute; left:0; top:14px; width:28px; height:28px; border-radius:50%;
+.pip{position:absolute; left:0; top:14px; width:32px; height:32px; border-radius:50%;
   transition:left 1.15s cubic-bezier(.2,.85,.25,1);
   transform:translateX(-50%); display:grid; place-items:center;
   font-family:"JetBrains Mono",monospace; font-size:9px; font-weight:600; color:#FFF;
@@ -278,7 +279,7 @@ button.artist-head:hover h2{color:var(--accent)}
 @media(max-width:860px){.detail{grid-template-columns:minmax(0,1fr)!important; gap:1.9rem!important;
   padding:1.5rem 1.4rem 1.6rem!important; margin:.9rem 0 .8rem!important}
   .detail-wrap{margin:0}}
-.takes{display:flex; flex-direction:column; gap:1.6rem}
+.takes{display:flex; flex-direction:column; gap:1.5rem; min-height:100%}
 .take .hd{display:flex; align-items:center; gap:.6rem; margin-bottom:.5rem}
 .take .hd b{font-size:13.5px; font-weight:500}
 .take .hd .sc{font-family:"JetBrains Mono",monospace; font-size:11px; color:#FFF;
@@ -286,6 +287,13 @@ button.artist-head:hover h2{color:var(--accent)}
 .take .hd .sc.off{background:none; color:var(--faint); box-shadow:inset 0 0 0 1px var(--line-2);
   text-transform:uppercase; letter-spacing:.1em; font-size:9.5px}
 .take p{font-size:14.5px; line-height:1.65; color:var(--dim)}
+.take p.muted{color:var(--faint); font-style:italic}
+.facts{display:grid; grid-template-columns:repeat(auto-fit,minmax(72px,1fr)); gap:.6rem 1rem;
+  margin-top:auto; padding-top:1.2rem; border-top:1px solid var(--line)}
+.facts div{display:flex; flex-direction:column; gap:.15rem}
+.facts span{font-family:"JetBrains Mono",monospace; font-size:9.5px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--faint)}
+.facts b{font-family:"JetBrains Mono",monospace; font-size:16px; font-weight:600; color:var(--ink)}
 
 .tl-head{display:flex; align-items:center; justify-content:space-between; gap:1rem;
   font-family:"JetBrains Mono",monospace; font-size:10px; letter-spacing:.16em;
@@ -406,11 +414,11 @@ button.artist-head:hover h2{color:var(--accent)}
   max-width:440px; margin:0 auto 2.2rem; padding-bottom:1.5rem;
   border-bottom:1px solid var(--line-2)}
 .pod{display:flex; flex-direction:column; align-items:center; text-align:center; position:relative}
-.crown{position:absolute; left:50%; top:-38px; width:52px; height:auto; z-index:3;
+.crown{position:absolute; left:50%; top:-22px; width:54px; height:auto; z-index:3;
   transform:translate(-50%,0); transform-origin:50% 92%; pointer-events:none;
   filter:drop-shadow(0 4px 6px rgba(15,37,54,.32))}
-.pod.p1{padding-top:34px}
-@media(max-width:520px){.crown{width:40px; top:-28px} .pod.p1{padding-top:26px}}
+.pod.p1{padding-top:20px}
+@media(max-width:520px){.crown{width:42px; top:-16px} .pod.p1{padding-top:15px}}
 @media(prefers-reduced-motion:reduce){.crown{transform:translate(-50%,0)!important}}
 .pod-shot{width:100%; aspect-ratio:1/1.12; background:var(--raised-2) center/cover;
   border:4px solid #fff; border-bottom:16px solid #fff; border-radius:3px;
@@ -592,7 +600,7 @@ const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSud4ctkV
 const INI = { anthony:"AP", annette:"AA" };
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-14j";
+const BUILD = "2026-08-14m";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -1434,11 +1442,14 @@ function songTable(d){
 
 function take(name,who,v,text,skip){
   if(v===null&&!text&&!skip)return"";
+  const body=text?`<p>${esc(text)}</p>`
+    :skip?`<p class="muted">Hasn\u2019t heard this one.</p>`
+    :`<p class="muted">No thoughts written yet.</p>`;
   return`<div class="take"><div class="hd">
       <span class="mark${skip?" benched":""}" data-who="${who}">${INI[who]}</span><b>${name}</b>
       ${v!==null?`<span class="sc" style="background:${ramp(v)}">${v}</span>`
         :skip?`<span class="sc off">didn\u2019t listen</span>`:""}</div>
-    ${text?`<p>${esc(text)}</p>`:""}</div>`;
+    ${body}</div>`;
 }
 function benchMark(who){
   return`<span class="mark benched" data-who="${who}" title="${who[0].toUpperCase()+who.slice(1)} hasn\u2019t heard this album">${INI[who]}</span>`;
@@ -1451,6 +1462,18 @@ function verdict(v,who,letter){
 function detailHTML(d){
   const rows=songTable(d);
   const takes=take("Anthony","anthony",d.a,d.aText,d.aSkip)+take("Annette","annette",d.n,d.nText,d.nSkip);
+  const both=d.a!==null&&d.n!==null;
+  const liked=rows.filter(r=>r.a==="y"||r.n==="y").length;
+  const shared=rows.filter(r=>r.a==="y"&&r.n==="y").length;
+  const facts=[
+    both?[`Average`,Math.round(d.avg),ramp(d.avg)]:null,
+    both?[`Apart`,d.gap+" pts",d.gap>=20?"#C13A3A":d.gap>=8?"#A98314":"#2C7D51"]:null,
+    rows.length?[`Tracks`,rows.length,null]:null,
+    liked?[`Liked`,liked,null]:null,
+    both&&shared?[`Agreed on`,shared,null]:null
+  ].filter(Boolean);
+  const strip=facts.length?`<div class="facts">${facts.map(([k,v,c])=>
+    `<div><span>${k}</span><b${c?` style="color:${c}"`:""}>${v}</b></div>`).join("")}</div>`:"";
   const tall=rows.length>10;
   const list=rows.length?`<div class="songlist">
     <div class="tl-head"><span>Tracklist \u00b7 tap \u25b6 for a clip</span></div>
@@ -1460,7 +1483,7 @@ function detailHTML(d){
         <span class="marks">${d.aSkip?benchMark("anthony"):verdict(r.a,"anthony",INI.anthony)}${d.nSkip?benchMark("annette"):verdict(r.n,"annette",INI.annette)}</span>
       </span></li>`).join("")}</ul></div>
   </div>`:"";
-  return`<div class="detail-wrap"><div class="detail-inner"><div class="detail"><div class="takes">${takes}</div>${list}</div></div></div>`;
+  return`<div class="detail-wrap"><div class="detail-inner"><div class="detail"><div class="takes">${takes}${strip}</div>${list}</div></div></div>`;
 }
 function albumHTML(d,withArtist,rank){
   const who=[];
