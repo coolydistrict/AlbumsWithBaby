@@ -294,6 +294,7 @@ button.artist-head:hover h2{color:var(--accent)}
 .detail{opacity:0; transform:translateY(-6px);
   transition:opacity .3s ease-out, transform .45s cubic-bezier(.32,.72,.28,1)}
 .album.open .detail{opacity:1; transform:none; transition-delay:.12s}
+.m-body .detail{opacity:1; transform:none}
 .detail{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,380px); gap:2.75rem;
   background:var(--raised-2); border-radius:14px; padding:1.9rem 2.1rem 2rem;
   margin:1rem 1rem}
@@ -329,7 +330,8 @@ button.artist-head:hover h2{color:var(--accent)}
 .songlist li{display:flex; align-items:center; justify-content:space-between; gap:1.2rem;
   padding:.55rem 0; font-size:13.5px; line-height:1.35; border-bottom:1px solid var(--line);
   opacity:0; transform:translateY(5px)}
-.album.open .songlist li{animation:tlin .34s cubic-bezier(.2,.8,.2,1) forwards}
+.album.open .songlist li,
+.m-body .songlist li{animation:tlin .34s cubic-bezier(.2,.8,.2,1) forwards}
 @keyframes tlin{to{opacity:1; transform:none}}
 @media(prefers-reduced-motion:reduce){.songlist li{opacity:1; transform:none; animation:none}}
 .songlist li:last-child{border-bottom:0}
@@ -637,7 +639,7 @@ const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSud4ctkV
 const INI = { anthony:"AP", annette:"AA" };
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-15c";
+const BUILD = "2026-08-15f";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -940,6 +942,7 @@ function kill(a){
 }
 
 function stopPreview(){
+  HOVER_ROW=null;
   const old=AUD;
   AUD=null;
   NOWPLAYING="";
@@ -1081,6 +1084,8 @@ function wallHTML(list){
 function openAlbum(key){
   const d=ROWS[Number(key)];
   if(!d)return;
+  clearTimeout(hoverTimer);
+  if(HOVER_ROW)stopPreview();
   const who=[];
   if(d.a!==null)who.push(INI.anthony+" "+d.a); else if(d.aSkip)who.push(INI.anthony+" \u2013");
   if(d.n!==null)who.push(INI.annette+" "+d.n); else if(d.nSkip)who.push(INI.annette+" \u2013");
@@ -1095,6 +1100,8 @@ function openAlbum(key){
   const body=$("album-body");
   body.querySelectorAll("[data-art]").forEach(loadImage);
   dressAvatars(body);
+  // nothing here scrolls into view, so reveal it directly
+  requestAnimationFrame(()=>body.querySelectorAll(".gauge,.rise").forEach(el=>el.classList.add("in")));
 }
 function closeAlbum(){ $("album-modal").classList.remove("on"); stopPreview(); }
 
@@ -1804,9 +1811,13 @@ document.addEventListener("click",e=>{
   const jump=e.target.closest("[data-artist]");
   if(jump){closeAlbum();goArtist(jump.dataset.artist);return;}
   if(e.target.closest(".detail-wrap"))return;
-  
+
   const card=e.target.closest(".album");
-  if(card)card.setAttribute("aria-expanded",card.classList.toggle("open"));
+  if(card){
+    const opening=card.classList.toggle("open");
+    card.setAttribute("aria-expanded",opening);
+    if(opening){ clearTimeout(hoverTimer); if(HOVER_ROW)stopPreview(); }
+  }
 });
 document.addEventListener("keydown",e=>{
   if((e.key==="Enter"||e.key===" ")&&e.target.classList.contains("album")){e.preventDefault();e.target.click();}
@@ -1838,14 +1849,21 @@ document.querySelectorAll("[data-test]").forEach(b=>b.onclick=()=>celebrate(b.da
 (function(){const m=document.querySelector(".marquee");
   m.addEventListener("mouseenter",()=>{crawlTarget=0;m.classList.add("held");});
   m.addEventListener("mouseleave",()=>{crawlTarget=0.22;m.classList.remove("held");});})();
-let hoverTimer=null,lastScrollAt=0;
+let hoverTimer=null,lastScrollAt=0,HOVER_ROW=null;
 addEventListener("scroll",()=>{lastScrollAt=Date.now();},{passive:true});
 
+function panelOpen(){
+  return document.querySelector(".album.open")!==null
+      || $("album-modal").classList.contains("on");
+}
 function hoverPlay(row){
   clearTimeout(hoverTimer);
   if(store.get("aoty-hover","on")!=="on")return;
+  if(panelOpen())return;                            // a panel is in charge of the audio
+  if(row.classList.contains("open"))return;
   hoverTimer=setTimeout(()=>{
     if(Date.now()-lastScrollAt<500)return;          // not while the page is moving
+    if(panelOpen())return;                          // one may have opened while we waited
     if(!row.isConnected||!row.matches(":hover"))return;
     const i=Number(row.dataset.idx); const d=ROWS[i];
     if(!d)return;
@@ -1853,6 +1871,7 @@ function hoverPlay(row){
     if(!song)return;
     const fake=document.createElement("button");
     fake.dataset.artist=d.artist; fake.dataset.song=song;
+    HOVER_ROW=row;
     preview(fake);
   },700);
 }
@@ -1870,6 +1889,11 @@ document.addEventListener("mouseout",e=>{
   const cov=e.target.closest?.(".album")?.querySelector(".cover");
   if(cov){cov.style.removeProperty("--tx");cov.style.removeProperty("--ty");}
   clearTimeout(hoverTimer);
+  // moving off the row ends a clip that hovering started
+  if(HOVER_ROW&&!panelOpen()){
+    const to=e.relatedTarget;
+    if(!to||!HOVER_ROW.contains(to)){ HOVER_ROW=null; stopPreview(); }
+  }
 },{passive:true});
 document.addEventListener("mouseover",e=>{
   const row=e.target.closest?.(".album");
