@@ -701,7 +701,7 @@ const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSud4ctkV
 const INI = { anthony:"AP", annette:"AA" };
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-16k";
+const BUILD = "2026-08-16m";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -1123,6 +1123,19 @@ function barRows(list,limit){
   </div>`).join("");
 }
 
+/* Same shape as barRows, opposite meaning. A gap of 0 is agreement, so it
+   gets the calm colour and the short rail — ramp() would paint it red. */
+function barRowsGap(list,limit){
+  const rows=list.slice(0,limit);
+  const worst=Math.max(12,...rows.map(x=>x.avg));   // never magnify a tiny spread
+  return rows.map((x,i)=>`<div class="bar">
+    <span class="lbl">${esc(x.k)}<small>${x.n}</small></span>
+    <span class="n" style="background:${gapHue(x.avg)}">${Math.round(x.avg)}</span>
+    <span class="rail"><i style="--w:${Math.max(3,Math.round(x.avg/worst*100))}%;background:${
+      gapHue(x.avg)};transition-delay:${(i*0.09).toFixed(2)}s"></i></span>
+  </div>`).join("");
+}
+
 function scatterHTML(){
   const pts=ROWS.filter(d=>d.a!==null&&d.n!==null);
   if(pts.length<3)return"";
@@ -1246,6 +1259,8 @@ function statsHTML(){
   if(!ROWS.length)return"";
   const both=groupAvg("genre",d=>d.avg), byArtist=groupAvg("artist",d=>d.avg);
   const aGenre=groupAvg("genre",d=>d.a), nGenre=groupAvg("genre",d=>d.n);
+  // gap is -1 when only one of you rated it, which is not a disagreement
+  const gGenre=groupAvg("genre",d=>d.gap>=0?d.gap:null);
   if(!both.length&&!byArtist.length)return"";
   const blk=(t,list,n)=>list.length
     ?`<div class="stat-block rise"><h3><span>${t}</span><em>avg · albums</em></h3>${barRows(list,n)}</div>`:"";
@@ -1258,6 +1273,8 @@ function statsHTML(){
       ${blk("Artists, both of us",byArtist,6)}
       ${blk("Anthony by genre",aGenre,5)}
       ${blk("Annette by genre",nGenre,5)}
+      ${gGenre.length?`<div class="stat-block rise"><h3><span>Where you disagree</span>
+        <em>points apart \u00b7 albums</em></h3>${barRowsGap(gGenre,6)}</div>`:""}
       ${fingerprint(ROWS.map(d=>d.a).filter(v=>v!==null),"How Anthony rates")}
       ${fingerprint(ROWS.map(d=>d.n).filter(v=>v!==null),"How Annette rates")}
     </div>
@@ -2103,21 +2120,26 @@ function countUp(el,to,ms){
     run.push(Number(d));                       // lands on the real digit
     reel.innerHTML=run.map(n=>`<i>${n}</i>`).join("");
     slot.appendChild(reel); el.appendChild(slot);
-    const travel=(run.length-1)*100;
+    // Each <i> is exactly 1em tall and the reel shares its font-size, so em
+    // lands on the digit whatever the reel length. A percentage does not:
+    // it is measured against the reel's full height, all eight digits of it.
+    const travel=run.length-1;
     reel.style.transition="none";
     reel.style.transform="translateY(0)";
     requestAnimationFrame(()=>requestAnimationFrame(()=>{
       reel.style.transition=`transform ${ms+i*90}ms cubic-bezier(.15,.85,.2,1)`;
-      reel.style.transform=`translateY(-${travel}%)`;
+      reel.style.transform=`translateY(-${travel}em)`;
     }));
   });
 }
 function paintTally(){
   const aAll=ROWS.map(d=>d.a).filter(v=>v!==null),nAll=ROWS.map(d=>d.n).filter(v=>v!==null);
   const am=mean(aAll),nm=mean(nAll);
+  const gN=new Set(ROWS.map(d=>d.genre).filter(Boolean)).size;
   $("tally").innerHTML=`
     <div><b>${ROWS.length}</b><span>albums</span></div>
     <div><b>${ROSTER.size}</b><span>artists</span></div>
+    ${gN?`<div><b>${gN}</b><span>genres</span></div>`:""}
     ${am!==null?`<div><b style="color:${ramp(am)}">${Math.round(am)}</b><span>anthony avg</span></div>`:""}
     ${nm!==null?`<div><b style="color:${ramp(nm)}">${Math.round(nm)}</b><span>annette avg</span></div>`:""}
     ${QUEUE.length?`<div><b style="color:var(--faint)">${QUEUE.length}</b><span>to listen</span></div>`:""}`;
