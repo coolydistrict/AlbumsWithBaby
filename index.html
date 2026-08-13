@@ -637,7 +637,7 @@ const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSud4ctkV
 const INI = { anthony:"AP", annette:"AA" };
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-15b";
+const BUILD = "2026-08-15c";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -707,7 +707,13 @@ function parseCSV(text){
 }
 function splitSongs(raw){
   const order=[],liked=[],disliked=[],dis=new Set(),seen=new Set();
-  String(raw||"").split(/[\n\r;,\u2022\u00b7]+/).map(x=>x.trim()).filter(Boolean).forEach(t=>{
+  const text=String(raw||"");
+  // one track per line is the safe format, because plenty of titles contain
+  // commas. So if there are line breaks, they alone are the separator.
+  const parts=/[\n\r]/.test(text)
+    ? text.split(/[\n\r]+/)
+    : text.split(/[;,\u2022\u00b7]+/);
+  parts.map(x=>x.trim()).filter(Boolean).forEach(t=>{
     const struck=/^~/.test(t);
     const name=t.replace(/^~+\s*/,"").replace(/\s*~+$/,"").trim();
     if(!name)return;
