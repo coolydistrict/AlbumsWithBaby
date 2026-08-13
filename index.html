@@ -701,7 +701,7 @@ const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSud4ctkV
 const INI = { anthony:"AP", annette:"AA" };
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-16m";
+const BUILD = "2026-08-16p";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -1125,14 +1125,14 @@ function barRows(list,limit){
 
 /* Same shape as barRows, opposite meaning. A gap of 0 is agreement, so it
    gets the calm colour and the short rail — ramp() would paint it red. */
+const GAP_FULL=40;                    // a full rail is two clear steps past red
 function barRowsGap(list,limit){
-  const rows=list.slice(0,limit);
-  const worst=Math.max(12,...rows.map(x=>x.avg));   // never magnify a tiny spread
-  return rows.map((x,i)=>`<div class="bar">
+  return list.slice(0,limit).map((x,i)=>`<div class="bar">
     <span class="lbl">${esc(x.k)}<small>${x.n}</small></span>
     <span class="n" style="background:${gapHue(x.avg)}">${Math.round(x.avg)}</span>
-    <span class="rail"><i style="--w:${Math.max(3,Math.round(x.avg/worst*100))}%;background:${
-      gapHue(x.avg)};transition-delay:${(i*0.09).toFixed(2)}s"></i></span>
+    <span class="rail"><i style="--w:${Math.max(3,Math.min(100,Math.round(
+      x.avg/GAP_FULL*100)))}%;background:${gapHue(x.avg)};transition-delay:${
+      (i*0.09).toFixed(2)}s"></i></span>
   </div>`).join("");
 }
 
@@ -1187,8 +1187,12 @@ function radarHTML(){
       <span><i style="background:#C13A3A"></i>${INI.annette}</span></div></div>`;
 }
 
+/* avg is 0/0 when neither of you has put a number on it. NaN loses every
+   comparison, so it has to be kept out of the sort rather than sorted. */
+const scored=d=>!isNaN(d.avg);
+const byScore=(x,y)=>(scored(y)?y.avg:-1)-(scored(x)?x.avg:-1);
 function podiumHTML(list){
-  const top=list.slice().sort((x,y)=>y.avg-x.avg).slice(0,3);
+  const top=list.filter(scored).sort(byScore).slice(0,3);
   if(top.length<3)return"";
   const order=[top[1],top[0],top[2]];               // second, first, third
   return`<div class="podium">${order.map((d,i)=>{
@@ -1205,10 +1209,11 @@ function podiumHTML(list){
 
 function wallHTML(list){
   if(!list.length)return`<div class="empty"><b>Nothing rated yet</b>Rate something and it lands on the wall.</div>`;
-  return podiumHTML(list)+`<div class="wall">${list.slice().sort((x,y)=>y.avg-x.avg).map(d=>
+  return podiumHTML(list)+`<div class="wall">${list.slice().sort(byScore).map(d=>
     `<button data-open="${ROWS.indexOf(d)}" title="${esc(d.artist)} — ${esc(d.album)}">
       <div class="w-shot" data-cover="${esc(d.cover)}" data-art="${esc(d.artist+" "+d.album)}">${esc(initials(d.album))}</div>
-      <div class="w-cap"><span class="w-sc" style="background:${ramp(d.avg)}">${Math.round(d.avg)}</span>${esc(d.album)}</div>
+      <div class="w-cap"><span class="w-sc" style="background:${scored(d)?ramp(d.avg):"var(--faint)"}">${
+        scored(d)?Math.round(d.avg):"\u2013"}</span>${esc(d.album)}</div>
     </button>`).join("")}</div>`;
 }
 
@@ -1273,8 +1278,7 @@ function statsHTML(){
       ${blk("Artists, both of us",byArtist,6)}
       ${blk("Anthony by genre",aGenre,5)}
       ${blk("Annette by genre",nGenre,5)}
-      ${gGenre.length?`<div class="stat-block rise"><h3><span>Where you disagree</span>
-        <em>points apart \u00b7 albums</em></h3>${barRowsGap(gGenre,6)}</div>`:""}
+      ${gGenre.length?`<div class="stat-block rise"><h3><span>Apart by genre</span><em>pts \u00b7 albums</em></h3>${barRowsGap(gGenre,6)}</div>`:""}
       ${fingerprint(ROWS.map(d=>d.a).filter(v=>v!==null),"How Anthony rates")}
       ${fingerprint(ROWS.map(d=>d.n).filter(v=>v!==null),"How Annette rates")}
     </div>
@@ -1753,7 +1757,7 @@ function queueHTML(q,g){
 
 const SORTS={
   artist:(x,y)=>(x.year||"").localeCompare(y.year||""),
-  rating:(x,y)=>y.avg-x.avg,
+  rating:byScore,
   new:(x,y)=>(y.year||"").localeCompare(x.year||""),
   old:(x,y)=>(x.year||"").localeCompare(y.year||""),
   gap:(x,y)=>y.gap-x.gap
