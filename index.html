@@ -189,6 +189,27 @@ input[type=search]{flex:1 1 200px; min-width:0}
   text-transform:uppercase; color:var(--accent)}
 
 .artist{padding:2rem 0 1rem; border-bottom:1px solid var(--line)}
+.hero{position:relative; overflow:hidden; border-radius:16px; margin:0 -1.1rem 1.2rem;
+  padding:1.4rem 1.1rem 1.2rem}
+.hero-bg{position:absolute; inset:-60px; background:center/cover no-repeat;
+  filter:blur(42px) saturate(1.35); opacity:.42; transform:scale(1.15); pointer-events:none}
+.hero::after{content:""; position:absolute; inset:0; pointer-events:none;
+  background:linear-gradient(180deg,rgba(207,226,243,.25),rgba(207,226,243,.72))}
+.hero .artist-head{position:relative; z-index:1; margin-bottom:0}
+
+.spark{display:block; width:104px; height:26px; margin-top:.55rem; overflow:visible}
+.spark .ln{fill:none; stroke:var(--accent); stroke-width:1.6; stroke-linejoin:round; stroke-linecap:round}
+.spark .fill{fill:var(--accent); opacity:.1}
+
+.mini-head{position:fixed; left:0; right:0; top:38px; z-index:50;
+  display:flex; align-items:center; gap:.8rem; padding:.5rem var(--pad);
+  background:rgba(207,226,243,.92); backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--line-2);
+  transform:translateY(-120%); transition:transform .32s cubic-bezier(.32,.72,.28,1)}
+.mini-head.on{transform:none}
+.mini-head span{font-family:"Bricolage Grotesque",sans-serif; font-size:15px; font-weight:600;
+  letter-spacing:-.02em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.mini-head button{font-size:15px; color:var(--accent); flex:none}
 .artist:last-child{border-bottom:0}
 .artist-head{display:flex; align-items:center; gap:1.2rem; margin-bottom:1rem; width:100%; text-align:left}
 .artist-head .ph{width:104px; height:104px; border-radius:50%; background:var(--raised-2) center/cover; flex:none;
@@ -208,8 +229,8 @@ button.artist-head:hover h2{color:var(--accent)}
 .artist-head .avg{font-family:"JetBrains Mono",monospace; font-size:11px; color:#FFF;
   padding:.08rem .42rem; border-radius:4px}
 
-.album{position:relative; display:grid; grid-template-columns:76px minmax(0,1fr) minmax(280px,360px);
-  gap:1.1rem; align-items:center; padding:.55rem 0 .55rem .9rem; cursor:pointer;
+.album{position:relative; display:grid; grid-template-columns:76px minmax(0,1fr) 340px;
+  gap:1.1rem; align-items:center; padding:.55rem 1.4rem .55rem .9rem; cursor:pointer;
   border-radius:10px; transition:background .2s ease-out}
 .album::before{content:""; position:absolute; left:0; top:.5rem; bottom:.5rem; width:3px;
   border-radius:3px; background:var(--gc,var(--line-2)); opacity:.5; transition:opacity .2s}
@@ -241,8 +262,8 @@ button.artist-head:hover h2{color:var(--accent)}
 .album-sub .gtag{color:var(--gc); font-size:10px; letter-spacing:.12em; text-transform:uppercase;
   padding:.08rem .42rem; border-radius:20px; box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--gc) 35%,transparent)}
 
-.gauge-wrap{display:flex; align-items:center; gap:.7rem; width:100%}
-.gauge{position:relative; height:58px; flex:1; min-width:0}
+.gauge-wrap{display:flex; align-items:center; justify-content:center; gap:.7rem; width:100%}
+.gauge{position:relative; height:58px; flex:0 1 296px; min-width:0}
 .scale{position:absolute; left:20px; right:20px; top:0; bottom:0}
 .benched{width:24px; height:24px; border-radius:50%; flex:none; display:grid; place-items:center;
   font-family:"JetBrains Mono",monospace; font-size:9px; font-weight:600; color:var(--faint);
@@ -370,6 +391,14 @@ button.artist-head:hover h2{color:var(--accent)}
 .bar .n{font-family:"JetBrains Mono",monospace; font-size:11.5px; font-weight:600; color:#FFF;
   padding:.08rem .42rem; border-radius:4px}
 .rail{grid-column:1/-1; height:5px; background:rgba(16,38,58,.09); border-radius:5px; overflow:hidden}
+.finger{display:flex; align-items:flex-end; gap:3px; height:76px; margin-bottom:.4rem}
+.fbar{flex:1; height:100%; display:flex; align-items:flex-end;
+  background:rgba(16,38,58,.05); border-radius:3px; overflow:hidden}
+.fbar i{display:block; width:100%; border-radius:3px 3px 0 0; min-height:2px;
+  transition:height 1.1s cubic-bezier(0,1,.3,1)}
+.faxis{display:flex; justify-content:space-between; font-family:"JetBrains Mono",monospace;
+  font-size:9.5px; color:var(--faint)}
+.fnote{font-size:12px; color:var(--faint); margin-top:.7rem; line-height:1.45}
 .rail i{display:block; height:5px; border-radius:5px; width:0;
   transition:width 1.5s cubic-bezier(0,1,.3,1)}
 .stat-block.in .rail i{width:var(--w)}
@@ -526,6 +555,9 @@ footer button:hover{border-color:var(--accent)}
   <div class="panel" id="panel">
     <h3>Settings</h3>
     <p class="note">Saved in this browser only — set them again on your phone.</p>
+    <div class="field"><label>Hover</label>
+      <span class="seg"><button data-hover="on">Play on hover</button><button data-hover="off">Off</button></span>
+    </div>
     <div class="field"><label>You are</label>
       <span class="seg"><button data-me="anthony">Anthony</button><button data-me="annette">Annette</button></span>
     </div>
@@ -565,6 +597,11 @@ footer button:hover{border-color:var(--accent)}
   <span class="count" id="count"></span>
 </div>
 
+<div class="mini-head" id="mini">
+  <button id="mini-back" aria-label="Back to all artists">←</button>
+  <span id="mini-name"></span>
+</div>
+
 <main id="out"></main>
 
 <div class="player" id="player">
@@ -600,7 +637,7 @@ const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSud4ctkV
 const INI = { anthony:"AP", annette:"AA" };
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-14m";
+const BUILD = "2026-08-15b";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -1055,6 +1092,24 @@ function openAlbum(key){
 }
 function closeAlbum(){ $("album-modal").classList.remove("on"); stopPreview(); }
 
+function fingerprint(vals,label,colour){
+  if(vals.length<4)return"";
+  const bins=new Array(10).fill(0);
+  vals.forEach(v=>bins[Math.min(9,Math.floor(Math.max(0,Math.min(100,v))/10))]++);
+  const peak=Math.max(...bins);
+  const used=bins.filter(b=>b>0).length;
+  const av=Math.round(mean(vals));
+  return`<div class="stat-block rise"><h3><span>${label}</span><em>${vals.length} ratings</em></h3>
+    <div class="finger">${bins.map((b,i)=>
+      `<span class="fbar" title="${i*10}\u2013${i*10+9}: ${b}">
+         <i style="height:${peak?Math.round(b/peak*100):0}%;background:${ramp(i*10+5)}"></i>
+       </span>`).join("")}</div>
+    <div class="faxis"><span>0</span><span>50</span><span>100</span></div>
+    <p class="fnote">Average ${av} \u00b7 spread across ${used} of 10 bands${
+      used<=3?" \u2014 a narrow range, so the averages above say less than they look":""}</p>
+  </div>`;
+}
+
 function statsHTML(){
   if(!ROWS.length)return"";
   const both=groupAvg("genre",d=>d.avg), byArtist=groupAvg("artist",d=>d.avg);
@@ -1071,6 +1126,8 @@ function statsHTML(){
       ${blk("Artists, both of us",byArtist,6)}
       ${blk("Anthony by genre",aGenre,5)}
       ${blk("Annette by genre",nGenre,5)}
+      ${fingerprint(ROWS.map(d=>d.a).filter(v=>v!==null),"How Anthony rates")}
+      ${fingerprint(ROWS.map(d=>d.n).filter(v=>v!==null),"How Annette rates")}
     </div>
   </section>`;
 }
@@ -1490,7 +1547,7 @@ function albumHTML(d,withArtist,rank){
   if(d.a!==null)who.push(INI.anthony+" "+d.a); else if(d.aSkip)who.push(INI.anthony+" \u2013");
   if(d.n!==null)who.push(INI.annette+" "+d.n); else if(d.nSkip)who.push(INI.annette+" \u2013");
   return`<article class="album${rank?" ranked":""}" tabindex="0" role="button" aria-expanded="false"
-    style="--gc:${hueOf(d.genre)}">${rank?`<span class="rankno">${String(rank).padStart(2,"0")}</span>`:""}
+    data-idx="${ROWS.indexOf(d)}" style="--gc:${hueOf(d.genre)}">${rank?`<span class="rankno">${String(rank).padStart(2,"0")}</span>`:""}
     <div class="cover" data-cover="${esc(d.cover)}" data-art="${esc(d.artist+" "+d.album)}">${esc(initials(d.album))}</div>
     <div class="rise"><div class="album-title">${withArtist?esc(d.artist)+" — ":""}${esc(d.album)}</div>
       <div class="album-sub">${d.year?`<span class="yr">${esc(d.year)}</span>`:""}${who.join("  ")}${
@@ -1499,11 +1556,29 @@ function albumHTML(d,withArtist,rank){
     ${detailHTML(d)}
   </article>`;
 }
-function artistHead(name,genre,clickable,extra,avg){
+function sparkline(albums){
+  const pts=albums.filter(d=>!isNaN(d.avg)).map(d=>d.avg);
+  if(pts.length<3)return"";
+  const W=104,H=26,lo=Math.min(...pts),hi=Math.max(...pts),span=Math.max(6,hi-lo);
+  const xy=pts.map((v,i)=>[
+    (i/(pts.length-1))*W,
+    H-2-((v-lo)/span)*(H-6)
+  ]);
+  const line=xy.map(([x,y],i)=>(i?"L":"M")+x.toFixed(1)+" "+y.toFixed(1)).join(" ");
+  const area=line+` L${W} ${H} L0 ${H} Z`;
+  return`<svg class="spark" viewBox="0 0 ${W} ${H}" role="img" aria-label="Ratings across their albums">
+    <path class="fill" d="${area}"/><path class="ln" d="${line}"/>
+    ${xy.map(([x,y],i)=>`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${i===xy.length-1?2.4:1.6}"
+      fill="${ramp(pts[i])}"/>`).join("")}
+  </svg>`;
+}
+
+function artistHead(name,genre,clickable,extra,avg,spark){
   const inner=`<div class="ph" data-art="${esc(name)}" data-kind="artist">${esc(initials(name))}</div>
     <div class="rise"><div class="meta"><h2>${esc(name)}</h2>${
       avg!==null&&avg!==undefined?`<span class="avg" style="background:${ramp(avg)}">${Math.round(avg)}</span>`:""}</div>
-    <div class="genre"><b style="color:${hueOf(genre)}">${esc(genre||"")}</b>${extra?`<span class="sep">·</span>${extra}`:""}</div></div>`;
+    <div class="genre"><b style="color:${hueOf(genre)}">${esc(genre||"")}</b>${extra?`<span class="sep">·</span>${extra}`:""}</div>
+    ${spark||""}</div>`;
   return clickable
     ? `<button class="artist-head" data-artist="${esc(name)}">${inner}</button>`
     : `<div class="artist-head">${inner}</div>`;
@@ -1563,10 +1638,25 @@ function renderArtist(name){
     body=shown.map(d=>albumHTML(d,false)).join("");
   }
 
+  const ordered=mine.slice().sort((x,y)=>(x.year||"").localeCompare(y.year||""));
   $("out").innerHTML=`
     <div class="crumb"><button id="back">\u2190 All artists</button>${
       filtered?`<span class="crumb-note">filtered</span>`:""}</div>
-    <section class="artist">${artistHead(name,info.genre,false,extra,avg)}${body}</section>`;
+    <section class="artist">
+      <div class="hero" id="hero">
+        <div class="hero-bg" data-art="${esc(name)}" data-kind="artist"></div>
+        ${artistHead(name,info.genre,false,extra,avg,sparkline(ordered))}
+      </div>${body}</section>`;
+  $("mini-name").textContent=name;
+  $("mini").classList.remove("on");
+  if(heroWatch)heroWatch.disconnect();
+  const hero=$("hero");
+  if(hero&&"IntersectionObserver" in window){
+    heroWatch=new IntersectionObserver(es=>{
+      $("mini").classList.toggle("on",!es[0].isIntersecting);
+    },{rootMargin:"-52px 0px 0px 0px"});
+    heroWatch.observe(hero);
+  }
   $("out").querySelectorAll("[data-art]").forEach(loadImage);
   dressAvatars($("out"));
   reveal($("out"));
@@ -1574,8 +1664,10 @@ function renderArtist(name){
   scrollTo({top:0,behavior:"smooth"});
 }
 
+let heroWatch=null;
 function render(){
   stopPreview();
+  $("mini").classList.remove("on");
   if(FOCUS){renderArtist(FOCUS);return;}
   const q=$("q").value.trim().toLowerCase();
   const g=$("genre").value,sort=$("sort").value;
@@ -1596,7 +1688,7 @@ function render(){
       const info=ROSTER.get(name)||{genre:al[0].genre};
       const av=mean(al.map(d=>d.avg));
       return`<section class="artist">${artistHead(name,info.genre||al[0].genre,true,
-        `${al.length} album${al.length>1?"s":""}`,av)}
+        `${al.length} album${al.length>1?"s":""}`,av,sparkline(al))}
         ${al.map(d=>albumHTML(d,false)).join("")}</section>`;
     }).join("");
   }else{
@@ -1714,6 +1806,7 @@ document.addEventListener("keydown",e=>{
   if((e.key==="Enter"||e.key===" ")&&e.target.classList.contains("album")){e.preventDefault();e.target.click();}
 });
 $("gear").onclick=()=>$("panel").classList.toggle("on");
+$("mini-back").onclick=()=>goArtist(null);
 document.querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>{
   VIEW=b.dataset.view;
   document.querySelectorAll("[data-view]").forEach(x=>x.classList.toggle("on",x.dataset.view===VIEW));
@@ -1723,12 +1816,41 @@ document.querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>{
 document.querySelectorAll("[data-me]").forEach(b=>b.onclick=()=>{
   store.set("aoty-me",b.dataset.me);paintProfiles();
 });
+function paintHover(){
+  const v=store.get("aoty-hover","on");
+  document.querySelectorAll("[data-hover]").forEach(b=>b.classList.toggle("on",b.dataset.hover===v));
+}
+document.querySelectorAll("[data-hover]").forEach(b=>b.onclick=()=>{
+  store.set("aoty-hover",b.dataset.hover);
+  if(b.dataset.hover==="off")stopPreview();
+  paintHover();
+});
+paintHover();
 $("pic-a").oninput=e=>{store.set("aoty-pic-anthony",e.target.value.trim());paintProfiles();};
 $("pic-n").oninput=e=>{store.set("aoty-pic-annette",e.target.value.trim());paintProfiles();};
 document.querySelectorAll("[data-test]").forEach(b=>b.onclick=()=>celebrate(b.dataset.test));
 (function(){const m=document.querySelector(".marquee");
   m.addEventListener("mouseenter",()=>{crawlTarget=0;m.classList.add("held");});
   m.addEventListener("mouseleave",()=>{crawlTarget=0.22;m.classList.remove("held");});})();
+let hoverTimer=null,lastScrollAt=0;
+addEventListener("scroll",()=>{lastScrollAt=Date.now();},{passive:true});
+
+function hoverPlay(row){
+  clearTimeout(hoverTimer);
+  if(store.get("aoty-hover","on")!=="on")return;
+  hoverTimer=setTimeout(()=>{
+    if(Date.now()-lastScrollAt<500)return;          // not while the page is moving
+    if(!row.isConnected||!row.matches(":hover"))return;
+    const i=Number(row.dataset.idx); const d=ROWS[i];
+    if(!d)return;
+    const song=(d.aS.liked[0]||d.nS.liked[0]||d.aS.order[0]||d.nS.order[0]);
+    if(!song)return;
+    const fake=document.createElement("button");
+    fake.dataset.artist=d.artist; fake.dataset.song=song;
+    preview(fake);
+  },700);
+}
+
 document.addEventListener("mousemove",e=>{
   const cov=e.target.closest?.(".album")?.querySelector(".cover");
   if(!cov)return;
@@ -1741,6 +1863,11 @@ document.addEventListener("mousemove",e=>{
 document.addEventListener("mouseout",e=>{
   const cov=e.target.closest?.(".album")?.querySelector(".cover");
   if(cov){cov.style.removeProperty("--tx");cov.style.removeProperty("--ty");}
+  clearTimeout(hoverTimer);
+},{passive:true});
+document.addEventListener("mouseover",e=>{
+  const row=e.target.closest?.(".album");
+  if(row&&row.dataset.idx)hoverPlay(row);
 },{passive:true});
 
 /* The crown hangs off a spring: it lags the page, overshoots, and settles.
