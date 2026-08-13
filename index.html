@@ -260,8 +260,6 @@ button.artist-head:hover h2{color:var(--accent)}
   scrollbar-width:thin; scrollbar-color:var(--line-2) transparent}
 .tl-wrap.tall::after{content:""; position:absolute; left:0; right:.5rem; bottom:0; height:34px;
   background:linear-gradient(to bottom,rgba(238,245,251,0),var(--raised-2)); pointer-events:none}
-.tl-count{font-family:"JetBrains Mono",monospace; font-size:10px; color:var(--faint);
-  margin-top:.7rem; letter-spacing:.1em; text-transform:uppercase}
 .songlist ul{list-style:none}
 .songlist li{display:flex; align-items:center; justify-content:space-between; gap:1.2rem;
   padding:.55rem 0; font-size:13.5px; line-height:1.35; border-bottom:1px solid var(--line)}
@@ -729,32 +727,43 @@ function showPlayer(label){
   $("p-title").textContent=label||"";
   $("player").classList.toggle("on",!!label);
 }
-let fadeTimer=null;
 function fade(audio,to,ms,done){
-  if(!audio)return;
-  clearInterval(fadeTimer);
+  if(!audio){ if(done)done(); return; }
+  if(audio.__fx){clearInterval(audio.__fx);audio.__fx=null;}
   const from=audio.volume,steps=Math.max(1,Math.round(ms/40));
   let i=0;
-  fadeTimer=setInterval(()=>{
+  audio.__fx=setInterval(()=>{
     i++;
     const t=i/steps;
-    const eased=to>from ? t*t : 1-(1-t)*(1-t);   // ease in rising, ease out falling
-    const v=from+(to-from)*eased;
-    try{audio.volume=Math.max(0,Math.min(1,v));}catch(e){}
-    if(i>=steps){clearInterval(fadeTimer);fadeTimer=null;if(done)done();}
+    const eased=to>from ? t*t : 1-(1-t)*(1-t);
+    try{audio.volume=Math.max(0,Math.min(1,from+(to-from)*eased));}catch(e){}
+    if(i>=steps){
+      clearInterval(audio.__fx); audio.__fx=null;
+      if(done)done();
+    }
   },40);
+}
+
+function kill(a){
+  if(!a)return;
+  if(a.__fx){clearInterval(a.__fx);a.__fx=null;}
+  a.onended=null;
+  try{a.pause();a.currentTime=0;a.volume=0;}catch(e){}
 }
 
 function stopPreview(){
   const old=AUD;
-  if(old){
-    AUD=null;
-    fade(old,0,420,()=>{ try{old.pause();}catch(e){} });
-  }
+  AUD=null;
   NOWPLAYING="";
+  if(old){
+    old.onended=null;
+    fade(old,0,380,()=>kill(old));
+    setTimeout(()=>kill(old),600);        // fires even if the fade is interrupted
+  }
   document.querySelectorAll(".play.on").forEach(b=>{b.classList.remove("on");b.textContent="\u25b6";});
   showPlayer("");
 }
+
 function preview(btn){
   const song=btn.dataset.song,artist=btn.dataset.artist,key=artist+"|"+song;
   if(NOWPLAYING===key){stopPreview();return;}
@@ -768,7 +777,9 @@ function preview(btn){
     AUD.onended=stopPreview;
     AUD.addEventListener("timeupdate",()=>{
       if(AUD&&AUD.duration&&AUD.duration-AUD.currentTime<0.9&&!AUD.__out){
-        AUD.__out=true; fade(AUD,0,850);
+        AUD.__out=true;
+        const it=AUD;
+        fade(it,0,800,()=>{ if(AUD===it)stopPreview(); else kill(it); });
       }
     });
     AUD.play().then(()=>fade(AUD,vol(),600))
@@ -1184,7 +1195,7 @@ $("p-stop").onclick=stopPreview;
 $("vol").value=store.get("aoty-vol","75");
 $("vol").addEventListener("input",e=>{
   store.set("aoty-vol",e.target.value);
-  if(AUD&&!AUD.__out){ clearInterval(fadeTimer); fadeTimer=null; AUD.volume=vol(); }
+  if(AUD&&!AUD.__out){ if(AUD.__fx){clearInterval(AUD.__fx);AUD.__fx=null;} AUD.volume=vol(); }
 });
 $("album-modal").onclick=e=>{ if(e.target.id==="album-modal")closeAlbum(); };
 addEventListener("keydown",e=>{ if(e.key==="Escape"){closeAlbum();closeCrop();} });
@@ -1253,7 +1264,6 @@ function detailHTML(d){
   const rows=songTable(d);
   const takes=take("Anthony","anthony",d.a,d.aText)+take("Annette","annette",d.n,d.nText);
   const tall=rows.length>10;
-  const liked=rows.filter(r=>r.a==="y"||r.n==="y").length;
   const list=rows.length?`<div class="songlist">
     <div class="tl-head"><span>Tracklist \u00b7 tap \u25b6 for a clip</span><span class="marks"><i>${INI.anthony}</i><i>${INI.annette}</i></span></div>
     <div class="tl-wrap${tall?" tall":""}"><ul>${rows.map(r=>`<li><span class="tl-name">${esc(r.label)}</span>
@@ -1261,7 +1271,6 @@ function detailHTML(d){
         <button class="play" data-artist="${esc(d.artist)}" data-song="${esc(r.label)}" title="Play a 30s clip" aria-label="Play a clip of ${esc(r.label)}">\u25b6</button>
         <span class="marks">${verdict(r.a,"anthony",INI.anthony)}${verdict(r.n,"annette",INI.annette)}</span>
       </span></li>`).join("")}</ul></div>
-    <p class="tl-count">${rows.length} track${rows.length>1?"s":""} · ${liked} liked by someone${tall?" · scroll for the rest":""}</p>
   </div>`:"";
   return`<div class="detail-wrap"><div class="detail-inner"><div class="detail"><div class="takes">${takes}</div>${list}</div></div></div>`;
 }
