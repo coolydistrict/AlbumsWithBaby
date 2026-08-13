@@ -252,6 +252,12 @@ button.artist-head:hover h2{color:var(--accent)}
 .rail{grid-column:1/-1; height:3px; background:var(--raised-2); border-radius:3px; margin-top:-.1rem}
 .rail i{display:block; height:3px; border-radius:3px}
 
+.rise{opacity:0; transform:translateY(1.5em);
+  transition:transform 1.7s .04s cubic-bezier(0,1,.3,1), opacity .5s .04s ease-out;
+  will-change:transform,opacity}
+.rise.in{opacity:1; transform:translateY(0)}
+@media(prefers-reduced-motion:reduce){.rise{opacity:1!important; transform:none!important; transition:none!important}}
+
 .empty{padding:4rem 0; text-align:center; color:var(--faint)}
 .empty b{display:block; font-family:"Bricolage Grotesque",sans-serif; font-size:1.2rem;
   color:var(--accent); margin-bottom:.4rem; font-weight:600}
@@ -403,7 +409,7 @@ function parseCSV(text){
 }
 function splitSongs(raw){
   const liked=[],disliked=[];
-  (raw||"").split(",").map(x=>x.trim()).filter(Boolean).forEach(t=>{
+  String(raw||"").split(/[\n\r;,\u2022\u00b7]+/).map(x=>x.trim()).filter(Boolean).forEach(t=>{
     const m=/^~+\s*(.*?)\s*~*$/.exec(t);
     if(m&&/^~/.test(t))disliked.push(m[1]); else liked.push(t.replace(/^~+/,""));
   });
@@ -508,7 +514,7 @@ const shelfSeen = "IntersectionObserver" in window ? new IntersectionObserver((e
 },{rootMargin:"0px 0px -8% 0px",threshold:.05}) : null;
 
 function reveal(root){
-  const shots=(root||document).querySelectorAll(".cover,.shelf .thumb");
+  const shots=(root||document).querySelectorAll(".cover,.shelf .thumb,.rise");
   if(!shelfSeen){ shots.forEach(el=>el.classList.add("in")); return; }
   shots.forEach((el,i)=>{ el.style.transitionDelay=(0.04+Math.min(i,10)*0.035)+"s"; shelfSeen.observe(el); });
 }
@@ -544,12 +550,12 @@ function statsHTML(){
   const aGenre=groupAvg("genre",d=>d.a), nGenre=groupAvg("genre",d=>d.n);
   if(!both.length&&!byArtist.length)return"";
   return`<section class="stats">
-    <h2>The numbers</h2>
+    <h2 class="rise">The numbers</h2>
     <div class="grid2">
-      ${both.length?`<div class="stat-block"><h3>Genres, both of us</h3>${barRows(both,6)}</div>`:""}
-      ${byArtist.length?`<div class="stat-block"><h3>Artists, both of us</h3>${barRows(byArtist,6)}</div>`:""}
-      ${aGenre.length?`<div class="stat-block"><h3>Anthony by genre</h3>${barRows(aGenre,5)}</div>`:""}
-      ${nGenre.length?`<div class="stat-block"><h3>Annette by genre</h3>${barRows(nGenre,5)}</div>`:""}
+      ${both.length?`<div class="stat-block rise"><h3>Genres, both of us</h3>${barRows(both,6)}</div>`:""}
+      ${byArtist.length?`<div class="stat-block rise"><h3>Artists, both of us</h3>${barRows(byArtist,6)}</div>`:""}
+      ${aGenre.length?`<div class="stat-block rise"><h3>Anthony by genre</h3>${barRows(aGenre,5)}</div>`:""}
+      ${nGenre.length?`<div class="stat-block rise"><h3>Annette by genre</h3>${barRows(nGenre,5)}</div>`:""}
     </div>
   </section>`;
 }
@@ -870,7 +876,7 @@ function albumHTML(d,withArtist){
   if(d.n!==null)who.push("N "+d.n);
   return`<article class="album" tabindex="0" role="button" aria-expanded="false">
     <div class="cover" data-art="${esc(d.artist+" "+d.album)}">${esc(initials(d.album))}</div>
-    <div><div class="album-title">${withArtist?esc(d.artist)+" — ":""}${esc(d.album)}</div>
+    <div class="rise"><div class="album-title">${withArtist?esc(d.artist)+" — ":""}${esc(d.album)}</div>
       <div class="album-sub">${esc(d.year)}${d.year?" · ":""}${who.join("  ")}</div></div>
     ${gauge(d)}
     ${detailHTML(d)}
@@ -878,7 +884,7 @@ function albumHTML(d,withArtist){
 }
 function artistHead(name,genre,clickable,extra){
   const inner=`<div class="ph" data-art="${esc(name)}" data-kind="artist">${esc(initials(name))}</div>
-    <div><h2>${esc(name)}</h2>
+    <div class="rise"><h2>${esc(name)}</h2>
     <div class="genre">${esc(genre||"")}${extra?`<span class="sep">·</span>${extra}`:""}</div></div>`;
   return clickable
     ? `<button class="artist-head" data-artist="${esc(name)}">${inner}</button>`
@@ -893,11 +899,11 @@ function queueHTML(q,g){
   }).sort((a,b)=>a.artist.toLowerCase().localeCompare(b.artist.toLowerCase()));
   if(!list.length)return"";
   return`<section class="queue">
-    <div class="queue-head"><h2>To listen</h2><span>${list.length}</span></div>
-    <p>On the list, nothing rated yet.</p>
+    <div class="queue-head rise"><h2>To listen</h2><span>${list.length}</span></div>
+    <p class="rise">On the list, nothing rated yet.</p>
     <div class="shelf">${list.map(x=>`<button data-artist="${esc(x.artist)}"><figure>
       <div class="thumb" data-art="${esc(x.artist)}" data-kind="artist">${esc(initials(x.artist))}</div>
-      <figcaption>${esc(x.artist)}</figcaption><span class="g">${esc(x.genre||"")}</span>
+      <figcaption class="rise">${esc(x.artist)}</figcaption><span class="g rise">${esc(x.genre||"")}</span>
     </figure></button>`).join("")}</div></section>`;
 }
 
@@ -919,7 +925,7 @@ function renderArtist(name){
   $("out").querySelectorAll("[data-art]").forEach(loadImage);
   dressAvatars($("out"));
   reveal($("out"));
-  $("back").onclick=()=>{FOCUS=null;render();};
+  $("back").onclick=()=>goArtist(null);
   scrollTo({top:0,behavior:"smooth"});
 }
 
@@ -963,9 +969,20 @@ function render(){
 }
 
 /* ── events ──────────────────────────────────────────────────── */
+function goArtist(name){
+  if(name)location.hash="a="+encodeURIComponent(name);
+  else if(location.hash)history.back();
+}
+function readHash(){
+  const m=/^#a=(.+)$/.exec(location.hash);
+  const next=m?decodeURIComponent(m[1]):null;
+  if(next!==FOCUS){FOCUS=next;render();}
+}
+addEventListener("hashchange",readHash);
+
 document.addEventListener("click",e=>{
   const jump=e.target.closest("[data-artist]");
-  if(jump){FOCUS=jump.dataset.artist;render();return;}
+  if(jump){goArtist(jump.dataset.artist);return;}
   if(e.target.closest(".detail"))return;
   const card=e.target.closest(".album");
   if(card)card.setAttribute("aria-expanded",card.classList.toggle("open"));
@@ -1010,8 +1027,12 @@ function boot(rows,sample){
   $("foot").textContent=sample?"Sample data":"Live from Google Sheets";
 
   paintProfiles();
-  ["q","genre","sort"].forEach(id=>$(id).addEventListener("input",()=>{FOCUS=null;render();}));
-  render();
+  ["q","genre","sort"].forEach(id=>$(id).addEventListener("input",()=>{
+    if(FOCUS){goArtist(null);return;}
+    render();
+  }));
+  readHash();
+  if(!FOCUS)render();
 
   const occ=occasion();
   if(occ){ PINNED=OCCASION_TEXT[occ]; setTimeout(()=>celebrate(occ),700); }
