@@ -525,17 +525,17 @@ const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSud4ctkV
 const INI = { anthony:"AP", annette:"AA" };
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-13d";
+const BUILD = "2026-08-13g";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
    fails for any reason, it quietly falls back to the published CSV
    below and nothing breaks. Blank this out to disable live mode. */
-const LIVE_SHEET_ID = "1-Iwubxu3slI-0tOc5i1X2Hpm8rWZCTEt5eamIGUeWh0";
+const LIVE_SHEET_ID = "1IcuH-PkkryrXCZm3lLO_AAkUoGMNBb0Wtv9KS6Or4nM";
 const gviz = tab => "https://docs.google.com/spreadsheets/d/" + LIVE_SHEET_ID +
   "/gviz/tq?tqx=out:csv&sheet=" + encodeURIComponent(tab) + "&cb=" + Date.now();
 
-const MESSAGES_CSV_URL = "";
+const MESSAGES_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSud4ctkVHpydEcLj-MLBRB0fQ1U6JC8mtyzPFeRqwDlFibf_J1kdBpyyXT-zOQ9wifaKtosl0pcqbT/pub?gid=1673739554&single=true&output=csv";
 
 const DATES = { anniversary:"08-30", annette:"09-22", anthony:"12-06" };
 
@@ -1603,7 +1603,7 @@ function boot(rows,sample,header){
   $("notice").innerHTML=sample
     ?`<strong>You're looking at made-up data.</strong> These ratings are placeholders so you can see the layout — none of them are yours.`
     :`Reading live from your sheet. Add a row there, refresh here.`;
-  $("foot").textContent=(sample?"Sample data":(LIVE?"Live from Google Sheets":"Published CSV \u00b7 up to 5 min behind"))
+  $("foot").textContent=(sample?"Sample data":(LIVE?"Live \u00b7 sheet "+LIVE_SHEET_ID.slice(0,6):"Published CSV \u00b7 up to 5 min behind"))
   +" \u00b7 build "+BUILD+(MSGSTAT==="off"?"":" \u00b7 "+MSGSTAT);
 
   paintProfiles();
