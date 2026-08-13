@@ -525,7 +525,7 @@ const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSud4ctkV
 const INI = { anthony:"AP", annette:"AA" };
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-13g";
+const BUILD = "2026-08-13h";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -1009,13 +1009,15 @@ function songFacts(){
   return f;
 }
 
+let MSGLOADED=false;
 function specialPool(){
   const undated=CUSTOM.filter(m=>m.show&&!m.date).map(m=>m.text);
-  return undated.length?undated:CUTE;
+  if(MSGLOADED)return undated;          // the sheet decides, even if it says none
+  return undated.length?undated:CUTE;   // no tab configured, so use the built-ins
 }
 function facts(){
   const pool=specialPool();
-  const out=[pool[Math.floor(Math.random()*pool.length)]];
+  const out=pool.length?[pool[Math.floor(Math.random()*pool.length)]]:[];
   const aAll=ROWS.map(d=>d.a).filter(v=>v!==null);
   const nAll=ROWS.map(d=>d.n).filter(v=>v!==null);
   const aG=groupAvg("genre",d=>d.a), nG=groupAvg("genre",d=>d.n);
@@ -1062,6 +1064,7 @@ function occasion(){
   const t=todayKey();
   const hit=CUSTOM.find(m=>m.date===t);
   if(hit)return"custom:"+hit.text;
+  if(MSGLOADED)return null;             // dated rows come from the sheet only
   for(const k in DATES) if(DATES[k]===t) return k;
   return null;
 }
@@ -1084,17 +1087,17 @@ function fxText(t){
     `<span style="animation-delay:${(i*0.07).toFixed(2)}s,${(i*0.07).toFixed(2)}s">${esc(ch)}</span>`
   ).join("")+`</span>`;
 }
-const isSpecial=t=>CUTE.indexOf(t)>-1
-  ||CUSTOM.some(m=>m.text===t)
-  ||Object.keys(OCCASION_TEXT).some(k=>OCCASION_TEXT[k]===t);
+const isSpecial=t=>CUSTOM.some(m=>m.text===t)
+  ||(!MSGLOADED&&CUTE.indexOf(t)>-1)
+  ||(!MSGLOADED&&Object.keys(OCCASION_TEXT).some(k=>OCCASION_TEXT[k]===t));
 function buildMarquee(){
   const list=facts();
   const pool=specialPool();
   // a lap can run for minutes, so the cute one leads it rather than hiding in the shuffle
-  const lead=list.filter(isSpecial)[0]||pool[0];
+  const lead=list.filter(isSpecial)[0]||pool[0]||null;
   const rest=list.filter(f=>f!==lead).sort(()=>Math.random()-.5);
-  const seq=[lead];
-  if(rest.length>=8){                       // long lap, so drop a second one halfway
+  const seq=lead?[lead]:[];
+  if(lead&&rest.length>=8){                 // long lap, so drop a second one halfway
     const half=Math.ceil(rest.length/2);
     const alt=pool.filter(x=>x!==lead);
     seq.push(...rest.slice(0,half));
@@ -1709,10 +1712,11 @@ function loadMessages(){
         date:(String(r[2]||"").trim().match(/^\d{2}-\d{2}$/)||[""])[0],
         confetti:yes(r[3])
       })).filter(m=>m.text&&(m.show||m.date));
+      MSGLOADED=true;
       const dated=CUSTOM.filter(m=>m.date).length;
       MSGSTAT=CUSTOM.length
         ? CUSTOM.length+" message"+(CUSTOM.length===1?"":"s")+(dated?" ("+dated+" dated)":"")
-        : "Messages tab is empty or nothing is ticked";
+        : "Messages tab read, nothing ticked";
     })
     .catch(()=>{ MSGSTAT="Messages tab unreachable \u2014 check it exists and the sheet is link-shared"; });
 }
