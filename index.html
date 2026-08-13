@@ -525,7 +525,7 @@ const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSud4ctkV
 const INI = { anthony:"AP", annette:"AA" };
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-13h";
+const BUILD = "2026-08-13i";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -657,11 +657,19 @@ function shape(raw,cols){
     const A=parseInt(rawA,10),N=parseInt(rawN,10);
     if(isNaN(A)&&isNaN(N)&&!skipA&&!skipN)continue;
     rated.add(artist);
-    out.push({artist,genre,album,year:(r[K.year]||"").trim(),
+    // one of you rated it and the other left everything empty - that is a solo
+    // listen, whether or not a dash was typed
+    const aS_=splitSongs(r[K.aSongs]), nS_=splitSongs(r[K.nSongs]);
+    const aText_=notNA(r[K.aText]), nText_=notNA(r[K.nText]);
+    const aHas=!isNaN(A)||!!aText_||aS_.order.length;
+    const nHas=!isNaN(N)||!!nText_||nS_.order.length;
+    const aOut=skipA||(!aHas&&nHas), nOut=skipN||(!nHas&&aHas);
+
+    out.push({artist,genre,album,year:tidyNum(r[K.year]).trim(),
       cover:(/^https?:\/\//i.test(String(r[K.cover]||"").trim())?String(r[K.cover]).trim():""),
-      a:isNaN(A)?null:A,n:isNaN(N)?null:N,aSkip:skipA,nSkip:skipN,
-      aS:splitSongs(r[K.aSongs]),aText:notNA(r[K.aText]),
-      nS:splitSongs(r[K.nSongs]),nText:notNA(r[K.nText]),
+      a:isNaN(A)?null:A,n:isNaN(N)?null:N,aSkip:aOut,nSkip:nOut,
+      aS:aS_,aText:aText_,
+      nS:nS_,nText:nText_,
       get avg(){const v=[this.a,this.n].filter(x=>x!==null);return v.reduce((s,x)=>s+x,0)/v.length;},
       get gap(){return(this.a===null||this.n===null)?-1:Math.abs(this.a-this.n);},
       get aSongs(){return this.aS.liked;}, get nSongs(){return this.nS.liked;}});
