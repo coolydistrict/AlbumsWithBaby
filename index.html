@@ -19,21 +19,41 @@
 html{-webkit-text-size-adjust:100%}
 body{background:var(--ground); color:var(--ink);
   font-family:"Inter Tight",system-ui,sans-serif; font-size:15px; line-height:1.55;
-  padding:0 var(--pad) 6rem; max-width:1180px; margin:0 auto;}
+  padding:0 var(--pad) 7rem; max-width:1180px; margin:0 auto;}
 a{color:inherit}
 :focus-visible{outline:2px solid var(--accent); outline-offset:3px; border-radius:3px}
 button{font:inherit; color:inherit; background:none; border:0; cursor:pointer}
 
 #confetti{position:fixed; inset:0; pointer-events:none; z-index:90}
 
-.ticker{position:sticky; top:0; z-index:40; margin:0 calc(var(--pad)*-1);
-  padding:0 var(--pad); overflow:hidden; height:0; transition:height .45s cubic-bezier(.2,.8,.2,1)}
-.ticker.on{height:46px}
-.ticker-in{display:flex; align-items:center; gap:.7rem; height:46px;
-  background:var(--accent); color:#EAF3FB; padding:0 1.1rem;
-  border-radius:0 0 12px 12px; font-size:14px}
-.ticker-in b{font-weight:500}
-.ticker button{margin-left:auto; color:#EAF3FB; opacity:.75; line-height:1; font-size:17px}
+.marquee{position:fixed; left:0; right:0; bottom:0; z-index:60; height:38px;
+  background:var(--accent); color:#EAF3FB; display:flex; align-items:center; overflow:hidden}
+.marquee-in{display:flex; white-space:nowrap; will-change:transform; animation:slide 90s linear infinite}
+.marquee:hover .marquee-in{animation-play-state:paused}
+.marquee i{font-style:normal; padding:0 1.6rem; font-size:13.5px; flex:none}
+.marquee i::after{content:"\25C6"; margin-left:1.6rem; opacity:.4; font-size:9px; vertical-align:middle}
+.marquee b{font-weight:500}
+@keyframes slide{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
+.modal{position:fixed; inset:0; z-index:100; background:rgba(15,37,54,.55);
+  display:none; align-items:center; justify-content:center; padding:1rem}
+.modal.on{display:flex}
+.sheet{background:var(--raised-2); border-radius:14px; padding:1.4rem; width:min(340px,100%)}
+.sheet h3{font-family:"Bricolage Grotesque",sans-serif; font-size:16px; font-weight:600; margin-bottom:.15rem}
+.sheet .note{font-size:12.5px; color:var(--faint); margin-bottom:1rem}
+.stage{width:240px; height:240px; margin:0 auto 1rem; border-radius:50%;
+  background:var(--ground) center/cover no-repeat; cursor:grab;
+  box-shadow:0 0 0 1px var(--line-2), 0 0 0 2000px rgba(255,255,255,.28); touch-action:none}
+.stage:active{cursor:grabbing}
+.zoom{display:flex; align-items:center; gap:.7rem; margin-bottom:1.1rem; font-size:12px; color:var(--dim)}
+.zoom input{flex:1}
+.row{display:flex; gap:.5rem; justify-content:flex-end}
+.row button{border:1px solid var(--line-2); border-radius:8px; padding:.45rem 1rem; font-size:13.5px}
+.row button.go{background:var(--accent); color:#EAF3FB; border-color:var(--accent)}
+.mini{display:flex; gap:.4rem; flex-wrap:wrap; margin-top:.9rem}
+.mini button{border:1px solid var(--line-2); border-radius:20px; padding:.2rem .7rem;
+  font-size:11.5px; color:var(--accent)}
+.mini button:hover{border-color:var(--accent)}
 
 header{padding:clamp(2rem,6vw,4rem) 0 1.5rem}
 .top{display:flex; align-items:flex-start; gap:1rem; margin-bottom:1.6rem}
@@ -60,7 +80,9 @@ h1 em{font-style:normal; color:var(--accent)}
 .panel .note{font-size:13px; color:var(--faint); margin-bottom:1rem}
 .field{display:flex; align-items:center; gap:.6rem; margin-bottom:.6rem; flex-wrap:wrap}
 .field label{font-size:13px; color:var(--dim); min-width:74px}
-.field input{flex:1 1 220px; min-width:0}
+.field input{flex:1 1 200px; min-width:0}
+.field button.adj{border:1px solid var(--line-2); border-radius:8px; padding:.45rem .8rem; font-size:13px; color:var(--dim)}
+.field button.adj:hover{border-color:var(--accent); color:var(--accent)}
 .seg{display:inline-flex; border:1px solid var(--line-2); border-radius:8px; overflow:hidden}
 .seg button{padding:.4rem .9rem; font-size:13px; color:var(--dim)}
 .seg button.on{background:var(--accent); color:#EAF3FB}
@@ -185,10 +207,6 @@ footer button:hover{border-color:var(--accent)}
 
 <canvas id="confetti"></canvas>
 
-<div class="ticker" id="ticker" aria-live="polite">
-  <div class="ticker-in"><b id="ticker-text"></b><button id="ticker-x" aria-label="Dismiss">×</button></div>
-</div>
-
 <header>
   <div class="top">
     <div>
@@ -209,8 +227,20 @@ footer button:hover{border-color:var(--accent)}
     <div class="field"><label>You are</label>
       <span class="seg"><button data-me="anthony">Anthony</button><button data-me="annette">Annette</button></span>
     </div>
-    <div class="field"><label>Anthony</label><input type="url" id="pic-a" placeholder="Paste an image link"></div>
-    <div class="field"><label>Annette</label><input type="url" id="pic-n" placeholder="Paste an image link"></div>
+    <div class="field"><label>Anthony</label>
+      <input type="url" id="pic-a" placeholder="Paste an image or GIF link">
+      <button class="adj" data-adj="anthony">Adjust</button>
+      <button class="adj" data-up="anthony">Upload</button></div>
+    <div class="field"><label>Annette</label>
+      <input type="url" id="pic-n" placeholder="Paste an image or GIF link">
+      <button class="adj" data-adj="annette">Adjust</button>
+      <button class="adj" data-up="annette">Upload</button></div>
+    <input type="file" id="file" accept="image/*" hidden>
+    <div class="mini">
+      <button data-test="anniversary">Test anniversary</button>
+      <button data-test="annette">Test Annette's birthday</button>
+      <button data-test="anthony">Test Anthony's birthday</button>
+    </div>
   </div>
 
   <div class="notice" id="notice"></div>
@@ -232,13 +262,19 @@ footer button:hover{border-color:var(--accent)}
 
 <main id="out"></main>
 
-<footer>
-  <span id="foot"></span>
-  <button data-test="anniversary">Test anniversary</button>
-  <button data-test="annette">Test Annette's birthday</button>
-  <button data-test="anthony">Test Anthony's birthday</button>
-  <button data-test="fact">New fact</button>
-</footer>
+<footer><span id="foot"></span></footer>
+
+<div class="marquee"><div class="marquee-in" id="marquee-in"></div></div>
+
+<div class="modal" id="crop">
+  <div class="sheet">
+    <h3>Adjust picture</h3>
+    <p class="note">Drag to move, slide to zoom. GIFs keep animating.</p>
+    <div class="stage" id="stage"></div>
+    <div class="zoom"><span>Zoom</span><input type="range" id="zoom" min="100" max="400" value="100" step="1"></div>
+    <div class="row"><button id="crop-x">Cancel</button><button class="go" id="crop-ok">Save</button></div>
+  </div>
+</div>
 
 <script>
 const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSud4ctkVHpydEcLj-MLBRB0fQ1U6JC8mtyzPFeRqwDlFibf_J1kdBpyyXT-zOQ9wifaKtosl0pcqbT/pub?gid=739012602&single=true&output=csv";
@@ -342,22 +378,25 @@ const albumShot=term=>jsonp("https://itunes.apple.com/search?entity=album&limit=
   .then(d=>{const h=d&&d.results&&d.results[0];
     return h&&h.artworkUrl100?h.artworkUrl100.replace("100x100","400x400"):null;});
 
-function place(el,url){
+const tryUrl=url=>new Promise(res=>{
+  if(!url)return res(null);
+  const probe=new Image();
+  probe.onload=()=>res(url);
+  probe.onerror=()=>res(null);
+  probe.src=url;
+});
+function paint(el,url){
   if(!url||!el.isConnected)return;
   el.style.backgroundImage='url("'+url+'")';
 }
 function loadImage(el){
-  const term=el.dataset.art,kind=el.dataset.kind||"album";
-  if(kind==="artist"){
-    const manual=(ROSTER.get(term)||{}).pic;
-    if(manual){place(el,manual);return;}
-  }
-  const key=kind+"|"+term;
-  if(imgCache.has(key)){place(el,imgCache.get(key));return;}
-  (kind==="artist"?artistShot(term):albumShot(term)).then(url=>{
-    if(url||kind!=="artist"){imgCache.set(key,url);place(el,url);return;}
-    return albumShot(term).then(alt=>{imgCache.set(key,alt);place(el,alt);});
-  });
+  const term=el.dataset.art,kind=el.dataset.kind||"album",key=kind+"|"+term;
+  if(imgCache.has(key)){paint(el,imgCache.get(key));return;}
+  const manual=kind==="artist"?(ROSTER.get(term)||{}).pic:"";
+  tryUrl(manual)
+    .then(u=>u||(kind==="artist"?artistShot(term):albumShot(term)).then(tryUrl))
+    .then(u=>u||(kind==="artist"?albumShot(term).then(tryUrl):null))
+    .then(u=>{imgCache.set(key,u);paint(el,u);});
 }
 
 const esc=s=>(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -450,17 +489,15 @@ const OCCASION_TEXT={
   anthony:"Happy birthday Anthony 🎂"
 };
 
-let tickTimer=null;
-function showTicker(text,hold){
-  $("ticker-text").textContent=text;
-  $("ticker").classList.add("on");
-  clearTimeout(tickTimer);
-  if(hold!==true)tickTimer=setTimeout(()=>$("ticker").classList.remove("on"),7000);
+let PINNED="";
+function buildMarquee(){
+  const list=facts();
+  const items=(PINNED?[`<b>${esc(PINNED)}</b>`]:[]).concat(
+    list.sort(()=>Math.random()-.5).map(f=>esc(f)));
+  const run=items.map(t=>`<i>${t}</i>`).join("");
+  $("marquee-in").innerHTML=run+run;
 }
-function randomFact(){
-  const f=facts();
-  showTicker(f[Math.floor(Math.random()*f.length)]);
-}
+function pin(text){ PINNED=text; buildMarquee(); }
 
 /* ── confetti ────────────────────────────────────────────────── */
 function confetti(colors,count){
@@ -495,7 +532,7 @@ const PARTY={
 };
 function celebrate(kind){
   confetti(PARTY[kind]||PARTY.anniversary,170);
-  showTicker(OCCASION_TEXT[kind],true);
+  pin(OCCASION_TEXT[kind]);
 }
 
 /* ── profiles ────────────────────────────────────────────────── */
@@ -503,18 +540,92 @@ const store={
   get(k,d){ try{return localStorage.getItem(k)||d;}catch(e){return d;} },
   set(k,v){ try{localStorage.setItem(k,v);}catch(e){} }
 };
+function crop(who){
+  const raw=store.get("aoty-crop-"+who,"");
+  try{ const o=JSON.parse(raw); if(o&&o.z)return o; }catch(e){}
+  return {z:100,x:50,y:50};
+}
+function frame(el,url,c){
+  if(url){
+    el.style.backgroundImage='url("'+url+'")';
+    el.style.backgroundSize=c.z+"%";
+    el.style.backgroundPosition=c.x+"% "+c.y+"%";
+  }else{
+    el.style.backgroundImage="";
+    el.style.backgroundSize="";
+    el.style.backgroundPosition="";
+  }
+}
 function paintProfiles(){
   const me=store.get("aoty-me","");
-  [["a","anthony","pic-a","av-a"],["n","annette","pic-n","av-n"]].forEach(([,who,inp,av])=>{
+  [["anthony","pic-a","av-a"],["annette","pic-n","av-n"]].forEach(([who,inp,av])=>{
     const url=store.get("aoty-pic-"+who,"");
     const el=$(av);
-    el.style.backgroundImage=url?'url("'+url+'")':"";
+    frame(el,url,crop(who));
     el.textContent=url?"":who[0].toUpperCase();
     el.classList.toggle("me",me===who);
     if($(inp).value!==url)$(inp).value=url;
   });
   document.querySelectorAll("[data-me]").forEach(b=>b.classList.toggle("on",b.dataset.me===me));
 }
+
+let cropWho=null,cropState={z:100,x:50,y:50};
+function openCrop(who){
+  const url=store.get("aoty-pic-"+who,"");
+  if(!url){ $("pic-"+(who==="anthony"?"a":"n")).focus(); return; }
+  cropWho=who; cropState=Object.assign({},crop(who));
+  $("zoom").value=cropState.z;
+  frame($("stage"),url,cropState);
+  $("crop").classList.add("on");
+}
+function closeCrop(){ $("crop").classList.remove("on"); cropWho=null; }
+
+$("zoom").oninput=e=>{
+  cropState.z=+e.target.value;
+  frame($("stage"),store.get("aoty-pic-"+cropWho,""),cropState);
+};
+(function(){
+  const st=$("stage"); let drag=false,lx=0,ly=0;
+  const down=e=>{drag=true;const p=e.touches?e.touches[0]:e;lx=p.clientX;ly=p.clientY;};
+  const move=e=>{
+    if(!drag||!cropWho)return;
+    e.preventDefault();
+    const p=e.touches?e.touches[0]:e;
+    const k=Math.max(1,(cropState.z-100)/100)*2.2;
+    cropState.x=Math.max(0,Math.min(100,cropState.x-(p.clientX-lx)/k*0.6));
+    cropState.y=Math.max(0,Math.min(100,cropState.y-(p.clientY-ly)/k*0.6));
+    lx=p.clientX; ly=p.clientY;
+    frame(st,store.get("aoty-pic-"+cropWho,""),cropState);
+  };
+  const up=()=>drag=false;
+  st.addEventListener("mousedown",down); st.addEventListener("touchstart",down,{passive:true});
+  addEventListener("mousemove",move); addEventListener("touchmove",move,{passive:false});
+  addEventListener("mouseup",up); addEventListener("touchend",up);
+})();
+$("crop-ok").onclick=()=>{
+  if(cropWho)store.set("aoty-crop-"+cropWho,JSON.stringify(cropState));
+  paintProfiles(); closeCrop();
+};
+$("crop-x").onclick=closeCrop;
+$("crop").onclick=e=>{ if(e.target.id==="crop")closeCrop(); };
+
+let upWho=null;
+document.querySelectorAll("[data-up]").forEach(b=>b.onclick=()=>{
+  upWho=b.dataset.up; $("file").value=""; $("file").click();
+});
+$("file").onchange=e=>{
+  const f=e.target.files[0]; if(!f||!upWho)return;
+  if(f.size>1.6e6){ alert("That file is over 1.6MB — browser storage can't hold it. Try a smaller one, or paste a link instead."); return; }
+  const fr=new FileReader();
+  fr.onload=()=>{
+    try{ store.set("aoty-pic-"+upWho,fr.result); }
+    catch(err){ alert("Too large to store. Paste a link instead."); return; }
+    store.set("aoty-crop-"+upWho,JSON.stringify({z:100,x:50,y:50}));
+    paintProfiles(); openCrop(upWho);
+  };
+  fr.readAsDataURL(f);
+};
+document.querySelectorAll("[data-adj]").forEach(b=>b.onclick=()=>openCrop(b.dataset.adj));
 
 /* ── rendering ───────────────────────────────────────────────── */
 function gauge(d){
@@ -640,16 +751,12 @@ document.addEventListener("keydown",e=>{
   if((e.key==="Enter"||e.key===" ")&&e.target.classList.contains("album")){e.preventDefault();e.target.click();}
 });
 $("gear").onclick=()=>$("panel").classList.toggle("on");
-$("ticker-x").onclick=()=>$("ticker").classList.remove("on");
 document.querySelectorAll("[data-me]").forEach(b=>b.onclick=()=>{
   store.set("aoty-me",b.dataset.me);paintProfiles();
 });
 $("pic-a").oninput=e=>{store.set("aoty-pic-anthony",e.target.value.trim());paintProfiles();};
 $("pic-n").oninput=e=>{store.set("aoty-pic-annette",e.target.value.trim());paintProfiles();};
-document.querySelectorAll("[data-test]").forEach(b=>b.onclick=()=>{
-  const k=b.dataset.test;
-  if(k==="fact")randomFact(); else celebrate(k);
-});
+document.querySelectorAll("[data-test]").forEach(b=>b.onclick=()=>celebrate(b.dataset.test));
 addEventListener("resize",()=>{const c=$("confetti");c.width=innerWidth;c.height=innerHeight;});
 
 /* ── boot ────────────────────────────────────────────────────── */
@@ -679,9 +786,8 @@ function boot(rows,sample){
   render();
 
   const occ=occasion();
-  if(occ)setTimeout(()=>celebrate(occ),700);
-  else setTimeout(randomFact,1400);
-  setInterval(()=>{ if(!occasion())randomFact(); },45000);
+  if(occ){ PINNED=OCCASION_TEXT[occ]; setTimeout(()=>celebrate(occ),700); }
+  buildMarquee();
 }
 
 if(SHEET_CSV_URL){
