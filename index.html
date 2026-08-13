@@ -494,12 +494,21 @@ button.artist-head:hover h2{color:var(--accent)}
   text-transform:uppercase; color:var(--dim)}
 .legend i{display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:.35rem}
 
-.podium{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1.1rem; align-items:end;
-  max-width:440px; margin:0 auto 2.2rem; padding-bottom:1.5rem;
+.podium{display:grid; grid-template-columns:repeat(3,minmax(0,1fr));
+  grid-template-rows:repeat(4,auto);   /* rank, cover, caption, score */
+  gap:0 1.1rem;                        /* rows are spaced by the bands themselves */
+  max-width:440px; margin:0 auto 2.2rem; padding:20px 0 1.5rem;
   border-bottom:1px solid var(--line-2)}
-.pod{display:flex; flex-direction:column; align-items:center; text-align:center; position:relative;
+.pod{display:grid; grid-template-rows:subgrid; grid-row:span 4;
+  justify-items:center; align-items:end; text-align:center; position:relative;
   opacity:0; transform:translateY(26px);
   animation:podin .72s cubic-bezier(.2,.9,.25,1) forwards}
+/* Without subgrid the bands cannot be shared, so align the tops instead:
+   ragged score badges are a smaller wrong than covers at three heights. */
+@supports not (grid-template-rows:subgrid){
+  .podium{align-items:start}
+  .pod{display:flex; flex-direction:column; align-items:center}
+}
 .pod.p3{animation-delay:.04s}
 .pod.p2{animation-delay:.26s}
 .pod.p1{animation-delay:.5s}
@@ -508,8 +517,7 @@ button.artist-head:hover h2{color:var(--accent)}
 .crown{position:absolute; left:50%; top:-22px; width:54px; height:auto; z-index:3;
   transform:translate(-50%,0); transform-origin:50% 92%; pointer-events:none;
   filter:drop-shadow(0 4px 6px rgba(15,37,54,.32))}
-.pod.p1{padding-top:20px}
-@media(max-width:520px){.crown{width:42px; top:-16px} .pod.p1{padding-top:15px}}
+@media(max-width:520px){.crown{width:42px; top:-16px} .podium{padding-top:15px}}
 @media(prefers-reduced-motion:reduce){.crown{transform:translate(-50%,0)!important}}
 .pod-shot{width:100%; aspect-ratio:1/1.12; background:var(--raised-2) center/cover;
   border:4px solid #fff; border-bottom:16px solid #fff; border-radius:3px;
@@ -528,7 +536,7 @@ button.artist-head:hover h2{color:var(--accent)}
 .pod-cap b{display:block; color:var(--ink); font-weight:500; font-size:13px}
 .pod-sc{margin-top:.4rem; font-family:"JetBrains Mono",monospace; font-size:11px; color:#FFF;
   padding:.05rem .4rem; border-radius:4px}
-@media(max-width:520px){.podium{gap:.5rem} .pod-cap{font-size:11px}}
+@media(max-width:520px){.podium{gap:0 .5rem} .pod-cap{font-size:11px}}
 
 .decade{display:flex; align-items:center; gap:.9rem; margin:1.6rem 0 .5rem}
 .decade::after{content:""; flex:1; height:1px; background:var(--line-2)}
@@ -701,7 +709,7 @@ const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSud4ctkV
 const INI = { anthony:"AP", annette:"AA" };
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-16p";
+const BUILD = "2026-08-16s";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -736,11 +744,21 @@ const CROWN="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKAAAAB7CAMAAADE6HvzA
 
 const GENRE_HUE={
   "hip hop":"#A8552B","r&b":"#8E3B6B","pop":"#C0407A","j-pop":"#C2568C","j-rock":"#A33B4E",
+  "k-pop":"#B0407F",
   "rock":"#8A3A3A","alt rock":"#6B4BA8","psych rock":"#7A4BB8","indie":"#2E7D6B",
   "emo":"#5A4B9A","punk":"#B23A48","metal":"#4A4A55","electronic":"#2F6FA8",
   "jazz":"#8A6A1F","lo-fi":"#4A7A5A","soundtrack":"#6A6A2F","other":"#5F6B78"
 };
 const hueOf = g => GENRE_HUE[String(g||"").trim().toLowerCase()]||"var(--faint)";
+
+const PIC_DEFAULT={
+  anthony:"https://i.pinimg.com/736x/a4/92/92/a492921eb0a2576a9dea95aba8d7ec1a.jpg",
+  annette:"https://i.pinimg.com/736x/82/90/71/82907126a61066713c75ecc1af7f78f7.jpg"
+};
+/* Local storage is per browser, so a picture set here was invisible to the
+   other of you. The default is the shared one; setting your own overrides it
+   for you alone, and clearing the box falls back to shared. */
+const picOf = who => store.get("aoty-pic-"+who,"") || PIC_DEFAULT[who] || "";
 
 const $ = id => document.getElementById(id);
 let ROWS=[], QUEUE=[], ROSTER=new Map(), FOCUS=null, VIEW="list", usingSample=true;
@@ -954,13 +972,16 @@ function loadImage(el){
 }
 
 const shelfSeen = "IntersectionObserver" in window ? new IntersectionObserver((es,o)=>{
-  es.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add("in"); o.unobserve(e.target); } });
+  es.forEach(e=>{ if(e.isIntersecting){ showNow(e.target); o.unobserve(e.target); } });
 },{rootMargin:"260px 0px 260px 0px",threshold:0}) : null;
 
 function showNow(el){
-  if(el.classList.contains("in"))return;
-  el.classList.add("in");
-  setTimeout(()=>{el.classList.add("settled");el.style.transitionDelay="0s";},2500);
+  const already=el.classList.contains("in");
+  if(!already)el.classList.add("in");
+  if(el.classList.contains("settled")||el.__settling)return;
+  el.__settling=true;
+  setTimeout(()=>{el.classList.add("settled");el.style.transitionDelay="0s";},
+    already?0:2500);          // no need to wait out an entrance already over
 }
 function sweep(root){
   const edge=innerHeight+300;
@@ -1308,8 +1329,9 @@ function songFacts(){
         f.push(`${no[0].label} is the ONLY ${d.album} song ${who[k]} doesn't like.`);
       if(said.length>=4&&yes.length===1)
         f.push(`${yes[0].label} is the only thing ${who[k]} kept from ${d.album}.`);
-      if(said.length>=5&&!no.length)
-        f.push(`${who[k]} likes every song on ${d.album}.`);
+      /* Nothing here can tell "liked every track" apart from "never marked
+         anything", because the fetcher writes the full tracklist into both
+         cells. The claim was unevidenced, so it is gone rather than guessed. */
     }
     if(d.aSkip||d.nSkip){
       const who=d.aSkip?"Anthony":"Annette";
@@ -1526,7 +1548,7 @@ function frame(el,url,c){
 function dressAvatars(root){
   (root||document).querySelectorAll(".pip[data-who],.mark[data-who],.benched[data-who]").forEach(el=>{
     const who=el.dataset.who; if(!who)return;
-    const url=store.get("aoty-pic-"+who,"");
+    const url=picOf(who);
     if(!url)return;
     const c=crop(who);
     el.style.backgroundImage='url("'+url+'")';
@@ -1538,7 +1560,7 @@ function dressAvatars(root){
 function paintProfiles(){
   const me=store.get("aoty-me","");
   [["anthony","pic-a","av-a"],["annette","pic-n","av-n"]].forEach(([who,inp,av])=>{
-    const url=store.get("aoty-pic-"+who,"");
+    const url=picOf(who);
     const el=$(av);
     frame(el,url,crop(who));
     el.textContent=url?"":INI[who];
@@ -1551,7 +1573,7 @@ function paintProfiles(){
 
 let cropWho=null,cropState={z:100,x:50,y:50};
 function openCrop(who){
-  const url=store.get("aoty-pic-"+who,"");
+  const url=picOf(who);
   if(!url){ $("pic-"+(who==="anthony"?"a":"n")).focus(); return; }
   cropWho=who; cropState=Object.assign({},crop(who));
   $("zoom").value=cropState.z;
@@ -1562,7 +1584,7 @@ function closeCrop(){ $("crop").classList.remove("on"); cropWho=null; }
 
 $("zoom").oninput=e=>{
   cropState.z=+e.target.value;
-  frame($("stage"),store.get("aoty-pic-"+cropWho,""),cropState);
+  frame($("stage"),picOf(cropWho),cropState);
 };
 (function(){
   const st=$("stage"); let drag=false,lx=0,ly=0;
@@ -1575,7 +1597,7 @@ $("zoom").oninput=e=>{
     cropState.x=Math.max(0,Math.min(100,cropState.x-(p.clientX-lx)/k*0.6));
     cropState.y=Math.max(0,Math.min(100,cropState.y-(p.clientY-ly)/k*0.6));
     lx=p.clientX; ly=p.clientY;
-    frame(st,store.get("aoty-pic-"+cropWho,""),cropState);
+    frame(st,picOf(cropWho),cropState);
   };
   const up=()=>drag=false;
   st.addEventListener("mousedown",down); st.addEventListener("touchstart",down,{passive:true});
@@ -2002,29 +2024,49 @@ addEventListener("scroll",()=>{
   if(bar)bar.style.width=(h>0?Math.min(100,scrollY/h*100):0)+"%";
 },{passive:true});
 
-function panelOpen(){
-  return document.querySelector(".album.open")!==null
-      || $("album-modal").classList.contains("on");
+function audioLocked(){
+  return $("album-modal").classList.contains("on");   // it covers the list
 }
+/* Ask for the album and take the first track the store hands back that is
+   actually on it. Anything else - wrong artist, a compilation, a live
+   record - is dropped rather than played. Null means fall back to the
+   tracklist, so a miss here costs the old behaviour, not silence. */
+function popularFirst(d,done){
+  const wa=normT(d.artist), wl=normT(d.album);
+  if(!wa||!wl){done(null);return;}
+  jsonp("https://itunes.apple.com/search?entity=song&limit=50&term="+
+    encodeURIComponent(d.artist+" "+d.album))
+    .then(r=>{
+      const hit=((r&&r.results)||[]).find(x=>x.previewUrl&&x.trackName&&
+        normT(x.artistName)===wa&&normT(x.collectionName)===wl);
+      done(hit?hit.trackName:null);
+    })
+    .catch(()=>done(null));
+}
+
 function hoverPlay(row){
   if(HOVER_ROW===row)return;                        // already ours, don't restart it
   clearTimeout(hoverTimer);
   if(store.get("aoty-hover","on")!=="on")return;
-  if(panelOpen())return;                            // a panel is in charge of the audio
+  if(audioLocked())return;                          // the modal owns the audio
   if(row.classList.contains("open"))return;
   hoverTimer=setTimeout(()=>{
     if(Date.now()-lastScrollAt<500)return;          // not while the page is moving
-    if(panelOpen())return;                          // one may have opened while we waited
+    if(audioLocked())return;                        // it may have opened while we waited
     if(!row.isConnected||!row.matches(":hover"))return;
     const i=Number(row.dataset.idx); const d=ROWS[i];
     if(!d)return;
     const queue=[...new Set([...d.aS.liked,...d.nS.liked,...d.aS.order,...d.nS.order])].slice(0,5);
     if(!queue.length)return;
     const fake=document.createElement("button");
-    fake.dataset.artist=d.artist; fake.dataset.song=queue[0]; fake.dataset.album=d.album;
+    fake.dataset.artist=d.artist; fake.dataset.album=d.album;
     HOVER_ROW=row;
     fake.__seq=HOVER_SEQ;
-    preview(fake,queue.slice(1));
+    popularFirst(d,top=>{
+      if(fake.__seq!==HOVER_SEQ)return;            // left the row while we looked
+      if(top){ fake.dataset.song=top; preview(fake,queue); }
+      else   { fake.dataset.song=queue[0]; preview(fake,queue.slice(1)); }
+    });
   },700);
 }
 
@@ -2069,7 +2111,7 @@ document.addEventListener("mouseout",e=>{
 // no longer on the row that started the clip, the clip ends
 let hoverMiss=0;
 setInterval(()=>{
-  if(!HOVER_ROW||panelOpen()){hoverMiss=0;return;}
+  if(!HOVER_ROW||audioLocked()){hoverMiss=0;return;}
   const on=HOVER_ROW.isConnected&&HOVER_ROW.matches(":hover");
   // two misses in a row, so a redraw or a transform can't cut it short
   hoverMiss=on?0:hoverMiss+1;
