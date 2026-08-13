@@ -515,6 +515,8 @@ const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSud4ctkV
 const INI = { anthony:"AP", annette:"AA" };
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
+const BUILD = "2026-08-13c";
+
 const MESSAGES_CSV_URL = "";
 
 const DATES = { anniversary:"08-30", annette:"09-22", anthony:"12-06" };
@@ -577,14 +579,45 @@ function splitSongs(raw){
   return{order,liked,disliked,dis,all:order};
 }
 
-function shape(raw){
+const DEFAULT_COLS={photo:0,artist:1,genre:2,cover:3,album:4,year:5,
+  aRate:6,aSongs:7,aText:8,nRate:9,nSongs:10,nText:11};
+
+function mapCols(header){
+  if(!header||!header.length)return Object.assign({},DEFAULT_COLS);
+  const idx={};
+  header.forEach((h,i)=>{
+    const k=String(h||"").trim().toLowerCase();
+    if(k&&!(k in idx))idx[k]=i;
+  });
+  const pick=(names,fb)=>{
+    for(const n of names) if(n in idx) return idx[n];
+    return fb;
+  };
+  const c={
+    photo:pick(["artist photo","photo"],DEFAULT_COLS.photo),
+    artist:pick(["artist"],DEFAULT_COLS.artist),
+    genre:pick(["genre"],DEFAULT_COLS.genre),
+    cover:pick(["album cover","cover","album art"],DEFAULT_COLS.cover),
+    album:pick(["album"],DEFAULT_COLS.album),
+    year:pick(["year"],DEFAULT_COLS.year),
+    aRate:pick(["anthony"],DEFAULT_COLS.aRate),
+    nRate:pick(["annette"],DEFAULT_COLS.nRate)
+  };
+  // Songs and Thoughts repeat, so take the two that follow each rating
+  c.aSongs=c.aRate+1; c.aText=c.aRate+2;
+  c.nSongs=c.nRate+1; c.nText=c.nRate+2;
+  return c;
+}
+
+function shape(raw,cols){
+  const K=cols||DEFAULT_COLS;
   const out=[],roster=new Map(),rated=new Set();
   let lastArtist="",lastGenre="";
   for(const r of raw){
-    const artist=(r[1]||"").trim()||lastArtist;
-    const genre=(r[2]||"").trim()||(artist===lastArtist?lastGenre:"");
-    const album=(r[4]||"").trim();
-    const pic=(r[0]||"").trim();
+    const artist=(r[K.artist]||"").trim()||lastArtist;
+    const genre=(r[K.genre]||"").trim()||(artist===lastArtist?lastGenre:"");
+    const album=(r[K.album]||"").trim();
+    const pic=(r[K.photo]||"").trim();
     if(artist){lastArtist=artist;lastGenre=genre;}
     if(artist){
       const cur=roster.get(artist)||{genre:"",pics:[]};
@@ -595,14 +628,14 @@ function shape(raw){
       roster.set(artist,cur);
     }
     if(!album)continue;
-    const A=parseInt(r[6],10),N=parseInt(r[9],10);
+    const A=parseInt(r[K.aRate],10),N=parseInt(r[K.nRate],10);
     if(isNaN(A)&&isNaN(N))continue;
     rated.add(artist);
-    out.push({artist,genre,album,year:(r[5]||"").trim(),
-      cover:(/^https?:\/\//i.test(String(r[3]||"").trim())?String(r[3]).trim():""),
+    out.push({artist,genre,album,year:(r[K.year]||"").trim(),
+      cover:(/^https?:\/\//i.test(String(r[K.cover]||"").trim())?String(r[K.cover]).trim():""),
       a:isNaN(A)?null:A,n:isNaN(N)?null:N,
-      aS:splitSongs(r[7]),aText:(r[8]||"").trim(),
-      nS:splitSongs(r[10]),nText:(r[11]||"").trim(),
+      aS:splitSongs(r[K.aSongs]),aText:(r[K.aText]||"").trim(),
+      nS:splitSongs(r[K.nSongs]),nText:(r[K.nText]||"").trim(),
       get avg(){const v=[this.a,this.n].filter(x=>x!==null);return v.reduce((s,x)=>s+x,0)/v.length;},
       get gap(){return(this.a===null||this.n===null)?-1:Math.abs(this.a-this.n);},
       get aSongs(){return this.aS.liked;}, get nSongs(){return this.nS.liked;}});
@@ -1439,8 +1472,8 @@ addEventListener("resize",()=>{const c=$("confetti");c.width=innerWidth;c.height
 function hideBoot(){ const b=$("boot"); if(b)b.classList.add("done"); }
 
 /* ── boot ────────────────────────────────────────────────────── */
-function boot(rows,sample){
-  const shaped=shape(rows);
+function boot(rows,sample,header){
+  const shaped=shape(rows,mapCols(header));
   ROWS=shaped.rows;QUEUE=shaped.queue;ROSTER=shaped.roster;usingSample=sample;
 
   const genres=[...new Set([...ROWS.map(d=>d.genre),...QUEUE.map(d=>d.genre)].filter(Boolean))].sort();
@@ -1458,7 +1491,7 @@ function boot(rows,sample){
   $("notice").innerHTML=sample
     ?`<strong>You're looking at made-up data.</strong> These ratings are placeholders so you can see the layout — none of them are yours.`
     :`Reading live from your sheet. Add a row there, refresh here.`;
-  $("foot").textContent=sample?"Sample data":"Live from Google Sheets";
+  $("foot").textContent=(sample?"Sample data":"Live from Google Sheets")+" \u00b7 build "+BUILD;
 
   paintProfiles();
   ["q","genre","sort"].forEach(id=>$(id).addEventListener("input",()=>{render();syncState();}));
@@ -1501,7 +1534,7 @@ function start(){
 if(SHEET_CSV_URL){
   fetch(SHEET_CSV_URL+(SHEET_CSV_URL.includes("?")?"&":"?")+"cb="+Date.now())
     .then(r=>{if(!r.ok)throw new Error(r.status);return r.text();})
-    .then(t=>boot(parseCSV(t).slice(1),false))
+    .then(t=>{const all=parseCSV(t);boot(all.slice(1),false,all[0]);})
     .catch(()=>{boot(SAMPLE,true);
       $("notice").innerHTML=`<strong>Couldn't reach the sheet.</strong> Showing sample data instead.`;});
 }else boot(SAMPLE,true);
