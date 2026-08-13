@@ -39,9 +39,14 @@ button{font:inherit; color:inherit; background:none; border:0; cursor:pointer}
 
 #confetti{position:fixed; inset:0; pointer-events:none; z-index:90}
 
+.scroll-line{position:fixed; left:0; top:38px; height:2px; width:0; z-index:61;
+  background:linear-gradient(90deg,var(--accent),#7FC5E8); pointer-events:none;
+  transition:width .12s linear}
 .marquee{position:fixed; left:0; right:0; top:0; z-index:60; height:38px;
   background:var(--accent); color:#EAF3FB; display:flex; align-items:center; overflow:hidden;
-  transition:background-color .8s ease}
+  transition:background-color .8s ease;
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent);
+  mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent)}
 .marquee.held{background:#0C3F63}
 .marquee-in{display:flex; white-space:nowrap; will-change:transform}
 .marquee i{font-style:normal; padding:0; font-size:13.5px; flex:none}
@@ -163,6 +168,10 @@ h1 em{font-style:normal; color:var(--accent)}
 .tally{display:flex; gap:2rem; flex-wrap:wrap}
 .tally div{display:flex; flex-direction:column; gap:.1rem}
 .tally b{font-family:"JetBrains Mono",monospace; font-size:1.6rem; font-weight:600; letter-spacing:-.02em}
+.odo{display:inline-flex; overflow:hidden; height:1em; vertical-align:bottom}
+.odo-slot{display:inline-block; overflow:hidden; height:1em; line-height:1em}
+.odo-reel{display:flex; flex-direction:column; will-change:transform}
+.odo-reel i{font-style:normal; height:1em; line-height:1em; display:block; text-align:center}
 .tally span{font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--faint); font-family:"JetBrains Mono",monospace}
 
 input[type=search],select,input[type=url]{font-family:inherit; font-size:14px; color:var(--ink);
@@ -235,6 +244,11 @@ button.artist-head:hover h2{color:var(--accent)}
 .album::before{content:""; position:absolute; left:0; top:.5rem; bottom:.5rem; width:3px;
   border-radius:3px; background:var(--gc,var(--line-2)); opacity:.5; transition:opacity .2s}
 .album:hover::before{opacity:1}
+.album{background-image:linear-gradient(90deg,
+  color-mix(in srgb,var(--gc,transparent) 13%,transparent), transparent 46%);
+  transition:background-color .2s ease-out, background-image .3s ease-out}
+.album:hover{background-image:linear-gradient(90deg,
+  color-mix(in srgb,var(--gc,transparent) 22%,transparent), transparent 58%)}
 .album.ranked{padding-left:3rem}
 .rankno{position:absolute; left:.95rem; top:50%; transform:translateY(-50%);
   font-family:"JetBrains Mono",monospace; font-size:12px; color:var(--faint); letter-spacing:.04em}
@@ -246,11 +260,17 @@ button.artist-head:hover h2{color:var(--accent)}
   display:grid; place-items:center; font-family:"Bricolage Grotesque",sans-serif;
   font-size:16px; font-weight:600; color:var(--faint);
   border:4px solid #fff; border-bottom:15px solid #fff; border-radius:2px;
-  box-shadow:.25em .3em .7em .05em rgba(15,37,54,.22);
+  box-shadow:.25em .3em .7em .05em rgba(15,37,54,.22),
+             0 0 22px -8px var(--sc,transparent);
   opacity:0; transform:translateY(2.2em) rotateZ(-5deg);
   transition:transform 2.4s .05s cubic-bezier(0,1,.3,1), opacity .4s .05s ease-out;
   will-change:transform,opacity}
 .cover.in{opacity:1; transform:translateY(0) rotateZ(-1.6deg)}
+.album.playing .cover{animation:breathe 2.4s ease-in-out infinite}
+@keyframes breathe{
+  0%,100%{box-shadow:.25em .3em .7em .05em rgba(15,37,54,.22), 0 0 14px -6px var(--sc,transparent)}
+  50%{box-shadow:.25em .3em 1.1em .05em rgba(15,37,54,.28), 0 0 30px 2px var(--sc,#7FC5E8)}}
+@media(prefers-reduced-motion:reduce){.album.playing .cover{animation:none}}
 .album:nth-of-type(2n) .cover.in{transform:translateY(0) rotateZ(1.9deg)}
 .album:nth-of-type(3n) .cover.in{transform:translateY(0) rotateZ(-.5deg)}
 .album:hover .cover.in.settled{transform:perspective(620px) translateY(-3px)
@@ -362,11 +382,16 @@ button.artist-head:hover h2{color:var(--accent)}
   border:5px solid #fff; border-bottom:20px solid #fff; border-radius:2px;
   box-shadow:.25em .3em .8em .05em rgba(15,37,54,.2);
   opacity:0; transform:translateY(2.2em) rotateZ(-5deg);
-  transition:transform 2.4s .05s cubic-bezier(0,1,.3,1), opacity .4s .05s ease-out;
+  transition:transform 2.4s .05s cubic-bezier(0,1,.3,1), opacity .4s .05s ease-out,
+    filter .35s ease-out;
   will-change:transform,opacity}
 .shelf .thumb.in{opacity:1; transform:translateY(0) rotateZ(-2deg)}
 .shelf button:nth-child(2n) .thumb.in{transform:translateY(0) rotateZ(2.4deg)}
 .shelf button:nth-child(3n) .thumb.in{transform:translateY(0) rotateZ(-.8deg)}
+.shelf button:nth-child(2n) .thumb{filter:saturate(.94) brightness(.985)}
+.shelf button:nth-child(3n) .thumb{filter:saturate(.88) brightness(.97)}
+.shelf button:nth-child(5n) .thumb{filter:saturate(.82) brightness(.955) blur(.25px)}
+.shelf button:hover .thumb{filter:none}
 .shelf button:hover .thumb.in.settled{transform:translateY(-3px) rotateZ(0deg); transition:transform .35s ease-out}
 .shelf figcaption{margin-top:.45rem; font-size:12.5px; line-height:1.3; overflow-wrap:anywhere;
   display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
@@ -445,7 +470,14 @@ button.artist-head:hover h2{color:var(--accent)}
 .podium{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1.1rem; align-items:end;
   max-width:440px; margin:0 auto 2.2rem; padding-bottom:1.5rem;
   border-bottom:1px solid var(--line-2)}
-.pod{display:flex; flex-direction:column; align-items:center; text-align:center; position:relative}
+.pod{display:flex; flex-direction:column; align-items:center; text-align:center; position:relative;
+  opacity:0; transform:translateY(26px);
+  animation:podin .72s cubic-bezier(.2,.9,.25,1) forwards}
+.pod.p2{animation-delay:.06s}
+.pod.p1{animation-delay:.18s}
+.pod.p3{animation-delay:.30s}
+@keyframes podin{to{opacity:1; transform:none}}
+@media(prefers-reduced-motion:reduce){.pod{opacity:1; transform:none; animation:none}}
 .crown{position:absolute; left:50%; top:-22px; width:54px; height:auto; z-index:3;
   transform:translate(-50%,0); transform-origin:50% 92%; pointer-events:none;
   filter:drop-shadow(0 4px 6px rgba(15,37,54,.32))}
@@ -540,6 +572,7 @@ footer button:hover{border-color:var(--accent)}
 
 <canvas id="confetti"></canvas>
 
+<div class="scroll-line" id="scroll-line"></div>
 <div class="marquee"><div class="marquee-in" id="marquee-in"></div></div>
 
 <header>
@@ -641,7 +674,7 @@ const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSud4ctkV
 const INI = { anthony:"AP", annette:"AA" };
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-15j";
+const BUILD = "2026-08-16c";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -943,7 +976,12 @@ function kill(a){
   try{a.pause();a.currentTime=0;a.volume=0;}catch(e){}
 }
 
+function markPlaying(row){
+  document.querySelectorAll(".album.playing").forEach(a=>a.classList.remove("playing"));
+  if(row)row.classList.add("playing");
+}
 function stopPreview(){
+  markPlaying(null);
   HOVER_ROW=null;
   const old=AUD;
   AUD=null;
@@ -993,7 +1031,8 @@ function pickTrack(results,song,artist,album){
   return bs>0?best:null;
 }
 
-function preview(btn){
+function preview(btn,alts,override){
+  if(override)btn.dataset.song=override;
   const song=btn.dataset.song,artist=btn.dataset.artist,album=btn.dataset.album||"";
   const key=artist+"|"+song;
   if(NOWPLAYING===key){stopPreview();return;}
@@ -1002,7 +1041,10 @@ function preview(btn){
   jsonp("https://itunes.apple.com/search?entity=song&limit=25&term="+
     encodeURIComponent(artist+" "+song)).then(d=>{
     const hit=pickTrack(d&&d.results,song,artist,album);
-    if(!hit){btn.classList.add("dead");btn.textContent="\u2013";btn.title="No preview matching this song";return;}
+    if(!hit){
+      if(alts&&alts.length){ preview(btn,alts.slice(1),alts[0]); return; }   // try the next track
+      btn.classList.add("dead");btn.textContent="\u2013";btn.title="No preview matching this song";return;
+    }
     AUD=new Audio(hit.previewUrl); AUD.volume=0;
     AUD.onended=stopPreview;
     AUD.addEventListener("timeupdate",()=>{
@@ -1015,6 +1057,7 @@ function preview(btn){
     AUD.play().then(()=>fade(AUD,vol(),600))
       .catch(()=>{btn.classList.add("dead");btn.textContent="\u2013";stopPreview();});
     NOWPLAYING=key; btn.classList.add("on"); btn.textContent="\u25a0";
+    markPlaying(btn.closest?.(".album")||HOVER_ROW||null);
     showPlayer(song);
   });
 }
@@ -1599,7 +1642,7 @@ function albumHTML(d,withArtist,rank){
   if(d.a!==null)who.push(INI.anthony+" "+d.a); else if(d.aSkip)who.push(INI.anthony+" \u2013");
   if(d.n!==null)who.push(INI.annette+" "+d.n); else if(d.nSkip)who.push(INI.annette+" \u2013");
   return`<article class="album${rank?" ranked":""}" tabindex="0" role="button" aria-expanded="false"
-    data-idx="${ROWS.indexOf(d)}" style="--gc:${hueOf(d.genre)}">${rank?`<span class="rankno">${String(rank).padStart(2,"0")}</span>`:""}
+    data-idx="${ROWS.indexOf(d)}" style="--gc:${hueOf(d.genre)};--sc:${isNaN(d.avg)?"transparent":ramp(d.avg)}">${rank?`<span class="rankno">${String(rank).padStart(2,"0")}</span>`:""}
     <div class="cover" data-cover="${esc(d.cover)}" data-art="${esc(d.artist+" "+d.album)}">${esc(initials(d.album))}</div>
     <div class="rise"><div class="album-title">${withArtist?esc(d.artist)+" — ":""}${esc(d.album)}</div>
       <div class="album-sub">${d.year?`<span class="yr">${esc(d.year)}</span>`:""}${who.join("  ")}${
@@ -1700,12 +1743,11 @@ function renderArtist(name){
         ${artistHead(name,info.genre,false,extra,avg,sparkline(ordered))}
       </div>${body}</section>`;
   $("mini-name").textContent=name;
-  $("mini").classList.remove("on");
-  if(heroWatch)heroWatch.disconnect();
+  dropHeroWatch();
   const hero=$("hero");
   if(hero&&"IntersectionObserver" in window){
     heroWatch=new IntersectionObserver(es=>{
-      $("mini").classList.toggle("on",!es[0].isIntersecting);
+      $("mini").classList.toggle("on",!!FOCUS&&es[0].target.isConnected&&!es[0].isIntersecting);
     },{rootMargin:"-52px 0px 0px 0px"});
     heroWatch.observe(hero);
   }
@@ -1717,9 +1759,13 @@ function renderArtist(name){
 }
 
 let heroWatch=null;
+function dropHeroWatch(){
+  if(heroWatch){heroWatch.disconnect();heroWatch=null;}
+  $("mini").classList.remove("on");
+}
 function render(){
   stopPreview();
-  $("mini").classList.remove("on");
+  dropHeroWatch();      // an observer left watching a removed hero kept firing
   if(FOCUS){renderArtist(FOCUS);return;}
   const q=$("q").value.trim().toLowerCase();
   const g=$("genre").value,sort=$("sort").value;
@@ -1889,7 +1935,12 @@ document.querySelectorAll("[data-test]").forEach(b=>b.onclick=()=>celebrate(b.da
   m.addEventListener("mouseenter",()=>{crawlTarget=0;m.classList.add("held");});
   m.addEventListener("mouseleave",()=>{crawlTarget=0.22;m.classList.remove("held");});})();
 let hoverTimer=null,lastScrollAt=0,HOVER_ROW=null;
-addEventListener("scroll",()=>{lastScrollAt=Date.now();},{passive:true});
+addEventListener("scroll",()=>{
+  lastScrollAt=Date.now();
+  const h=document.documentElement.scrollHeight-innerHeight;
+  const bar=$("scroll-line");
+  if(bar)bar.style.width=(h>0?Math.min(100,scrollY/h*100):0)+"%";
+},{passive:true});
 
 function panelOpen(){
   return document.querySelector(".album.open")!==null
@@ -1906,11 +1957,11 @@ function hoverPlay(row){
     if(!row.isConnected||!row.matches(":hover"))return;
     const i=Number(row.dataset.idx); const d=ROWS[i];
     if(!d)return;
-    const song=(d.aS.liked[0]||d.nS.liked[0]||d.aS.order[0]||d.nS.order[0]);
-    if(!song)return;
+    const queue=[...new Set([...d.aS.liked,...d.nS.liked,...d.aS.order,...d.nS.order])].slice(0,5);
+    if(!queue.length)return;
     const fake=document.createElement("button");
-    fake.dataset.artist=d.artist; fake.dataset.song=song; fake.dataset.album=d.album;
-    preview(fake);
+    fake.dataset.artist=d.artist; fake.dataset.song=queue[0]; fake.dataset.album=d.album;
+    preview(fake,queue.slice(1));
     HOVER_ROW=row;        // after preview(), which calls stopPreview() and would clear it
   },700);
 }
@@ -1928,11 +1979,6 @@ document.addEventListener("mouseout",e=>{
   const cov=e.target.closest?.(".album")?.querySelector(".cover");
   if(cov){cov.style.removeProperty("--tx");cov.style.removeProperty("--ty");}
   clearTimeout(hoverTimer);
-  // moving off the row ends a clip that hovering started
-  if(HOVER_ROW&&!panelOpen()){
-    const to=e.relatedTarget;
-    if(!to||!HOVER_ROW.contains(to)){ HOVER_ROW=null; stopPreview(); }
-  }
 },{passive:true});
 document.addEventListener("mouseover",e=>{
   const row=e.target.closest?.(".album");
@@ -1940,10 +1986,14 @@ document.addEventListener("mouseover",e=>{
 },{passive:true});
 // belt and braces: whatever sequence of events got us here, if the pointer is
 // no longer on the row that started the clip, the clip ends
+let hoverMiss=0;
 setInterval(()=>{
-  if(!HOVER_ROW||panelOpen())return;
-  if(!HOVER_ROW.isConnected||!HOVER_ROW.matches(":hover")){ HOVER_ROW=null; stopPreview(); }
-},250);
+  if(!HOVER_ROW||panelOpen()){hoverMiss=0;return;}
+  const on=HOVER_ROW.isConnected&&HOVER_ROW.matches(":hover");
+  // two misses in a row, so a redraw or a transform can't cut it short
+  hoverMiss=on?0:hoverMiss+1;
+  if(hoverMiss>=2){ hoverMiss=0; HOVER_ROW=null; stopPreview(); }
+},220);
 
 /* The crown hangs off a spring: it lags the page, overshoots, and settles.
    Vertical velocity drives the tilt, which is what reads as follow-through. */
@@ -1976,14 +2026,31 @@ addEventListener("resize",()=>{const c=$("confetti");c.width=innerWidth;c.height
 function hideBoot(){ const b=$("boot"); if(b)b.classList.add("done"); }
 
 /* ── boot ────────────────────────────────────────────────────── */
+/* Each digit is its own little reel, so the number rolls into place. */
 function countUp(el,to,ms){
-  if(!el||window.matchMedia("(prefers-reduced-motion: reduce)").matches){if(el)el.textContent=to;return;}
-  const t0=performance.now();
-  (function step(now){
-    const p=Math.min(1,(now-t0)/ms);
-    el.textContent=Math.round(to*(1-Math.pow(1-p,3)));   // ease out
-    if(p<1)requestAnimationFrame(step);
-  })(t0);
+  if(!el)return;
+  if(window.matchMedia("(prefers-reduced-motion: reduce)").matches){el.textContent=to;return;}
+  const digits=String(to).split("");
+  el.textContent="";
+  el.classList.add("odo");
+  digits.forEach((d,i)=>{
+    const slot=document.createElement("span");
+    slot.className="odo-slot";
+    const reel=document.createElement("span");
+    reel.className="odo-reel";
+    const run=[];
+    for(let k=0;k<7;k++)run.push(Math.floor(Math.random()*10));
+    run.push(Number(d));                       // lands on the real digit
+    reel.innerHTML=run.map(n=>`<i>${n}</i>`).join("");
+    slot.appendChild(reel); el.appendChild(slot);
+    const travel=(run.length-1)*100;
+    reel.style.transition="none";
+    reel.style.transform="translateY(0)";
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      reel.style.transition=`transform ${ms+i*90}ms cubic-bezier(.15,.85,.2,1)`;
+      reel.style.transform=`translateY(-${travel}%)`;
+    }));
+  });
 }
 function paintTally(){
   const aAll=ROWS.map(d=>d.a).filter(v=>v!==null),nAll=ROWS.map(d=>d.n).filter(v=>v!==null);
@@ -1996,7 +2063,7 @@ function paintTally(){
     ${QUEUE.length?`<div><b style="color:var(--faint)">${QUEUE.length}</b><span>to listen</span></div>`:""}`;
   $("tally").querySelectorAll("b").forEach(b=>{
     const n=parseInt(b.textContent,10);
-    if(!isNaN(n)){b.textContent="0";countUp(b,n,900);}
+    if(!isNaN(n))countUp(b,n,1000);
   });
 }
 
