@@ -135,6 +135,8 @@ input[type=search]{flex:1 1 200px; min-width:0}
 .count{font-family:"JetBrains Mono",monospace; font-size:12px; color:var(--faint); margin-left:auto; white-space:nowrap}
 
 .crumb{display:flex; align-items:center; gap:.8rem; padding:1.75rem 0 0}
+.crumb-note{font-family:"JetBrains Mono",monospace; font-size:10px; letter-spacing:.14em;
+  text-transform:uppercase; color:#FFF; background:var(--accent); padding:.12rem .5rem; border-radius:20px}
 .crumb button{font-family:"JetBrains Mono",monospace; font-size:11.5px; letter-spacing:.12em;
   text-transform:uppercase; color:var(--accent)}
 
@@ -921,8 +923,8 @@ function detailHTML(d){
 }
 function albumHTML(d,withArtist){
   const who=[];
-  if(d.a!==null)who.push("A "+d.a);
-  if(d.n!==null)who.push("N "+d.n);
+  if(d.a!==null)who.push(INI.anthony+" "+d.a);
+  if(d.n!==null)who.push(INI.annette+" "+d.n);
   return`<article class="album" tabindex="0" role="button" aria-expanded="false">
     <div class="cover" data-art="${esc(d.artist+" "+d.album)}">${esc(initials(d.album))}</div>
     <div class="rise"><div class="album-title">${withArtist?esc(d.artist)+" — ":""}${esc(d.album)}</div>
@@ -956,21 +958,48 @@ function queueHTML(q,g){
     </figure></button>`).join("")}</div></section>`;
 }
 
+const SORTS={
+  artist:(x,y)=>(x.year||"").localeCompare(y.year||""),
+  rating:(x,y)=>y.avg-x.avg,
+  new:(x,y)=>(y.year||"").localeCompare(x.year||""),
+  old:(x,y)=>(x.year||"").localeCompare(y.year||""),
+  gap:(x,y)=>y.gap-x.gap
+};
+function matches(d,q){
+  if(!q)return true;
+  return(d.artist+" "+d.album+" "+d.aS.all.join(" ")+" "+d.nS.all.join(" ")).toLowerCase().includes(q);
+}
+
 function renderArtist(name){
   const info=ROSTER.get(name)||{genre:""};
-  const al=ROWS.filter(d=>d.artist===name)
-    .sort((x,y)=>(x.year||"").localeCompare(y.year||""));
-  const avg=al.length?Math.round(mean(al.map(d=>d.avg))):null;
-  const extra=al.length
-    ? `${al.length} album${al.length>1?"s":""}<span class="sep">·</span>avg ${avg}`
+  const q=$("q").value.trim().toLowerCase();
+  const g=$("genre").value, sort=$("sort").value;
+
+  const mine=ROWS.filter(d=>d.artist===name);
+  const shown=mine.filter(d=>(!g||d.genre===g)&&matches(d,q)).sort(SORTS[sort]||SORTS.artist);
+
+  const avg=mine.length?Math.round(mean(mine.map(d=>d.avg))):null;
+  const extra=mine.length
+    ? `${mine.length} album${mine.length>1?"s":""}<span class="sep">·</span>avg ${avg}`
     : "nothing rated yet";
-  $("count").textContent=al.length?al.length+(al.length===1?" album":" albums"):"";
+  const filtered=mine.length&&shown.length!==mine.length;
+  $("count").textContent=mine.length
+    ? (filtered?shown.length+" of "+mine.length:shown.length+(shown.length===1?" album":" albums"))
+    : "";
+
+  let body;
+  if(!mine.length){
+    body=`<div class="empty"><b>Not rated yet</b>Add an album for ${esc(name)} in the sheet and it turns up here.</div>`;
+  }else if(!shown.length){
+    body=`<div class="empty"><b>Nothing matches</b>${esc(name)} has ${mine.length} rated album${mine.length>1?"s":""}, but none fit the current filters.</div>`;
+  }else{
+    body=shown.map(d=>albumHTML(d,false)).join("");
+  }
+
   $("out").innerHTML=`
-    <div class="crumb"><button id="back">← All artists</button></div>
-    <section class="artist">${artistHead(name,info.genre,false,extra)}
-      ${al.length?al.map(d=>albumHTML(d,false)).join("")
-        :`<div class="empty"><b>Not rated yet</b>Add an album for ${esc(name)} in the sheet and it turns up here.</div>`}
-    </section>`;
+    <div class="crumb"><button id="back">\u2190 All artists</button>${
+      filtered?`<span class="crumb-note">filtered</span>`:""}</div>
+    <section class="artist">${artistHead(name,info.genre,false,extra)}${body}</section>`;
   $("out").querySelectorAll("[data-art]").forEach(loadImage);
   dressAvatars($("out"));
   reveal($("out"));
@@ -982,11 +1011,7 @@ function render(){
   if(FOCUS){renderArtist(FOCUS);return;}
   const q=$("q").value.trim().toLowerCase();
   const g=$("genre").value,sort=$("sort").value;
-  const list=ROWS.filter(d=>{
-    if(g&&d.genre!==g)return false;
-    if(!q)return true;
-    return(d.artist+" "+d.album+" "+d.aS.all.join(" ")+" "+d.nS.all.join(" ")).toLowerCase().includes(q);
-  });
+  const list=ROWS.filter(d=>(!g||d.genre===g)&&matches(d,q));
   $("count").textContent=`${list.length} album${list.length===1?"":"s"}`;
   const out=$("out");
   let html="";
@@ -1004,11 +1029,7 @@ function render(){
         ${al.map(d=>albumHTML(d,false)).join("")}</section>`;
     }).join("");
   }else{
-    const cmp={rating:(x,y)=>y.avg-x.avg,
-      new:(x,y)=>(y.year||"").localeCompare(x.year||""),
-      old:(x,y)=>(x.year||"").localeCompare(y.year||""),
-      gap:(x,y)=>y.gap-x.gap}[sort];
-    html=`<section class="artist">${list.slice().sort(cmp).map(d=>albumHTML(d,true)).join("")}</section>`;
+    html=`<section class="artist">${list.slice().sort(SORTS[sort]).map(d=>albumHTML(d,true)).join("")}</section>`;
   }
 
   out.innerHTML=html+queueHTML(q,g)+statsHTML();
@@ -1090,10 +1111,7 @@ function boot(rows,sample){
   $("foot").textContent=sample?"Sample data":"Live from Google Sheets";
 
   paintProfiles();
-  ["q","genre","sort"].forEach(id=>$(id).addEventListener("input",()=>{
-    if(FOCUS){goArtist(null);return;}
-    render();
-  }));
+  ["q","genre","sort"].forEach(id=>$(id).addEventListener("input",render));
   readHash();
   if(!FOCUS)render();
 
