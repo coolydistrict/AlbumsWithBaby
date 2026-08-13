@@ -309,8 +309,10 @@ button.artist-head:hover h2{color:var(--accent)}
   background:rgba(16,38,58,.16); border-radius:3px}
 .gauge.solo .track{background:repeating-linear-gradient(90deg,
   rgba(16,38,58,.34) 0 6px, transparent 6px 13px)}
+/* Flat accent made a 4-point gap and a 40-point gap look the same. */
 .span{position:absolute; top:27px; left:0; width:0; height:5px; border-radius:5px;
-  background:var(--accent-soft); transition:left 1.15s cubic-bezier(.2,.85,.25,1), width 1.15s cubic-bezier(.2,.85,.25,1)}
+  background:color-mix(in srgb,var(--sp,var(--accent)) calc(var(--spa,.42)*100%),transparent);
+  transition:left 1.15s cubic-bezier(.2,.85,.25,1), width 1.15s cubic-bezier(.2,.85,.25,1)}
 .gauge.in .pip{left:var(--v)}
 .gauge.in .span{left:var(--l); width:var(--w)}
 @media(prefers-reduced-motion:reduce){.pip,.span{transition:none}}
@@ -699,7 +701,7 @@ const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSud4ctkV
 const INI = { anthony:"AP", annette:"AA" };
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-16j";
+const BUILD = "2026-08-16k";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -754,6 +756,13 @@ function ramp(v){
   }
   return"rgb(44,125,81)";
 }
+
+/* One language for disagreement. The facts strip and the span under the pips
+   read the same thresholds, so "Apart 24 pts" in red sits over a red span. */
+function gapHue(g){ return g>=20?"#C13A3A":g>=8?"#A98314":"#2C7D51"; }
+/* Hue says which band, weight says how far into it: a 9 and a 19 are both
+   amber but should not look identical. Never fully transparent. */
+function gapWeight(g){ return (.35+Math.min(1,Math.max(0,g)/30)*.55).toFixed(2); }
 
 /* ── csv ─────────────────────────────────────────────────────── */
 function parseCSV(text){
@@ -1597,7 +1606,9 @@ function gauge(d){
   if(!vals.length)return`<div class="gauge-wrap">${bench}<span class="none-yet">not rated</span></div>`;
   const lo=Math.min(...vals),hi=Math.max(...vals);
   let h=`<div class="gauge-wrap">${bench}<div class="gauge${solo?" solo":""}"><div class="scale"><div class="track"></div>`;
-  if(d.a!==null&&d.n!==null&&d.gap>0)h+=`<div class="span" style="--l:${lo}%;--w:${hi-lo}%"></div>`;
+  if(d.a!==null&&d.n!==null&&d.gap>0)h+=`<div class="span" title="${d.gap} point${
+    d.gap===1?"":"s"} apart" style="--l:${lo}%;--w:${hi-lo}%;--sp:${
+    gapHue(d.gap)};--spa:${gapWeight(d.gap)}"></div>`;
   for(const[label,who,v]of[[INI.anthony,"anthony",d.a],[INI.annette,"annette",d.n]]){
     if(v===null)continue;
     h+=`<div class="pip" data-who="${who}" style="--v:${v}%;color:${ramp(v)};background-color:${ramp(v)}" title="${who[0].toUpperCase()+who.slice(1)}: ${v}">${label}</div>`;
@@ -1647,7 +1658,7 @@ function detailHTML(d){
   const shared=rows.filter(r=>r.a==="y"&&r.n==="y").length;
   const facts=[
     both?[`Average`,Math.round(d.avg),ramp(d.avg)]:null,
-    both?[`Apart`,d.gap+" pts",d.gap>=20?"#C13A3A":d.gap>=8?"#A98314":"#2C7D51"]:null,
+    both?[`Apart`,d.gap+" pts",gapHue(d.gap)]:null,
     rows.length?[`Tracks`,rows.length,null]:null,
     liked?[`Liked`,liked,null]:null,
     both&&shared?[`Agreed on`,shared,null]:null
