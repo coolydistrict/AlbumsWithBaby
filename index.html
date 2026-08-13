@@ -229,8 +229,8 @@ button.artist-head:hover h2{color:var(--accent)}
 .artist-head .avg{font-family:"JetBrains Mono",monospace; font-size:11px; color:#FFF;
   padding:.08rem .42rem; border-radius:4px}
 
-.album{position:relative; display:grid; grid-template-columns:76px minmax(0,1fr) 330px minmax(0,.45fr);
-  gap:1.1rem; align-items:center; padding:.55rem 1.4rem .55rem .9rem; cursor:pointer;
+.album{position:relative; display:grid; grid-template-columns:76px minmax(0,1fr) 380px;
+  gap:1.1rem; align-items:center; padding:.55rem 3.1rem .55rem .9rem; cursor:pointer;
   border-radius:10px; transition:background .2s ease-out}
 .album::before{content:""; position:absolute; left:0; top:.5rem; bottom:.5rem; width:3px;
   border-radius:3px; background:var(--gc,var(--line-2)); opacity:.5; transition:opacity .2s}
@@ -262,8 +262,9 @@ button.artist-head:hover h2{color:var(--accent)}
 .album-sub .gtag{color:var(--gc); font-size:10px; letter-spacing:.12em; text-transform:uppercase;
   padding:.08rem .42rem; border-radius:20px; box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--gc) 35%,transparent)}
 
-.gauge-wrap{display:flex; align-items:center; justify-content:center; gap:.7rem; width:100%}
-.gauge{position:relative; height:58px; flex:0 1 296px; min-width:0}
+.gauge-wrap{display:flex; align-items:center; justify-content:center; gap:.7rem; width:100%;
+  margin-top:6px}   /* sits with the cover, which is nudged down the same amount */
+.gauge{position:relative; height:58px; flex:0 1 344px; min-width:0}
 .scale{position:absolute; left:20px; right:20px; top:0; bottom:0}
 .benched{width:24px; height:24px; border-radius:50%; flex:none; display:grid; place-items:center;
   font-family:"JetBrains Mono",monospace; font-size:9px; font-weight:600; color:var(--faint);
@@ -640,7 +641,7 @@ const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSud4ctkV
 const INI = { anthony:"AP", annette:"AA" };
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-15i";
+const BUILD = "2026-08-15j";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
