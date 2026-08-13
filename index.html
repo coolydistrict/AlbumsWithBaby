@@ -245,7 +245,7 @@ button.artist-head:hover h2{color:var(--accent)}
 .album:hover::before{opacity:1}
 .album{background-image:linear-gradient(90deg,
   color-mix(in srgb,var(--gc,transparent) 13%,transparent), transparent 46%);
-  transition:background-color .2s ease-out, background-image .3s ease-out}
+  transition:background-color .2s ease-out, background-image .55s ease-out}
 .album:hover{background-image:linear-gradient(90deg,
   color-mix(in srgb,var(--gc,transparent) 22%,transparent), transparent 58%)}
 .album.ranked{padding-left:3rem}
@@ -262,10 +262,18 @@ button.artist-head:hover h2{color:var(--accent)}
   box-shadow:.25em .3em .7em .05em rgba(15,37,54,.22),
              0 0 22px -8px var(--sc,transparent);
   opacity:0; transform:translateY(2.2em) rotateZ(-5deg);
-  transition:transform 2.4s .05s cubic-bezier(0,1,.3,1), opacity .4s .05s ease-out;
+  transition:transform 2.4s .05s cubic-bezier(0,1,.3,1), opacity .4s .05s ease-out,
+    box-shadow .55s ease-out;
   will-change:transform,opacity}
 .cover.in{opacity:1; transform:translateY(0) rotateZ(-1.6deg)}
-.album.playing .cover{animation:breathe 1.9s ease-in-out infinite; z-index:2}
+.album.playing .cover{z-index:2;
+  animation:glowin .62s cubic-bezier(.25,.8,.3,1) both,
+            breathe 1.9s ease-in-out .62s infinite}
+@keyframes glowin{
+  from{box-shadow:.25em .3em .7em .05em rgba(15,37,54,.22),
+       0 0 0 -8px color-mix(in srgb,var(--gc,#7FC5E8) 0%,transparent)}
+  to{box-shadow:.25em .3em .7em .05em rgba(15,37,54,.22),
+     0 0 16px -2px color-mix(in srgb,var(--gc,#7FC5E8) 55%,transparent)}}
 .album.playing{background-image:linear-gradient(90deg,
   color-mix(in srgb,var(--gc,transparent) 30%,transparent), transparent 62%)!important}
 @keyframes breathe{
@@ -681,7 +689,7 @@ const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSud4ctkV
 const INI = { anthony:"AP", annette:"AA" };
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-16g";
+const BUILD = "2026-08-16h";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
