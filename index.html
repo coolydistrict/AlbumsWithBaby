@@ -9,14 +9,16 @@
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Inter+Tight:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
 #boot{position:fixed; inset:0; z-index:200; background:var(--ground);
-  display:grid; place-items:center; transition:opacity .55s ease, visibility .55s}
+  display:flex; align-items:center; justify-content:center;
+  transition:opacity .55s ease, visibility .55s}
+#boot>div{display:flex; flex-direction:column; align-items:center}
 #boot.done{opacity:0; visibility:hidden; pointer-events:none}
 .spin{width:54px; height:54px; border-radius:50%; background:none;
   border:3px solid rgba(23,90,140,.16); border-top-color:var(--accent);
   animation:turn .85s cubic-bezier(.55,.15,.45,.85) infinite}
 @keyframes turn{to{transform:rotate(360deg)}}
 .boot-word{margin-top:1.1rem; font-family:"JetBrains Mono",monospace; font-size:11px;
-  letter-spacing:.22em; text-transform:uppercase; color:var(--faint); text-align:center}
+  letter-spacing:.22em; text-indent:.22em; text-transform:uppercase; color:var(--faint)}
 
 :root{
   --ground:#CFE2F3; --raised:#DFEBF7; --raised-2:#EEF5FB;
@@ -73,9 +75,9 @@ h1 em{font-style:normal; color:var(--accent)}
 .tagline{color:var(--dim); margin-top:1rem; max-width:44ch}
 
 .who{margin-left:auto; display:flex; align-items:center; gap:.5rem; flex:none}
-.who .av{width:34px; height:34px; border-radius:50%; background:var(--raised-2) center/cover;
+.who .av{width:36px; height:36px; font-size:11px; border-radius:50%; background:var(--raised-2) center/cover;
   border:1px solid var(--line-2); display:grid; place-items:center;
-  font-family:"JetBrains Mono",monospace; font-size:12px; color:var(--faint)}
+  font-family:"JetBrains Mono",monospace; color:var(--faint)}
 .who .av.me{border-color:var(--accent); border-width:2px}
 .gear{width:34px; height:34px; border-radius:50%; border:1px solid var(--line-2);
   display:grid; place-items:center; font-size:15px; color:var(--dim)}
@@ -139,13 +141,23 @@ button.artist-head:hover h2{color:var(--accent)}
   text-transform:uppercase; color:var(--faint); margin-top:.2rem}
 .genre .sep{margin:0 .5rem; opacity:.5}
 
-.album{display:grid; grid-template-columns:64px minmax(0,1fr) minmax(150px,240px);
+.album{display:grid; grid-template-columns:76px minmax(0,1fr) minmax(150px,240px);
   gap:1.1rem; align-items:center; padding:.85rem 0; border-top:1px solid var(--line); cursor:pointer}
 .album:first-of-type{border-top:0}
-.album:hover{background:rgba(255,255,255,.42)}
-.cover{width:64px; height:64px; border-radius:5px; background:var(--raised-2) center/cover; flex:none;
+.album:hover .album-title{color:var(--accent)}
+.album-title{transition:color .18s ease-out}
+.cover{width:76px; height:87px; background:var(--raised-2) center/cover; flex:none;
   display:grid; place-items:center; font-family:"Bricolage Grotesque",sans-serif;
-  font-size:17px; font-weight:600; color:var(--faint)}
+  font-size:16px; font-weight:600; color:var(--faint);
+  border:4px solid #fff; border-bottom:15px solid #fff; border-radius:2px;
+  box-shadow:.25em .3em .7em .05em rgba(15,37,54,.22);
+  opacity:0; transform:translateY(2.2em) rotateZ(-5deg);
+  transition:transform 2.4s .05s cubic-bezier(0,1,.3,1), opacity .4s .05s ease-out;
+  will-change:transform,opacity}
+.cover.in{opacity:1; transform:translateY(0) rotateZ(-1.6deg)}
+.album:nth-of-type(2n) .cover.in{transform:translateY(0) rotateZ(1.9deg)}
+.album:nth-of-type(3n) .cover.in{transform:translateY(0) rotateZ(-.5deg)}
+.album:hover .cover.in{transform:translateY(-3px) rotateZ(0deg); transition:transform .35s ease-out}
 .album-title{font-weight:500; letter-spacing:-.012em}
 .album-sub{font-family:"JetBrains Mono",monospace; font-size:11.5px; color:var(--faint); margin-top:.15rem}
 
@@ -160,28 +172,37 @@ button.artist-head:hover h2{color:var(--accent)}
 .track,.span{top:17px}
 
 .detail{display:none; grid-column:1/-1; cursor:default}
-.album.open .detail{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,320px); gap:1.75rem;
-  background:var(--raised-2); border-radius:12px; padding:1.25rem 1.4rem; margin:.65rem 0 .35rem}
-@media(max-width:760px){.album.open .detail{grid-template-columns:minmax(0,1fr); gap:1.25rem}}
-.takes{display:flex; flex-direction:column; gap:1.1rem}
-.take .hd{display:flex; align-items:center; gap:.55rem; margin-bottom:.3rem}
+.album.open .detail{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,380px); gap:2.75rem;
+  background:var(--raised-2); border-radius:14px; padding:1.9rem 2.1rem 2rem;
+  margin:1rem -1rem 1rem}
+@media(max-width:860px){.album.open .detail{grid-template-columns:minmax(0,1fr); gap:1.9rem;
+  padding:1.5rem 1.4rem 1.6rem; margin:.9rem 0 .8rem}}
+.takes{display:flex; flex-direction:column; gap:1.6rem}
+.take .hd{display:flex; align-items:center; gap:.6rem; margin-bottom:.5rem}
 .take .hd b{font-size:13.5px; font-weight:500}
 .take .hd .sc{font-family:"JetBrains Mono",monospace; font-size:11px; color:#FFF;
   padding:.06rem .42rem; border-radius:4px}
-.take p{font-size:14px; color:var(--dim)}
+.take p{font-size:14.5px; line-height:1.65; color:var(--dim)}
 
-.tl-head{display:flex; align-items:center; justify-content:space-between;
+.tl-head{display:flex; align-items:center; justify-content:space-between; gap:1rem;
   font-family:"JetBrains Mono",monospace; font-size:10px; letter-spacing:.16em;
-  text-transform:uppercase; color:var(--faint); padding-bottom:.5rem;
-  border-bottom:1px solid var(--line-2); margin-bottom:.1rem}
-.tl-head .marks i{font-style:normal; width:22px; text-align:center; display:inline-block}
+  text-transform:uppercase; color:var(--faint); padding-bottom:.7rem;
+  border-bottom:1px solid var(--line-2); margin-bottom:.2rem}
+.tl-head .marks i{font-style:normal; width:26px; text-align:center; display:inline-block; font-size:9px}
+.tl-wrap{position:relative}
+.tl-wrap.tall ul{max-height:340px; overflow-y:auto; padding-right:.5rem;
+  scrollbar-width:thin; scrollbar-color:var(--line-2) transparent}
+.tl-wrap.tall::after{content:""; position:absolute; left:0; right:.5rem; bottom:0; height:34px;
+  background:linear-gradient(to bottom,rgba(238,245,251,0),var(--raised-2)); pointer-events:none}
+.tl-count{font-family:"JetBrains Mono",monospace; font-size:10px; color:var(--faint);
+  margin-top:.7rem; letter-spacing:.1em; text-transform:uppercase}
 .songlist ul{list-style:none}
-.songlist li{display:flex; align-items:center; justify-content:space-between; gap:1rem;
-  padding:.34rem 0; font-size:13.5px; border-bottom:1px solid var(--line)}
+.songlist li{display:flex; align-items:center; justify-content:space-between; gap:1.2rem;
+  padding:.55rem 0; font-size:13.5px; line-height:1.35; border-bottom:1px solid var(--line)}
 .songlist li:last-child{border-bottom:0}
-.tl-name{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-.marks{display:flex; gap:.25rem; flex:none}
-.mark{width:22px; height:22px; border-radius:50%; display:grid; place-items:center;
+.tl-name{min-width:0; overflow-wrap:anywhere}
+.marks{display:flex; gap:.3rem; flex:none}
+.mark{width:26px; height:26px; border-radius:50%; display:grid; place-items:center;
   font-family:"JetBrains Mono",monospace; font-size:9px; font-weight:600; color:#FFF;
   background:var(--accent); background-size:cover; background-position:center}
 .mark.no{background:none; color:var(--faint); font-size:12px;
@@ -195,11 +216,20 @@ button.artist-head:hover h2{color:var(--accent)}
   font-size:clamp(1.2rem,3vw,1.6rem); letter-spacing:-.025em}
 .queue-head span{font-family:"JetBrains Mono",monospace; font-size:11px; color:var(--faint)}
 .queue>p{color:var(--dim); font-size:14px; max-width:52ch; margin-bottom:1.5rem}
-.shelf{display:grid; grid-template-columns:repeat(auto-fill,minmax(108px,1fr)); gap:1.4rem .9rem; align-items:start}
+.shelf{display:grid; grid-template-columns:repeat(auto-fill,minmax(112px,1fr)); gap:1.9rem 1.15rem; align-items:start}
 .shelf button{width:100%; text-align:left; display:block}
-.shelf .thumb{width:100%; aspect-ratio:1; border-radius:6px; background:var(--raised-2) center/cover;
+.shelf .thumb{width:100%; aspect-ratio:1/1.16; background:var(--raised-2) center/cover;
   display:grid; place-items:center; font-family:"Bricolage Grotesque",sans-serif;
-  font-size:26px; font-weight:600; color:var(--faint)}
+  font-size:24px; font-weight:600; color:var(--faint);
+  border:5px solid #fff; border-bottom:20px solid #fff; border-radius:2px;
+  box-shadow:.25em .3em .8em .05em rgba(15,37,54,.2);
+  opacity:0; transform:translateY(2.2em) rotateZ(-5deg);
+  transition:transform 2.4s .05s cubic-bezier(0,1,.3,1), opacity .4s .05s ease-out;
+  will-change:transform,opacity}
+.shelf .thumb.in{opacity:1; transform:translateY(0) rotateZ(-2deg)}
+.shelf button:nth-child(2n) .thumb.in{transform:translateY(0) rotateZ(2.4deg)}
+.shelf button:nth-child(3n) .thumb.in{transform:translateY(0) rotateZ(-.8deg)}
+.shelf button:hover .thumb.in{transform:translateY(-3px) rotateZ(0deg); transition:transform .35s ease-out}
 .shelf figcaption{margin-top:.45rem; font-size:12.5px; line-height:1.3; overflow-wrap:anywhere;
   display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
   height:2.6em}
@@ -234,14 +264,16 @@ footer button{font-family:inherit; font-size:11.5px; color:var(--accent);
 footer button:hover{border-color:var(--accent)}
 
 @media(max-width:620px){
-  .album{grid-template-columns:52px minmax(0,1fr); gap:.85rem}
-  .cover{width:52px; height:52px}
+  .album{grid-template-columns:64px minmax(0,1fr); gap:.85rem}
+  .cover{width:64px; height:73px; border-width:3px; border-bottom-width:12px}
   .gauge{grid-column:1/-1; margin-top:.2rem}
   .count{width:100%; margin-left:0; text-align:right}
   .top{flex-wrap:wrap}
   .who{margin-left:0; width:100%; order:-1}
 }
-@media(prefers-reduced-motion:reduce){.album,.song,.gear{transition:none!important}}
+@media(prefers-reduced-motion:reduce){
+  .album,.gear{transition:none!important}
+  .cover,.shelf .thumb{opacity:1!important; transform:none!important; transition:none!important}}
 </style>
 </head>
 <body>
@@ -322,6 +354,7 @@ footer button:hover{border-color:var(--accent)}
 <script>
 const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSud4ctkVHpydEcLj-MLBRB0fQ1U6JC8mtyzPFeRqwDlFibf_J1kdBpyyXT-zOQ9wifaKtosl0pcqbT/pub?gid=739012602&single=true&output=csv";
 
+const INI = { anthony:"AP", annette:"AA" };
 const DATES = { anniversary:"08-30", annette:"09-22", anthony:"12-06" };
 
 const SAMPLE = [
@@ -468,6 +501,16 @@ function loadImage(el){
     .then(u=>u||(kind==="artist"?artistShot(term):albumShot(term)).then(tryUrl))
     .then(u=>u||(kind==="artist"?albumShot(term).then(tryUrl):null))
     .then(u=>{imgCache.set(key,u);paint(el,u);});
+}
+
+const shelfSeen = "IntersectionObserver" in window ? new IntersectionObserver((es,o)=>{
+  es.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add("in"); o.unobserve(e.target); } });
+},{rootMargin:"0px 0px -8% 0px",threshold:.05}) : null;
+
+function reveal(root){
+  const shots=(root||document).querySelectorAll(".cover,.shelf .thumb");
+  if(!shelfSeen){ shots.forEach(el=>el.classList.add("in")); return; }
+  shots.forEach((el,i)=>{ el.style.transitionDelay=(0.04+Math.min(i,10)*0.035)+"s"; shelfSeen.observe(el); });
 }
 
 const esc=s=>(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -704,7 +747,7 @@ function paintProfiles(){
     const url=store.get("aoty-pic-"+who,"");
     const el=$(av);
     frame(el,url,crop(who));
-    el.textContent=url?"":who[0].toUpperCase();
+    el.textContent=url?"":INI[who];
     el.classList.toggle("me",me===who);
     if($(inp).value!==url)$(inp).value=url;
   });
@@ -777,7 +820,7 @@ function gauge(d){
   const lo=Math.min(...vals),hi=Math.max(...vals);
   let h=`<div class="gauge"><div class="track"></div>`;
   if(d.a!==null&&d.n!==null&&d.gap>0)h+=`<div class="span" style="left:${lo}%;width:${hi-lo}%"></div>`;
-  for(const[label,who,v]of[["A","anthony",d.a],["N","annette",d.n]]){
+  for(const[label,who,v]of[[INI.anthony,"anthony",d.a],[INI.annette,"annette",d.n]]){
     if(v===null)continue;
     h+=`<div class="pip" data-who="${who}" style="left:${v}%;color:${ramp(v)};background-color:${ramp(v)}" title="${who[0].toUpperCase()+who.slice(1)}: ${v}">${label}</div>`;
   }
@@ -799,7 +842,7 @@ function songTable(d){
 function take(name,who,v,text){
   if(v===null&&!text)return"";
   return`<div class="take"><div class="hd">
-      <span class="mark" data-who="${who}">${name[0]}</span><b>${name}</b>
+      <span class="mark" data-who="${who}">${INI[who]}</span><b>${name}</b>
       ${v!==null?`<span class="sc" style="background:${ramp(v)}">${v}</span>`:""}</div>
     ${text?`<p>${esc(text)}</p>`:""}</div>`;
 }
@@ -811,10 +854,13 @@ function verdict(v,who,letter){
 function detailHTML(d){
   const rows=songTable(d);
   const takes=take("Anthony","anthony",d.a,d.aText)+take("Annette","annette",d.n,d.nText);
+  const tall=rows.length>10;
+  const liked=rows.filter(r=>r.a==="y"||r.n==="y").length;
   const list=rows.length?`<div class="songlist">
-    <div class="tl-head"><span>Tracklist</span><span class="marks"><i>A</i><i>N</i></span></div>
-    <ul>${rows.map(r=>`<li><span class="tl-name">${esc(r.label)}</span>
-      <span class="marks">${verdict(r.a,"anthony","A")}${verdict(r.n,"annette","N")}</span></li>`).join("")}</ul>
+    <div class="tl-head"><span>Tracklist</span><span class="marks"><i>${INI.anthony}</i><i>${INI.annette}</i></span></div>
+    <div class="tl-wrap${tall?" tall":""}"><ul>${rows.map(r=>`<li><span class="tl-name">${esc(r.label)}</span>
+      <span class="marks">${verdict(r.a,"anthony",INI.anthony)}${verdict(r.n,"annette",INI.annette)}</span></li>`).join("")}</ul></div>
+    <p class="tl-count">${rows.length} track${rows.length>1?"s":""} · ${liked} liked by someone${tall?" · scroll for the rest":""}</p>
   </div>`:"";
   return`<div class="detail"><div class="takes">${takes}</div>${list}</div>`;
 }
@@ -872,6 +918,7 @@ function renderArtist(name){
     </section>`;
   $("out").querySelectorAll("[data-art]").forEach(loadImage);
   dressAvatars($("out"));
+  reveal($("out"));
   $("back").onclick=()=>{FOCUS=null;render();};
   scrollTo({top:0,behavior:"smooth"});
 }
@@ -912,6 +959,7 @@ function render(){
   out.innerHTML=html+queueHTML(q,g)+statsHTML();
   out.querySelectorAll("[data-art]").forEach(loadImage);
   dressAvatars(out);
+  reveal(out);
 }
 
 /* ── events ──────────────────────────────────────────────────── */
