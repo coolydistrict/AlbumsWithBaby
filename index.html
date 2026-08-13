@@ -221,9 +221,17 @@ button.artist-head:hover h2{color:var(--accent)}
 .album-title{font-weight:500; letter-spacing:-.012em}
 .album-sub{font-family:"JetBrains Mono",monospace; font-size:11.5px; color:var(--faint); margin-top:.15rem}
 
-.gauge{position:relative; height:44px; min-width:120px}
+.gauge-wrap{display:flex; align-items:center; gap:.6rem}
+.gauge{position:relative; height:44px; min-width:100px; flex:1}
+.benched{width:24px; height:24px; border-radius:50%; flex:none; display:grid; place-items:center;
+  font-family:"JetBrains Mono",monospace; font-size:9px; font-weight:600; color:var(--faint);
+  background:var(--raised-2) center/cover; filter:grayscale(1); opacity:.5;
+  box-shadow:0 0 0 1px var(--line-2)}
+.none-yet{font-family:"JetBrains Mono",monospace; font-size:10px; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--faint)}
 .track{position:absolute; top:21px; left:0; right:0; height:3px;
   background:rgba(16,38,58,.16); border-radius:3px}
+.gauge.solo .track{background:none; height:0; border-top:3px dashed rgba(16,38,58,.22)}
 .span{position:absolute; top:21px; height:3px; border-radius:3px; background:var(--accent-soft)}
 .pip{position:absolute; top:10px; width:24px; height:24px; border-radius:50%;
   transform:translateX(-50%); display:grid; place-items:center;
@@ -249,6 +257,8 @@ button.artist-head:hover h2{color:var(--accent)}
 .take .hd b{font-size:13.5px; font-weight:500}
 .take .hd .sc{font-family:"JetBrains Mono",monospace; font-size:11px; color:#FFF;
   padding:.06rem .42rem; border-radius:4px}
+.take .hd .sc.off{background:none; color:var(--faint); box-shadow:inset 0 0 0 1px var(--line-2);
+  text-transform:uppercase; letter-spacing:.1em; font-size:9.5px}
 .take p{font-size:14.5px; line-height:1.65; color:var(--dim)}
 
 .tl-head{display:flex; align-items:center; justify-content:space-between; gap:1rem;
@@ -271,6 +281,8 @@ button.artist-head:hover h2{color:var(--accent)}
   background:var(--accent); background-size:cover; background-position:center}
 .mark.no{background:none; color:var(--faint); font-size:12px;
   box-shadow:inset 0 0 0 1px var(--line-2)}
+.mark.blank{background:none; box-shadow:none}
+.mark.benched{filter:grayscale(1); opacity:.5}
 .mark.none{background:none; box-shadow:none; position:relative}
 .mark.none::after{content:""; width:4px; height:4px; border-radius:50%; background:var(--line-2)}
 
@@ -639,12 +651,15 @@ function shape(raw,cols){
       roster.set(artist,cur);
     }
     if(!album)continue;
-    const A=parseInt(r[K.aRate],10),N=parseInt(r[K.nRate],10);
-    if(isNaN(A)&&isNaN(N))continue;
+    const rawA=String(r[K.aRate]==null?"":r[K.aRate]).trim();
+    const rawN=String(r[K.nRate]==null?"":r[K.nRate]).trim();
+    const skipA=/^[-\u2013\u2014]$/.test(rawA), skipN=/^[-\u2013\u2014]$/.test(rawN);
+    const A=parseInt(rawA,10),N=parseInt(rawN,10);
+    if(isNaN(A)&&isNaN(N)&&!skipA&&!skipN)continue;
     rated.add(artist);
     out.push({artist,genre,album,year:(r[K.year]||"").trim(),
       cover:(/^https?:\/\//i.test(String(r[K.cover]||"").trim())?String(r[K.cover]).trim():""),
-      a:isNaN(A)?null:A,n:isNaN(N)?null:N,
+      a:isNaN(A)?null:A,n:isNaN(N)?null:N,aSkip:skipA,nSkip:skipN,
       aS:splitSongs(r[K.aSongs]),aText:notNA(r[K.aText]),
       nS:splitSongs(r[K.nSongs]),nText:notNA(r[K.nText]),
       get avg(){const v=[this.a,this.n].filter(x=>x!==null);return v.reduce((s,x)=>s+x,0)/v.length;},
@@ -710,15 +725,23 @@ function firstUrl(list){
   return (list||[]).reduce((chain,u)=>chain.then(hit=>hit||tryUrl(u)),Promise.resolve(null));
 }
 function loadImage(el){
-  const term=el.dataset.art,kind=el.dataset.kind||"album",key=kind+"|"+term;
-  if(imgCache.has(key)){paint(el,imgCache.get(key));return;}
+  const term=el.dataset.art,kind=el.dataset.kind||"album";
   const manual=kind==="artist"
     ? ((ROSTER.get(term)||{}).pics||[])
     : (el.dataset.cover?[el.dataset.cover]:[]);
+  // the manual link is part of the key, so editing the sheet invalidates it
+  const key=kind+"|"+term+"|"+manual.join("|");
+  if(imgCache.has(key)){paint(el,imgCache.get(key));return;}
+  if(el.dataset.busy)return;
+  el.dataset.busy="1";
   firstUrl(manual)
     .then(u=>u||(kind==="artist"?artistShot(term):albumShot(term)).then(tryUrl))
     .then(u=>u||(kind==="artist"?albumShot(term).then(tryUrl):null))
-    .then(u=>{imgCache.set(key,u);paint(el,u);});
+    .then(u=>{
+      delete el.dataset.busy;
+      if(u)imgCache.set(key,u);      // only remember successes, so a blip can retry
+      paint(el,u);
+    });
 }
 
 const shelfSeen = "IntersectionObserver" in window ? new IntersectionObserver((es,o)=>{
@@ -906,8 +929,8 @@ function openAlbum(key){
   const d=ROWS.find(x=>x.artist===artist&&x.album===album);
   if(!d)return;
   const who=[];
-  if(d.a!==null)who.push(INI.anthony+" "+d.a);
-  if(d.n!==null)who.push(INI.annette+" "+d.n);
+  if(d.a!==null)who.push(INI.anthony+" "+d.a); else if(d.aSkip)who.push(INI.anthony+" \u2013");
+  if(d.n!==null)who.push(INI.annette+" "+d.n); else if(d.nSkip)who.push(INI.annette+" \u2013");
   $("album-body").innerHTML=`<div class="m-head">
       <div class="m-shot" data-cover="${esc(d.cover)}" data-art="${esc(d.artist+" "+d.album)}">${esc(initials(d.album))}</div>
       <div><div class="m-title">${esc(d.album)}</div>
@@ -1019,6 +1042,9 @@ function facts(){
   const top=ROWS.slice().sort((x,y)=>y.avg-x.avg)[0];
   if(top)out.push(`Your highest rated is ${top.album}.`);
   if(QUEUE.length)out.push(`${QUEUE.length} artists still waiting to be heard`);
+  const soloA=ROWS.filter(d=>d.nSkip&&d.a!==null), soloN=ROWS.filter(d=>d.aSkip&&d.n!==null);
+  if(soloA.length)out.push(`Annette still hasn\u2019t heard ${soloA[0].album}.`);
+  if(soloN.length)out.push(`Anthony still hasn\u2019t heard ${soloN[0].album}.`);
   return out.concat(songFacts());
 }
 
@@ -1154,7 +1180,7 @@ function frame(el,url,c){
   }
 }
 function dressAvatars(root){
-  (root||document).querySelectorAll(".pip[data-who],.mark[data-who]").forEach(el=>{
+  (root||document).querySelectorAll(".pip[data-who],.mark[data-who],.benched[data-who]").forEach(el=>{
     const who=el.dataset.who; if(!who)return;
     const url=store.get("aoty-pic-"+who,"");
     if(!url)return;
@@ -1249,15 +1275,20 @@ document.querySelectorAll("[data-adj]").forEach(b=>b.onclick=()=>openCrop(b.data
 /* ── rendering ───────────────────────────────────────────────── */
 function gauge(d){
   const vals=[d.a,d.n].filter(v=>v!==null);
-  if(!vals.length)return"";
+  const benched=[["anthony",d.aSkip],["annette",d.nSkip]].filter(x=>x[1]).map(x=>x[0]);
+  if(!vals.length&&!benched.length)return"";
+  const solo=benched.length>0;
+  const bench=benched.map(who=>
+    `<span class="benched" data-who="${who}" title="${who[0].toUpperCase()+who.slice(1)} hasn\u2019t heard this">${INI[who]}</span>`).join("");
+  if(!vals.length)return`<div class="gauge-wrap">${bench}<span class="none-yet">not rated</span></div>`;
   const lo=Math.min(...vals),hi=Math.max(...vals);
-  let h=`<div class="gauge"><div class="track"></div>`;
+  let h=`<div class="gauge-wrap">${bench}<div class="gauge${solo?" solo":""}"><div class="track"></div>`;
   if(d.a!==null&&d.n!==null&&d.gap>0)h+=`<div class="span" style="left:${lo}%;width:${hi-lo}%"></div>`;
   for(const[label,who,v]of[[INI.anthony,"anthony",d.a],[INI.annette,"annette",d.n]]){
     if(v===null)continue;
     h+=`<div class="pip" data-who="${who}" style="left:${v}%;color:${ramp(v)};background-color:${ramp(v)}" title="${who[0].toUpperCase()+who.slice(1)}: ${v}">${label}</div>`;
   }
-  return h+`</div>`;
+  return h+`</div></div>`;
 }
 function songTable(d){
   const seen=new Map(),order=[];
@@ -1275,11 +1306,12 @@ function songTable(d){
   return order.map(k=>seen.get(k));
 }
 
-function take(name,who,v,text){
-  if(v===null&&!text)return"";
+function take(name,who,v,text,skip){
+  if(v===null&&!text&&!skip)return"";
   return`<div class="take"><div class="hd">
-      <span class="mark" data-who="${who}">${INI[who]}</span><b>${name}</b>
-      ${v!==null?`<span class="sc" style="background:${ramp(v)}">${v}</span>`:""}</div>
+      <span class="mark${skip?" benched":""}" data-who="${who}">${INI[who]}</span><b>${name}</b>
+      ${v!==null?`<span class="sc" style="background:${ramp(v)}">${v}</span>`
+        :skip?`<span class="sc off">didn\u2019t listen</span>`:""}</div>
     ${text?`<p>${esc(text)}</p>`:""}</div>`;
 }
 function verdict(v,who,letter){
@@ -1289,22 +1321,22 @@ function verdict(v,who,letter){
 }
 function detailHTML(d){
   const rows=songTable(d);
-  const takes=take("Anthony","anthony",d.a,d.aText)+take("Annette","annette",d.n,d.nText);
+  const takes=take("Anthony","anthony",d.a,d.aText,d.aSkip)+take("Annette","annette",d.n,d.nText,d.nSkip);
   const tall=rows.length>10;
   const list=rows.length?`<div class="songlist">
     <div class="tl-head"><span>Tracklist \u00b7 tap \u25b6 for a clip</span></div>
     <div class="tl-wrap${tall?" tall":""}"><ul>${rows.map(r=>`<li><span class="tl-name">${esc(r.label)}</span>
       <span class="rowend">
         <button class="play" data-artist="${esc(d.artist)}" data-song="${esc(r.label)}" title="Play a 30s clip" aria-label="Play a clip of ${esc(r.label)}">\u25b6</button>
-        <span class="marks">${verdict(r.a,"anthony",INI.anthony)}${verdict(r.n,"annette",INI.annette)}</span>
+        <span class="marks">${d.aSkip?`<span class="mark blank"></span>`:verdict(r.a,"anthony",INI.anthony)}${d.nSkip?`<span class="mark blank"></span>`:verdict(r.n,"annette",INI.annette)}</span>
       </span></li>`).join("")}</ul></div>
   </div>`:"";
   return`<div class="detail-wrap"><div class="detail-inner"><div class="detail"><div class="takes">${takes}</div>${list}</div></div></div>`;
 }
 function albumHTML(d,withArtist){
   const who=[];
-  if(d.a!==null)who.push(INI.anthony+" "+d.a);
-  if(d.n!==null)who.push(INI.annette+" "+d.n);
+  if(d.a!==null)who.push(INI.anthony+" "+d.a); else if(d.aSkip)who.push(INI.anthony+" \u2013");
+  if(d.n!==null)who.push(INI.annette+" "+d.n); else if(d.nSkip)who.push(INI.annette+" \u2013");
   return`<article class="album" tabindex="0" role="button" aria-expanded="false">
     <div class="cover" data-cover="${esc(d.cover)}" data-art="${esc(d.artist+" "+d.album)}">${esc(initials(d.album))}</div>
     <div class="rise"><div class="album-title">${withArtist?esc(d.artist)+" — ":""}${esc(d.album)}</div>
@@ -1613,6 +1645,7 @@ function applyCSV(text,header){
   const all=parseCSV(text);
   const shaped=shape(all.slice(1),mapCols(all[0]));
   ROWS=shaped.rows; QUEUE=shaped.queue; ROSTER=shaped.roster;
+  imgCache.clear();
 
   // keep the genre list in step without disturbing the current choice
   const want=[...new Set([...ROWS.map(d=>d.genre),...QUEUE.map(d=>d.genre)].filter(Boolean))].sort();
