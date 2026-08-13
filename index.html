@@ -615,6 +615,11 @@ function mapCols(header){
   return c;
 }
 
+const notNA = v => {
+  const t=String(v==null?"":v).trim();
+  return /^n\/?a$/i.test(t)?"":t;
+};
+
 function shape(raw,cols){
   const K=cols||DEFAULT_COLS;
   const out=[],roster=new Map(),rated=new Set();
@@ -640,8 +645,8 @@ function shape(raw,cols){
     out.push({artist,genre,album,year:(r[K.year]||"").trim(),
       cover:(/^https?:\/\//i.test(String(r[K.cover]||"").trim())?String(r[K.cover]).trim():""),
       a:isNaN(A)?null:A,n:isNaN(N)?null:N,
-      aS:splitSongs(r[K.aSongs]),aText:(r[K.aText]||"").trim(),
-      nS:splitSongs(r[K.nSongs]),nText:(r[K.nText]||"").trim(),
+      aS:splitSongs(r[K.aSongs]),aText:notNA(r[K.aText]),
+      nS:splitSongs(r[K.nSongs]),nText:notNA(r[K.nText]),
       get avg(){const v=[this.a,this.n].filter(x=>x!==null);return v.reduce((s,x)=>s+x,0)/v.length;},
       get gap(){return(this.a===null||this.n===null)?-1:Math.abs(this.a-this.n);},
       get aSongs(){return this.aS.liked;}, get nSongs(){return this.nS.liked;}});
