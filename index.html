@@ -229,7 +229,7 @@ button.artist-head:hover h2{color:var(--accent)}
 .artist-head .avg{font-family:"JetBrains Mono",monospace; font-size:11px; color:#FFF;
   padding:.08rem .42rem; border-radius:4px}
 
-.album{position:relative; display:grid; grid-template-columns:76px minmax(0,1fr) 340px;
+.album{position:relative; display:grid; grid-template-columns:76px minmax(0,1fr) 330px minmax(0,.45fr);
   gap:1.1rem; align-items:center; padding:.55rem 1.4rem .55rem .9rem; cursor:pointer;
   border-radius:10px; transition:background .2s ease-out}
 .album::before{content:""; position:absolute; left:0; top:.5rem; bottom:.5rem; width:3px;
@@ -521,6 +521,7 @@ footer button:hover{border-color:var(--accent)}
   .artist-head .ph{width:76px; height:76px; font-size:24px}
   .artist-head{gap:1rem}
   .album{grid-template-columns:64px minmax(0,1fr); gap:.85rem}
+  .gauge{flex:1 1 auto}
   .cover{width:64px; height:73px; border-width:3px; border-bottom-width:12px}
   .gauge{grid-column:1/-1; margin-top:.2rem}
   .count{width:100%; margin-left:0; text-align:right}
@@ -639,7 +640,7 @@ const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSud4ctkV
 const INI = { anthony:"AP", annette:"AA" };
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-15f";
+const BUILD = "2026-08-15i";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -955,15 +956,52 @@ function stopPreview(){
   showPlayer("");
 }
 
+const normT = s => String(s||"").toLowerCase()
+  .replace(/\(.*?\)|\[.*?\]/g," ")
+  .replace(/\bfeat\.?.*$/,"")
+  .replace(/[^a-z0-9]+/g," ").trim();
+
+/* A title can be credited like "JIHYO, SANA, DAHYUN - PUSH & PULL", where the
+   store lists it under just the part after the dash. Try each reading. */
+function titleForms(song){
+  const out=[normT(song)];
+  const i=song.lastIndexOf(" - ");
+  if(i>0){ out.push(normT(song.slice(i+3))); out.push(normT(song.slice(0,i))); }
+  return out.filter(Boolean);
+}
+
+/* iTunes ranks by popularity, so the first result for "TWICE CANDY" can easily
+   be FANCY. Score the results and only play one that is actually the song. */
+function pickTrack(results,song,artist,album){
+  const forms=titleForms(song), wa=normT(artist), wl=normT(album);
+  let best=null,bs=0;
+  (results||[]).forEach(r=>{
+    if(!r.previewUrl)return;
+    const t=normT(r.trackName);
+    let s=0;
+    if(forms.indexOf(t)>-1)s=6;
+    else if(forms.some(f=>f&&(t.indexOf(f)===0||f.indexOf(t)===0)))s=3;
+    else return;                                   // not this song at all
+    const ra=normT(r.artistName);
+    if(ra===wa)s+=3;
+    else if(wa&&(ra.indexOf(wa)>-1||wa.indexOf(ra)>-1))s+=1;
+    else return;                                   // somebody else's song entirely
+    if(wl&&normT(r.collectionName)===wl)s+=2;
+    if(s>bs){bs=s;best=r;}
+  });
+  return bs>0?best:null;
+}
+
 function preview(btn){
-  const song=btn.dataset.song,artist=btn.dataset.artist,key=artist+"|"+song;
+  const song=btn.dataset.song,artist=btn.dataset.artist,album=btn.dataset.album||"";
+  const key=artist+"|"+song;
   if(NOWPLAYING===key){stopPreview();return;}
   stopPreview();
   btn.textContent="\u00b7\u00b7\u00b7";
-  jsonp("https://itunes.apple.com/search?entity=song&limit=1&term="+
+  jsonp("https://itunes.apple.com/search?entity=song&limit=25&term="+
     encodeURIComponent(artist+" "+song)).then(d=>{
-    const hit=d&&d.results&&d.results[0];
-    if(!hit||!hit.previewUrl){btn.classList.add("dead");btn.textContent="\u2013";btn.title="No preview available";return;}
+    const hit=pickTrack(d&&d.results,song,artist,album);
+    if(!hit){btn.classList.add("dead");btn.textContent="\u2013";btn.title="No preview matching this song";return;}
     AUD=new Audio(hit.previewUrl); AUD.volume=0;
     AUD.onended=stopPreview;
     AUD.addEventListener("timeupdate",()=>{
@@ -1549,7 +1587,7 @@ function detailHTML(d){
     <div class="tl-head"><span>Tracklist \u00b7 tap \u25b6 for a clip</span></div>
     <div class="tl-wrap${tall?" tall":""}"><ul>${rows.map((r,i)=>`<li style="animation-delay:${Math.min(i,14)*0.035}s"><span class="tl-name">${esc(r.label)}</span>
       <span class="rowend">
-        <button class="play" data-artist="${esc(d.artist)}" data-song="${esc(r.label)}" title="Play a 30s clip" aria-label="Play a clip of ${esc(r.label)}">\u25b6</button>
+        <button class="play" data-artist="${esc(d.artist)}" data-album="${esc(d.album)}" data-song="${esc(r.label)}" title="Play a 30s clip" aria-label="Play a clip of ${esc(r.label)}">\u25b6</button>
         <span class="marks">${d.aSkip?benchMark("anthony"):verdict(r.a,"anthony",INI.anthony)}${d.nSkip?benchMark("annette"):verdict(r.n,"annette",INI.annette)}</span>
       </span></li>`).join("")}</ul></div>
   </div>`:"";
@@ -1870,9 +1908,9 @@ function hoverPlay(row){
     const song=(d.aS.liked[0]||d.nS.liked[0]||d.aS.order[0]||d.nS.order[0]);
     if(!song)return;
     const fake=document.createElement("button");
-    fake.dataset.artist=d.artist; fake.dataset.song=song;
-    HOVER_ROW=row;
+    fake.dataset.artist=d.artist; fake.dataset.song=song; fake.dataset.album=d.album;
     preview(fake);
+    HOVER_ROW=row;        // after preview(), which calls stopPreview() and would clear it
   },700);
 }
 
@@ -1899,6 +1937,12 @@ document.addEventListener("mouseover",e=>{
   const row=e.target.closest?.(".album");
   if(row&&row.dataset.idx)hoverPlay(row);
 },{passive:true});
+// belt and braces: whatever sequence of events got us here, if the pointer is
+// no longer on the row that started the clip, the clip ends
+setInterval(()=>{
+  if(!HOVER_ROW||panelOpen())return;
+  if(!HOVER_ROW.isConnected||!HOVER_ROW.matches(":hover")){ HOVER_ROW=null; stopPreview(); }
+},250);
 
 /* The crown hangs off a spring: it lags the page, overshoots, and settles.
    Vertical velocity drives the tilt, which is what reads as follow-through. */
