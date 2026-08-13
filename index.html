@@ -1089,8 +1089,22 @@ const isSpecial=t=>CUTE.indexOf(t)>-1
   ||Object.keys(OCCASION_TEXT).some(k=>OCCASION_TEXT[k]===t);
 function buildMarquee(){
   const list=facts();
+  const pool=specialPool();
+  // a lap can run for minutes, so the cute one leads it rather than hiding in the shuffle
+  const lead=list.filter(isSpecial)[0]||pool[0];
+  const rest=list.filter(f=>f!==lead).sort(()=>Math.random()-.5);
+  const seq=[lead];
+  if(rest.length>=8){                       // long lap, so drop a second one halfway
+    const half=Math.ceil(rest.length/2);
+    const alt=pool.filter(x=>x!==lead);
+    seq.push(...rest.slice(0,half));
+    if(alt.length)seq.push(alt[Math.floor(Math.random()*alt.length)]);
+    seq.push(...rest.slice(half));
+  }else{
+    seq.push(...rest);
+  }
   const items=(PINNED?[fxText(PINNED)]:[]).concat(
-    list.sort(()=>Math.random()-.5).map(f=>isSpecial(f)?fxText(f):esc(f)));
+    seq.map(f=>isSpecial(f)?fxText(f):esc(f)));
   const run=items.map(t=>`<i>${t}</i>`).join("");
   const el=$("marquee-in");
   el.innerHTML=run+run;
