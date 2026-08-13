@@ -86,6 +86,34 @@ button{font:inherit; color:inherit; background:none; border:0; cursor:pointer}
 .stage:active{cursor:grabbing}
 .zoom{display:flex; align-items:center; gap:.7rem; margin-bottom:1.1rem; font-size:12px; color:var(--dim)}
 .zoom input{flex:1}
+input[type=range]{-webkit-appearance:none; appearance:none; background:none; height:18px; cursor:pointer}
+input[type=range]::-webkit-slider-runnable-track{height:4px; border-radius:4px; background:var(--line-2)}
+input[type=range]::-moz-range-track{height:4px; border-radius:4px; background:var(--line-2)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; width:14px; height:14px; margin-top:-5px;
+  border-radius:50%; background:var(--accent); box-shadow:0 0 0 2px var(--raised-2)}
+input[type=range]::-moz-range-thumb{width:14px; height:14px; border:0;
+  border-radius:50%; background:var(--accent); box-shadow:0 0 0 2px var(--raised-2)}
+input[type=range]:focus-visible{outline:2px solid var(--accent); outline-offset:4px}
+
+.player{position:fixed; right:1.1rem; bottom:1.1rem; z-index:70;
+  display:flex; align-items:center; gap:.75rem; padding:.55rem .9rem .55rem .6rem;
+  background:var(--accent); color:#EAF3FB; border-radius:24px;
+  box-shadow:0 6px 22px rgba(15,37,54,.28);
+  opacity:0; transform:translateY(14px); pointer-events:none;
+  transition:opacity .3s ease-out, transform .4s cubic-bezier(.32,.72,.28,1)}
+.player.on{opacity:1; transform:none; pointer-events:auto}
+.player .stop{width:28px; height:28px; border-radius:50%; display:grid; place-items:center;
+  background:rgba(255,255,255,.16); color:#EAF3FB; font-size:9px; flex:none}
+.player .stop:hover{background:rgba(255,255,255,.3)}
+.p-title{font-size:12.5px; max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.p-vol{display:flex; align-items:center; gap:.4rem; font-size:11px}
+.p-vol input[type=range]{width:74px}
+.p-vol input[type=range]::-webkit-slider-runnable-track{background:rgba(255,255,255,.3)}
+.p-vol input[type=range]::-moz-range-track{background:rgba(255,255,255,.3)}
+.p-vol input[type=range]::-webkit-slider-thumb{background:#EAF3FB; box-shadow:0 0 0 2px var(--accent)}
+.p-vol input[type=range]::-moz-range-thumb{background:#EAF3FB; box-shadow:0 0 0 2px var(--accent)}
+@media(max-width:520px){.player{left:1.1rem; right:1.1rem; justify-content:space-between}
+  .p-title{max-width:none; flex:1}}
 .row{display:flex; gap:.5rem; justify-content:flex-end}
 .row button{border:1px solid var(--line-2); border-radius:8px; padding:.45rem 1rem; font-size:13.5px}
 .row button.go{background:var(--accent); color:#EAF3FB; border-color:var(--accent)}
@@ -202,7 +230,7 @@ button.artist-head:hover h2{color:var(--accent)}
   background-size:cover; background-position:center;
   box-shadow:0 0 0 2px var(--ground), 0 0 0 4px currentColor}
 
-.detail-wrap{grid-column:1/-1; display:grid; grid-template-rows:0fr; cursor:default;
+.detail-wrap{grid-column:1/-1; margin:0 -1rem; display:grid; grid-template-rows:0fr; cursor:default;
   transition:grid-template-rows .5s cubic-bezier(.32,.72,.28,1)}
 .album.open .detail-wrap{grid-template-rows:1fr}
 .detail-inner{overflow:hidden; min-height:0}
@@ -211,9 +239,10 @@ button.artist-head:hover h2{color:var(--accent)}
 .album.open .detail{opacity:1; transform:none; transition-delay:.12s}
 .detail{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,380px); gap:2.75rem;
   background:var(--raised-2); border-radius:14px; padding:1.9rem 2.1rem 2rem;
-  margin:1rem -1rem 1rem}
+  margin:1rem 1rem}
 @media(max-width:860px){.detail{grid-template-columns:minmax(0,1fr)!important; gap:1.9rem!important;
-  padding:1.5rem 1.4rem 1.6rem!important; margin:.9rem 0 .8rem!important}}
+  padding:1.5rem 1.4rem 1.6rem!important; margin:.9rem 0 .8rem!important}
+  .detail-wrap{margin:0}}
 .takes{display:flex; flex-direction:column; gap:1.6rem}
 .take .hd{display:flex; align-items:center; gap:.6rem; margin-bottom:.5rem}
 .take .hd b{font-size:13.5px; font-weight:500}
@@ -424,7 +453,7 @@ footer button:hover{border-color:var(--accent)}
       <button class="adj" data-adj="annette">Adjust</button>
       <button class="adj" data-up="annette">Upload</button></div>
     <input type="file" id="file" accept="image/*" hidden>
-    <div class="mini">
+    <div class="mini" id="testers" hidden>
       <button data-test="anniversary">Test anniversary</button>
       <button data-test="annette">Test Annette's birthday</button>
       <button data-test="anthony">Test Anthony's birthday</button>
@@ -453,6 +482,14 @@ footer button:hover{border-color:var(--accent)}
 
 <main id="out"></main>
 
+<div class="player" id="player">
+  <button class="stop" id="p-stop" aria-label="Stop preview">■</button>
+  <span class="p-title" id="p-title"></span>
+  <span class="p-vol"><i class="ti"></i>
+    <input type="range" id="vol" min="0" max="100" step="1" value="75" aria-label="Preview volume">
+  </span>
+</div>
+
 <footer><span id="foot"></span><span id="art-stat"></span></footer>
 
 <div class="modal" id="album-modal">
@@ -476,6 +513,10 @@ footer button:hover{border-color:var(--accent)}
 const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSud4ctkVHpydEcLj-MLBRB0fQ1U6JC8mtyzPFeRqwDlFibf_J1kdBpyyXT-zOQ9wifaKtosl0pcqbT/pub?gid=739012602&single=true&output=csv";
 
 const INI = { anthony:"AP", annette:"AA" };
+/* Paste the link from the sheet's Albums menu > "Message link" here.
+   Leave it empty and the built-in messages below are used instead. */
+const MESSAGES_CSV_URL = "";
+
 const DATES = { anniversary:"08-30", annette:"09-22", anthony:"12-06" };
 
 const SAMPLE = [
@@ -542,23 +583,26 @@ function shape(raw){
   for(const r of raw){
     const artist=(r[1]||"").trim()||lastArtist;
     const genre=(r[2]||"").trim()||(artist===lastArtist?lastGenre:"");
-    const album=(r[3]||"").trim();
+    const album=(r[4]||"").trim();
     const pic=(r[0]||"").trim();
     if(artist){lastArtist=artist;lastGenre=genre;}
     if(artist){
-      const cur=roster.get(artist)||{genre:"",pic:""};
+      const cur=roster.get(artist)||{genre:"",pics:[]};
       if(genre&&!cur.genre)cur.genre=genre;
-      if(/^https?:\/\//i.test(pic)&&!cur.pic)cur.pic=pic;
+      [pic].forEach(u=>{
+        if(/^https?:\/\//i.test(u)&&cur.pics.indexOf(u)<0)cur.pics.push(u);
+      });
       roster.set(artist,cur);
     }
     if(!album)continue;
-    const A=parseInt(r[5],10),N=parseInt(r[8],10);
+    const A=parseInt(r[6],10),N=parseInt(r[9],10);
     if(isNaN(A)&&isNaN(N))continue;
     rated.add(artist);
-    out.push({artist,genre,album,year:(r[4]||"").trim(),
+    out.push({artist,genre,album,year:(r[5]||"").trim(),
+      cover:(/^https?:\/\//i.test(String(r[3]||"").trim())?String(r[3]).trim():""),
       a:isNaN(A)?null:A,n:isNaN(N)?null:N,
-      aS:splitSongs(r[6]),aText:(r[7]||"").trim(),
-      nS:splitSongs(r[9]),nText:(r[10]||"").trim(),
+      aS:splitSongs(r[7]),aText:(r[8]||"").trim(),
+      nS:splitSongs(r[10]),nText:(r[11]||"").trim(),
       get avg(){const v=[this.a,this.n].filter(x=>x!==null);return v.reduce((s,x)=>s+x,0)/v.length;},
       get gap(){return(this.a===null||this.n===null)?-1:Math.abs(this.a-this.n);},
       get aSongs(){return this.aS.liked;}, get nSongs(){return this.nS.liked;}});
@@ -618,11 +662,16 @@ function artReport(){
       : (ART.ok?"artwork "+ART.ok+" loaded":"");
   },900);
 }
+function firstUrl(list){
+  return (list||[]).reduce((chain,u)=>chain.then(hit=>hit||tryUrl(u)),Promise.resolve(null));
+}
 function loadImage(el){
   const term=el.dataset.art,kind=el.dataset.kind||"album",key=kind+"|"+term;
   if(imgCache.has(key)){paint(el,imgCache.get(key));return;}
-  const manual=kind==="artist"?(ROSTER.get(term)||{}).pic:"";
-  tryUrl(manual)
+  const manual=kind==="artist"
+    ? ((ROSTER.get(term)||{}).pics||[])
+    : (el.dataset.cover?[el.dataset.cover]:[]);
+  firstUrl(manual)
     .then(u=>u||(kind==="artist"?artistShot(term):albumShot(term)).then(tryUrl))
     .then(u=>u||(kind==="artist"?albumShot(term).then(tryUrl):null))
     .then(u=>{imgCache.set(key,u);paint(el,u);});
@@ -639,24 +688,60 @@ function reveal(root){
 }
 
 let AUD=null,NOWPLAYING="";
+function vol(){
+  const v=parseInt(store.get("aoty-vol","75"),10);
+  return isNaN(v)?0.75:Math.max(0,Math.min(100,v))/100;
+}
+function showPlayer(label){
+  $("p-title").textContent=label||"";
+  $("player").classList.toggle("on",!!label);
+}
+let fadeTimer=null;
+function fade(audio,to,ms,done){
+  if(!audio)return;
+  clearInterval(fadeTimer);
+  const from=audio.volume,steps=Math.max(1,Math.round(ms/40));
+  let i=0;
+  fadeTimer=setInterval(()=>{
+    i++;
+    const t=i/steps;
+    const eased=to>from ? t*t : 1-(1-t)*(1-t);   // ease in rising, ease out falling
+    const v=from+(to-from)*eased;
+    try{audio.volume=Math.max(0,Math.min(1,v));}catch(e){}
+    if(i>=steps){clearInterval(fadeTimer);fadeTimer=null;if(done)done();}
+  },40);
+}
+
 function stopPreview(){
-  if(AUD){AUD.pause();AUD=null;}
+  const old=AUD;
+  if(old){
+    AUD=null;
+    fade(old,0,420,()=>{ try{old.pause();}catch(e){} });
+  }
   NOWPLAYING="";
   document.querySelectorAll(".play.on").forEach(b=>{b.classList.remove("on");b.textContent="\u25b6";});
+  showPlayer("");
 }
 function preview(btn){
-  const key=btn.dataset.artist+"|"+btn.dataset.song;
+  const song=btn.dataset.song,artist=btn.dataset.artist,key=artist+"|"+song;
   if(NOWPLAYING===key){stopPreview();return;}
   stopPreview();
   btn.textContent="\u00b7\u00b7\u00b7";
   jsonp("https://itunes.apple.com/search?entity=song&limit=1&term="+
-    encodeURIComponent(btn.dataset.artist+" "+btn.dataset.song)).then(d=>{
+    encodeURIComponent(artist+" "+song)).then(d=>{
     const hit=d&&d.results&&d.results[0];
     if(!hit||!hit.previewUrl){btn.classList.add("dead");btn.textContent="\u2013";btn.title="No preview available";return;}
-    AUD=new Audio(hit.previewUrl); AUD.volume=.75;
+    AUD=new Audio(hit.previewUrl); AUD.volume=0;
     AUD.onended=stopPreview;
-    AUD.play().catch(()=>{btn.classList.add("dead");btn.textContent="\u2013";});
+    AUD.addEventListener("timeupdate",()=>{
+      if(AUD&&AUD.duration&&AUD.duration-AUD.currentTime<0.9&&!AUD.__out){
+        AUD.__out=true; fade(AUD,0,850);
+      }
+    });
+    AUD.play().then(()=>fade(AUD,vol(),600))
+      .catch(()=>{btn.classList.add("dead");btn.textContent="\u2013";stopPreview();});
     NOWPLAYING=key; btn.classList.add("on"); btn.textContent="\u25a0";
+    showPlayer(song);
   });
 }
 
@@ -740,7 +825,7 @@ function wallHTML(list){
   if(!list.length)return`<div class="empty"><b>Nothing rated yet</b>Rate something and it lands on the wall.</div>`;
   return`<div class="wall">${list.slice().sort((x,y)=>y.avg-x.avg).map(d=>
     `<button data-open="${esc(d.artist)}\u241f${esc(d.album)}" title="${esc(d.artist)} — ${esc(d.album)}">
-      <div class="w-shot" data-art="${esc(d.artist+" "+d.album)}">${esc(initials(d.album))}</div>
+      <div class="w-shot" data-cover="${esc(d.cover)}" data-art="${esc(d.artist+" "+d.album)}">${esc(initials(d.album))}</div>
       <div class="w-cap"><span class="w-sc" style="background:${ramp(d.avg)}">${Math.round(d.avg)}</span>${esc(d.album)}</div>
     </button>`).join("")}</div>`;
 }
@@ -753,7 +838,7 @@ function openAlbum(key){
   if(d.a!==null)who.push(INI.anthony+" "+d.a);
   if(d.n!==null)who.push(INI.annette+" "+d.n);
   $("album-body").innerHTML=`<div class="m-head">
-      <div class="m-shot" data-art="${esc(d.artist+" "+d.album)}">${esc(initials(d.album))}</div>
+      <div class="m-shot" data-cover="${esc(d.cover)}" data-art="${esc(d.artist+" "+d.album)}">${esc(initials(d.album))}</div>
       <div><div class="m-title">${esc(d.album)}</div>
         <div class="m-sub"><button data-artist="${esc(d.artist)}">${esc(d.artist)}</button>${
           d.year?" \u00b7 "+esc(d.year):""} \u00b7 ${who.join("  ")}</div>
@@ -792,6 +877,7 @@ const OCCASION_TEXT={
   annette:"Happy birthday Annette 🎂",
   anthony:"Happy birthday Anthony 🎂"
 };
+let CUSTOM=[];
 const CUTE=["Hi :3","I love youuuuu","put something on","you two have good taste","press play"];
 
 function songFacts(){
@@ -829,8 +915,13 @@ function songFacts(){
   return f;
 }
 
+function specialPool(){
+  const undated=CUSTOM.filter(m=>m.show&&!m.date).map(m=>m.text);
+  return undated.length?undated:CUTE;
+}
 function facts(){
-  const out=[CUTE[Math.floor(Math.random()*CUTE.length)]];
+  const pool=specialPool();
+  const out=[pool[Math.floor(Math.random()*pool.length)]];
   const aAll=ROWS.map(d=>d.a).filter(v=>v!==null);
   const nAll=ROWS.map(d=>d.n).filter(v=>v!==null);
   const aG=groupAvg("genre",d=>d.a), nG=groupAvg("genre",d=>d.n);
@@ -872,8 +963,22 @@ function todayKey(){
 }
 function occasion(){
   const t=todayKey();
+  const hit=CUSTOM.find(m=>m.date===t);
+  if(hit)return"custom:"+hit.text;
   for(const k in DATES) if(DATES[k]===t) return k;
   return null;
+}
+function occasionText(k){
+  if(!k)return"";
+  if(k.indexOf("custom:")===0)return k.slice(7);
+  return OCCASION_TEXT[k]||"";
+}
+function occasionConfetti(k){
+  if(k&&k.indexOf("custom:")===0){
+    const m=CUSTOM.find(x=>"custom:"+x.text===k);
+    return m?m.confetti:true;
+  }
+  return true;
 }
 
 let PINNED="",crawlX=0,crawlHalf=0,crawlSpeed=0.22,crawlTarget=0.22;
@@ -882,7 +987,9 @@ function fxText(t){
     `<span style="animation-delay:${(i*0.07).toFixed(2)}s,${(i*0.07).toFixed(2)}s">${esc(ch)}</span>`
   ).join("")+`</span>`;
 }
-const isSpecial=t=>CUTE.indexOf(t)>-1||Object.keys(OCCASION_TEXT).some(k=>OCCASION_TEXT[k]===t);
+const isSpecial=t=>CUTE.indexOf(t)>-1
+  ||CUSTOM.some(m=>m.text===t)
+  ||Object.keys(OCCASION_TEXT).some(k=>OCCASION_TEXT[k]===t);
 function buildMarquee(){
   const list=facts();
   const items=(PINNED?[fxText(PINNED)]:[]).concat(
@@ -950,8 +1057,8 @@ const PARTY={
   anthony:["#7FC5E8","#CFE2F3","#FFFFFF","#175A8C"]
 };
 function celebrate(kind){
-  confetti(PARTY[kind]||PARTY.anniversary,560);
-  pin(OCCASION_TEXT[kind]);
+  if(occasionConfetti(kind))confetti(PARTY[kind]||PARTY.anniversary,560);
+  pin(occasionText(kind));
 }
 
 /* ── profiles ────────────────────────────────────────────────── */
@@ -1040,6 +1147,12 @@ $("crop-ok").onclick=()=>{
 };
 $("crop-x").onclick=closeCrop;
 $("album-x").onclick=closeAlbum;
+$("p-stop").onclick=stopPreview;
+$("vol").value=store.get("aoty-vol","75");
+$("vol").addEventListener("input",e=>{
+  store.set("aoty-vol",e.target.value);
+  if(AUD&&!AUD.__out){ clearInterval(fadeTimer); fadeTimer=null; AUD.volume=vol(); }
+});
 $("album-modal").onclick=e=>{ if(e.target.id==="album-modal")closeAlbum(); };
 addEventListener("keydown",e=>{ if(e.key==="Escape"){closeAlbum();closeCrop();} });
 $("crop").onclick=e=>{ if(e.target.id==="crop")closeCrop(); };
@@ -1124,7 +1237,7 @@ function albumHTML(d,withArtist){
   if(d.a!==null)who.push(INI.anthony+" "+d.a);
   if(d.n!==null)who.push(INI.annette+" "+d.n);
   return`<article class="album" tabindex="0" role="button" aria-expanded="false">
-    <div class="cover" data-art="${esc(d.artist+" "+d.album)}">${esc(initials(d.album))}</div>
+    <div class="cover" data-cover="${esc(d.cover)}" data-art="${esc(d.artist+" "+d.album)}">${esc(initials(d.album))}</div>
     <div class="rise"><div class="album-title">${withArtist?esc(d.artist)+" — ":""}${esc(d.album)}</div>
       <div class="album-sub">${esc(d.year)}${d.year?" · ":""}${who.join("  ")}</div></div>
     ${gauge(d)}
@@ -1352,12 +1465,39 @@ function boot(rows,sample){
   readHash();
   if(!FOCUS)render();
 
-  const occ=occasion();
-  if(occ){ PINNED=OCCASION_TEXT[occ]; setTimeout(()=>celebrate(occ),700); }
+  let lastOcc=occasion();
+  if(lastOcc){ PINNED=occasionText(lastOcc); setTimeout(()=>celebrate(lastOcc),700); }
+  setInterval(()=>{
+    const now=occasion();
+    if(now===lastOcc)return;
+    lastOcc=now;
+    if(now)celebrate(now);          // midnight rolled into the day
+    else{ PINNED=""; buildMarquee(); }
+  },30000);
+  if(/[?&]test\b/.test(location.search)){
+    const t=$("testers"); if(t){t.hidden=false;$("panel").classList.add("on");}
+  }
   buildMarquee();
   setTimeout(hideBoot,260);
 }
 
+function loadMessages(){
+  if(!MESSAGES_CSV_URL)return Promise.resolve();
+  return fetch(MESSAGES_CSV_URL+(MESSAGES_CSV_URL.includes("?")?"&":"?")+"cb="+Date.now())
+    .then(r=>r.ok?r.text():Promise.reject())
+    .then(t=>{
+      const yes=v=>/^(true|yes|1|x)$/i.test(String(v).trim());
+      CUSTOM=parseCSV(t).slice(1).map(r=>({
+        text:String(r[0]||"").trim(),
+        show:yes(r[1]),
+        date:(String(r[2]||"").trim().match(/^\d{2}-\d{2}$/)||[""])[0],
+        confetti:yes(r[3])
+      })).filter(m=>m.text&&(m.show||m.date));
+    })
+    .catch(()=>{});
+}
+
+function start(){
 if(SHEET_CSV_URL){
   fetch(SHEET_CSV_URL+(SHEET_CSV_URL.includes("?")?"&":"?")+"cb="+Date.now())
     .then(r=>{if(!r.ok)throw new Error(r.status);return r.text();})
@@ -1365,6 +1505,8 @@ if(SHEET_CSV_URL){
     .catch(()=>{boot(SAMPLE,true);
       $("notice").innerHTML=`<strong>Couldn't reach the sheet.</strong> Showing sample data instead.`;});
 }else boot(SAMPLE,true);
+}
+loadMessages().then(start);
 setTimeout(hideBoot,6000);
 </script>
 </body>
