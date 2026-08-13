@@ -188,9 +188,9 @@ input[type=search]{flex:1 1 200px; min-width:0}
 .crumb button{font-family:"JetBrains Mono",monospace; font-size:11.5px; letter-spacing:.12em;
   text-transform:uppercase; color:var(--accent)}
 
-.artist{padding:2.9rem 0 1.4rem; border-bottom:1px solid var(--line)}
+.artist{padding:2rem 0 1rem; border-bottom:1px solid var(--line)}
 .artist:last-child{border-bottom:0}
-.artist-head{display:flex; align-items:center; gap:1.35rem; margin-bottom:1.5rem; width:100%; text-align:left}
+.artist-head{display:flex; align-items:center; gap:1.2rem; margin-bottom:1rem; width:100%; text-align:left}
 .artist-head .ph{width:104px; height:104px; border-radius:50%; background:var(--raised-2) center/cover; flex:none;
   display:grid; place-items:center; font-family:"Bricolage Grotesque",sans-serif;
   font-size:32px; font-weight:600; color:var(--faint);
@@ -204,10 +204,19 @@ button.artist-head:hover h2{color:var(--accent)}
 .genre{font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:.16em;
   text-transform:uppercase; color:var(--faint); margin-top:.4rem}
 .genre .sep{margin:0 .5rem; opacity:.5}
+.artist-head .meta{display:flex; align-items:baseline; gap:.55rem; flex-wrap:wrap}
+.artist-head .avg{font-family:"JetBrains Mono",monospace; font-size:11px; color:#FFF;
+  padding:.08rem .42rem; border-radius:4px}
 
-.album{display:grid; grid-template-columns:76px minmax(0,1fr) minmax(150px,240px);
-  gap:1.1rem; align-items:center; padding:.7rem 0 .7rem .25rem; cursor:pointer;
+.album{position:relative; display:grid; grid-template-columns:76px minmax(0,1fr) 188px;
+  gap:1.1rem; align-items:center; padding:.55rem 0 .55rem .9rem; cursor:pointer;
   border-radius:10px; transition:background .2s ease-out}
+.album::before{content:""; position:absolute; left:0; top:.5rem; bottom:.5rem; width:3px;
+  border-radius:3px; background:var(--gc,var(--line-2)); opacity:.5; transition:opacity .2s}
+.album:hover::before{opacity:1}
+.album.ranked{padding-left:3rem}
+.rankno{position:absolute; left:.95rem; top:50%; transform:translateY(-50%);
+  font-family:"JetBrains Mono",monospace; font-size:12px; color:var(--faint); letter-spacing:.04em}
 .album:hover{background:rgba(255,255,255,.34)}
 .album:hover .album-title{color:var(--accent)}
 .album-title{transition:color .18s ease-out}
@@ -225,10 +234,14 @@ button.artist-head:hover h2{color:var(--accent)}
 .album:hover .cover.in.settled{transform:perspective(620px) translateY(-3px)
   rotateX(var(--tx,0deg)) rotateY(var(--ty,0deg)); transition:transform .16s ease-out}
 .album-title{font-weight:500; letter-spacing:-.012em}
-.album-sub{font-family:"JetBrains Mono",monospace; font-size:11.5px; color:var(--faint); margin-top:.15rem}
+.album-sub{font-family:"JetBrains Mono",monospace; font-size:11.5px; color:var(--faint);
+  margin-top:.25rem; display:flex; align-items:center; gap:.55rem; flex-wrap:wrap}
+.album-sub .yr{color:var(--dim)}
+.album-sub .gtag{color:var(--gc); font-size:10px; letter-spacing:.12em; text-transform:uppercase;
+  padding:.08rem .42rem; border-radius:20px; box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--gc) 35%,transparent)}
 
 .gauge-wrap{display:flex; align-items:center; gap:.6rem}
-.gauge{position:relative; height:44px; min-width:100px; flex:1}
+.gauge{position:relative; height:44px; min-width:88px; flex:1; margin-right:14px}
 .benched{width:24px; height:24px; border-radius:50%; flex:none; display:grid; place-items:center;
   font-family:"JetBrains Mono",monospace; font-size:9px; font-weight:600; color:var(--faint);
   background:var(--raised-2) center/cover; filter:grayscale(1); opacity:.5;
@@ -387,8 +400,9 @@ button.artist-head:hover h2{color:var(--accent)}
   text-transform:uppercase; color:var(--dim)}
 .legend i{display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:.35rem}
 
-.podium{display:grid; grid-template-columns:repeat(3,1fr); gap:.9rem; align-items:end;
-  margin:0 0 2.5rem; padding-bottom:1.8rem; border-bottom:1px solid var(--line-2)}
+.podium{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1.1rem; align-items:end;
+  max-width:440px; margin:0 auto 2.2rem; padding-bottom:1.5rem;
+  border-bottom:1px solid var(--line-2)}
 .pod{display:flex; flex-direction:column; align-items:center; text-align:center; position:relative}
 .pod-shot{width:100%; aspect-ratio:1/1.12; background:var(--raised-2) center/cover;
   border:4px solid #fff; border-bottom:16px solid #fff; border-radius:3px;
@@ -408,6 +422,12 @@ button.artist-head:hover h2{color:var(--accent)}
 .pod-sc{margin-top:.4rem; font-family:"JetBrains Mono",monospace; font-size:11px; color:#FFF;
   padding:.05rem .4rem; border-radius:4px}
 @media(max-width:520px){.podium{gap:.5rem} .pod-cap{font-size:11px}}
+
+.decade{display:flex; align-items:center; gap:.9rem; margin:1.6rem 0 .5rem}
+.decade::after{content:""; flex:1; height:1px; background:var(--line-2)}
+.decade span{font-family:"Bricolage Grotesque",sans-serif; font-size:1.1rem; font-weight:600;
+  letter-spacing:-.02em; color:var(--accent)}
+.decade:first-child{margin-top:.2rem}
 
 .wall{display:grid; grid-template-columns:repeat(auto-fill,minmax(96px,1fr)); gap:1.1rem .8rem}
 .wall button{display:block; width:100%; text-align:left}
@@ -564,7 +584,7 @@ const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSud4ctkV
 const INI = { anthony:"AP", annette:"AA" };
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-14d";
+const BUILD = "2026-08-14g";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -1432,21 +1452,24 @@ function detailHTML(d){
   </div>`:"";
   return`<div class="detail-wrap"><div class="detail-inner"><div class="detail"><div class="takes">${takes}</div>${list}</div></div></div>`;
 }
-function albumHTML(d,withArtist){
+function albumHTML(d,withArtist,rank){
   const who=[];
   if(d.a!==null)who.push(INI.anthony+" "+d.a); else if(d.aSkip)who.push(INI.anthony+" \u2013");
   if(d.n!==null)who.push(INI.annette+" "+d.n); else if(d.nSkip)who.push(INI.annette+" \u2013");
-  return`<article class="album" tabindex="0" role="button" aria-expanded="false">
+  return`<article class="album${rank?" ranked":""}" tabindex="0" role="button" aria-expanded="false"
+    style="--gc:${hueOf(d.genre)}">${rank?`<span class="rankno">${String(rank).padStart(2,"0")}</span>`:""}
     <div class="cover" data-cover="${esc(d.cover)}" data-art="${esc(d.artist+" "+d.album)}">${esc(initials(d.album))}</div>
     <div class="rise"><div class="album-title">${withArtist?esc(d.artist)+" — ":""}${esc(d.album)}</div>
-      <div class="album-sub">${esc(d.year)}${d.year?" · ":""}${who.join("  ")}</div></div>
+      <div class="album-sub">${d.year?`<span class="yr">${esc(d.year)}</span>`:""}${who.join("  ")}${
+        d.genre?`<span class="gtag" style="--gc:${hueOf(d.genre)}">${esc(d.genre)}</span>`:""}</div></div>
     ${gauge(d)}
     ${detailHTML(d)}
   </article>`;
 }
-function artistHead(name,genre,clickable,extra){
+function artistHead(name,genre,clickable,extra,avg){
   const inner=`<div class="ph" data-art="${esc(name)}" data-kind="artist">${esc(initials(name))}</div>
-    <div class="rise"><h2>${esc(name)}</h2>
+    <div class="rise"><div class="meta"><h2>${esc(name)}</h2>${
+      avg!==null&&avg!==undefined?`<span class="avg" style="background:${ramp(avg)}">${Math.round(avg)}</span>`:""}</div>
     <div class="genre"><b style="color:${hueOf(genre)}">${esc(genre||"")}</b>${extra?`<span class="sep">·</span>${extra}`:""}</div></div>`;
   return clickable
     ? `<button class="artist-head" data-artist="${esc(name)}">${inner}</button>`
@@ -1510,7 +1533,7 @@ function renderArtist(name){
   $("out").innerHTML=`
     <div class="crumb"><button id="back">\u2190 All artists</button>${
       filtered?`<span class="crumb-note">filtered</span>`:""}</div>
-    <section class="artist">${artistHead(name,info.genre,false,extra)}${body}</section>`;
+    <section class="artist">${artistHead(name,info.genre,false,extra,avg)}${body}</section>`;
   $("out").querySelectorAll("[data-art]").forEach(loadImage);
   dressAvatars($("out"));
   reveal($("out"));
@@ -1538,12 +1561,24 @@ function render(){
     html=[...groups.keys()].sort((a,b)=>a.toLowerCase().localeCompare(b.toLowerCase())).map(name=>{
       const al=groups.get(name).slice().sort((x,y)=>(x.year||"").localeCompare(y.year||""));
       const info=ROSTER.get(name)||{genre:al[0].genre};
+      const av=mean(al.map(d=>d.avg));
       return`<section class="artist">${artistHead(name,info.genre||al[0].genre,true,
-        `${al.length} album${al.length>1?"s":""}`)}
+        `${al.length} album${al.length>1?"s":""}`,av)}
         ${al.map(d=>albumHTML(d,false)).join("")}</section>`;
     }).join("");
   }else{
-    html=`<section class="artist">${list.slice().sort(SORTS[sort]).map(d=>albumHTML(d,true)).join("")}</section>`;
+    const ordered=list.slice().sort(SORTS[sort]);
+    const byYear=(sort==="new"||sort==="old");
+    let seen="",body="";
+    ordered.forEach((d,i)=>{
+      if(byYear){
+        const y=parseInt(d.year,10);
+        const dec=isNaN(y)?"Undated":(Math.floor(y/10)*10)+"s";
+        if(dec!==seen){ seen=dec; body+=`<div class="decade"><span>${esc(dec)}</span></div>`; }
+      }
+      body+=albumHTML(d,true,sort==="rating"?i+1:0);
+    });
+    html=(sort==="rating"?podiumHTML(list):"")+`<section class="artist">${body}</section>`;
   }
 
   out.innerHTML=html+queueHTML(q,g)+statsHTML();
