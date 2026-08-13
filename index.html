@@ -1589,7 +1589,8 @@ function boot(rows,sample,header){
   $("notice").innerHTML=sample
     ?`<strong>You're looking at made-up data.</strong> These ratings are placeholders so you can see the layout — none of them are yours.`
     :`Reading live from your sheet. Add a row there, refresh here.`;
-  $("foot").textContent=(sample?"Sample data":(LIVE?"Live from Google Sheets":"Published CSV \u00b7 up to 5 min behind"))+" \u00b7 build "+BUILD;
+  $("foot").textContent=(sample?"Sample data":(LIVE?"Live from Google Sheets":"Published CSV \u00b7 up to 5 min behind"))
+  +" \u00b7 build "+BUILD+(MSGSTAT==="off"?"":" \u00b7 "+MSGSTAT);
 
   paintProfiles();
   ["q","genre","sort"].forEach(id=>$(id).addEventListener("input",()=>{render();syncState();}));
@@ -1617,10 +1618,11 @@ let LASTCSV="",pollTimer=null,LIVE=false;
 /* gviz hands back numbers as "2011.0"; published CSV doesn't. */
 function tidyNum(v){ return String(v==null?"":v).replace(/^(-?\d+)\.0+$/,"$1"); }
 
-function looksRight(text){
+function looksRight(text,tab){
   if(!text)return false;
   const first=parseCSV(text)[0]||[];
-  return first.some(h=>/^\s*artist\s*$/i.test(String(h)));
+  const want=tab==="Messages"?/^\s*message\s*$/i:/^\s*artist\s*$/i;
+  return first.some(h=>want.test(String(h)));
 }
 
 /* Live endpoint first, published CSV as the safety net. */
@@ -1634,7 +1636,7 @@ function fetchSheet(tab,published){
   if(!LIVE_SHEET_ID)return fallback();
   return tryFetch(gviz(tab))
     .then(t=>{
-      if(tab==="Albums"&&!looksRight(t))throw new Error("not shared");
+      if(!looksRight(t,tab))throw new Error("not shared");
       LIVE=true; return t;
     })
     .catch(fallback);
@@ -1681,8 +1683,9 @@ function poll(){
     .catch(()=>{});
 }
 
+let MSGSTAT="off";
 function loadMessages(){
-  if(!MESSAGES_CSV_URL&&!LIVE_SHEET_ID)return Promise.resolve();
+  if(!MESSAGES_CSV_URL&&!LIVE_SHEET_ID){MSGSTAT="off";return Promise.resolve();}
   return fetchSheet("Messages",MESSAGES_CSV_URL)
     .then(t=>{
       const yes=v=>/^(true|yes|1|x)$/i.test(String(v).trim());
@@ -1692,8 +1695,12 @@ function loadMessages(){
         date:(String(r[2]||"").trim().match(/^\d{2}-\d{2}$/)||[""])[0],
         confetti:yes(r[3])
       })).filter(m=>m.text&&(m.show||m.date));
+      const dated=CUSTOM.filter(m=>m.date).length;
+      MSGSTAT=CUSTOM.length
+        ? CUSTOM.length+" message"+(CUSTOM.length===1?"":"s")+(dated?" ("+dated+" dated)":"")
+        : "Messages tab is empty or nothing is ticked";
     })
-    .catch(()=>{});
+    .catch(()=>{ MSGSTAT="Messages tab unreachable \u2014 check it exists and the sheet is link-shared"; });
 }
 
 function start(){
