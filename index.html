@@ -525,7 +525,7 @@ const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSud4ctkV
 const INI = { anthony:"AP", annette:"AA" };
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-13i";
+const BUILD = "2026-08-13j";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -661,8 +661,10 @@ function shape(raw,cols){
     // listen, whether or not a dash was typed
     const aS_=splitSongs(r[K.aSongs]), nS_=splitSongs(r[K.nSongs]);
     const aText_=notNA(r[K.aText]), nText_=notNA(r[K.nText]);
-    const aHas=!isNaN(A)||!!aText_||aS_.order.length;
-    const nHas=!isNaN(N)||!!nText_||nS_.order.length;
+    // songs don't count as engagement - the fetcher pre-fills both cells with the
+    // whole tracklist, so only a score or a written thought means someone was here
+    const aHas=!isNaN(A)||!!aText_;
+    const nHas=!isNaN(N)||!!nText_;
     const aOut=skipA||(!aHas&&nHas), nOut=skipN||(!nHas&&aHas);
 
     out.push({artist,genre,album,year:tidyNum(r[K.year]).trim(),
