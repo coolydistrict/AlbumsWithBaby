@@ -164,39 +164,34 @@ h1 em{font-style:normal; color:var(--accent)}
 .notice strong{color:var(--accent); font-weight:600}
 .notice code{font-family:"JetBrains Mono",monospace; font-size:12px; color:var(--accent)}
 
-.tally{display:grid; gap:.7rem; margin-top:1.4rem;
-  grid-template-columns:repeat(auto-fit,minmax(122px,1fr))}
-.tally div{container-type:inline-size;
-  position:relative; display:flex; flex-direction:column; gap:.1rem;
-  background:var(--raised-2); border-radius:12px; padding:.85rem .8rem .7rem;
-  border:1px solid var(--line); overflow:hidden;
-  transition:transform .25s ease-out, border-color .25s ease-out}
-/* the tile's own colour, laid under it rather than painted on the number */
-.tally div::before{content:""; position:absolute; inset:0;
-  background:linear-gradient(150deg,
-    color-mix(in srgb,var(--tc,var(--accent)) 16%,transparent), transparent 62%);
-  pointer-events:none}
-.tally div::after{content:""; position:absolute; left:0; top:0; bottom:0; width:3px;
-  background:var(--tc,var(--accent))}
-.tally div:hover{transform:translateY(-2px); border-color:var(--line-2)}
-.tally b{position:relative; display:block; font-family:"JetBrains Mono",monospace;
-  font-weight:700; letter-spacing:-.04em; line-height:.95; text-align:left;
+.tally{display:flex; flex-wrap:wrap; align-items:flex-end;
+  gap:1.4rem 2.6rem; margin-top:1.7rem}
+.t-group{display:flex; flex-direction:row; flex-wrap:wrap;
+  align-items:flex-end; gap:1.2rem 2.1rem}
+/* the averages earn a rule of their own, and lose it when the row wraps */
+.t-avgs{position:relative; padding-left:2.6rem; gap:1.2rem 2.4rem}
+.t-avgs::before{content:""; position:absolute; left:0; top:.2rem; bottom:.2rem;
+  width:1px; background:var(--line-2)}
+@media(max-width:660px){.t-avgs{padding-left:0} .t-avgs::before{display:none}}
+/* Only the stat tiles stack; the groups themselves must stay rows. This rule
+   used to be `.tally div`, which outranked .t-group and turned the whole row
+   into a right-aligned column. */
+.tally .t-group>div{display:flex; flex-direction:column; align-items:flex-start;
+  gap:.3rem; flex:none}
+/* The size is written onto the element itself in paintTally. Three attempts
+   to set it through a class never reached the page, so it no longer depends
+   on the cascade reaching this rule at all. */
+/* height locked to the font size so nothing inside can change the box */
+.tally b{display:block; height:1em; font-family:"Bricolage Grotesque",sans-serif;
+  font-weight:700; letter-spacing:-.035em; line-height:1;
   color:var(--tc,var(--ink))}
-/* Sized to fill the tile across. A monospace digit is roughly 0.6em wide, so
-   the usable width divided by the digit count gives the size; cqw makes that a
-   property of the tile rather than the window. */
-.tally b.d1{font-size:min(96cqw,4.6rem)}
-.tally b.d2{font-size:min(72cqw,3.8rem)}
-.tally b.d3{font-size:min(50cqw,3rem)}
-.tally b.d4{font-size:min(38cqw,2.4rem)}
-@media(max-width:520px){.tally{grid-template-columns:repeat(auto-fit,minmax(104px,1fr)); gap:.5rem}
-  .tally div{padding:.75rem .8rem .65rem}}
+@media(max-width:520px){.tally{gap:.9rem 1.5rem}}
 .odo{display:inline-flex; overflow:hidden; height:1em; vertical-align:bottom}
 .odo-slot{display:inline-block; overflow:hidden; height:1em; line-height:1em}
 .odo-reel{display:flex; flex-direction:column; will-change:transform}
 .odo-reel i{font-style:normal; height:1em; line-height:1em; display:block; text-align:center}
-.tally span{position:relative; font-size:10px; letter-spacing:.14em; text-transform:uppercase;
-  color:var(--dim); font-family:"JetBrains Mono",monospace; white-space:nowrap}
+.tally span{font-size:11px; letter-spacing:.16em; text-transform:uppercase;
+  color:var(--faint); font-family:"JetBrains Mono",monospace; white-space:nowrap}
 
 input[type=search],select,input[type=url]{font-family:inherit; font-size:14px; color:var(--ink);
   background:var(--raised); border:1px solid var(--line-2); border-radius:8px;
@@ -527,17 +522,42 @@ button.artist-head:hover h2{color:var(--accent)}
 .legend i{display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:.35rem}
 
 /* Sits over the podium, in the same segmented control as List and Wall. */
-.podium-thin{max-width:440px; margin:0 auto 2.2rem; padding:1.4rem 0 1.6rem;
-  text-align:center; color:var(--faint); font-size:13px;
+/* One line between two hairlines: the block owns the whole gap so the text is
+   centred between the rule above it and its own border below. */
+.podium-thin{max-width:440px; margin:0 auto 2.2rem; padding:2.2rem 1rem;
+  display:grid; place-items:center; text-align:center;
+  text-wrap:pretty; color:var(--faint); font-size:13px;
   border-bottom:1px solid var(--line-2)}
-.pod-who{display:flex; justify-content:center; margin:0 auto .2rem; max-width:440px}
-.pod-who .seg button{padding:.34rem .8rem; font-size:12px;
-  font-family:"JetBrains Mono",monospace; letter-spacing:.04em}
-@media(max-width:520px){.pod-who .seg button{padding:.3rem .6rem; font-size:11px}}
+.pod-genres:has(+.podium-thin){margin-bottom:0}
+/* Whoever's podium is up, these are the genres they rate highest. Same
+   pill shape as the genre tag on an album row, at the size of a heading. */
+.pod-genres{display:flex; flex-wrap:wrap; justify-content:center; gap:.5rem;
+  max-width:440px; margin:0 auto 2.2rem; padding-bottom:1.6rem;
+  border-bottom:1px solid var(--line-2)}
+.pod-genres .gchip{display:inline-flex; align-items:baseline; gap:.4rem;
+  padding:.3rem .7rem; border-radius:20px; color:var(--gc,var(--faint));
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--gc,var(--line-2)) 35%,transparent);
+  background:color-mix(in srgb,var(--gc,transparent) 8%,transparent)}
+.pod-genres .gchip i{font-style:normal; font-size:10px; letter-spacing:.12em;
+  text-transform:uppercase; font-family:"JetBrains Mono",monospace}
+.pod-genres .gchip b{font-family:"Bricolage Grotesque",sans-serif;
+  font-size:15px; font-weight:600; letter-spacing:-.02em}
+.pod-genres .none{color:var(--faint); font-size:12px}
+@media(max-width:520px){.pod-genres .gchip b{font-size:14px}}
+.pod-who{display:flex; justify-content:center; margin:1.9rem auto 1.2rem}
+.pod-who .seg{border-radius:999px; border-color:var(--line-2);
+  background:var(--raised-2); padding:3px; gap:2px}
+.pod-who .seg button{padding:.42rem 1.15rem; border-radius:999px;
+  font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--faint); line-height:1;
+  transition:background .2s ease-out, color .2s ease-out}
+.pod-who .seg button:hover{color:var(--ink)}
+.pod-who .seg button.on{background:var(--accent); color:#EAF3FB}
+@media(max-width:520px){.pod-who .seg button{padding:.4rem .8rem; letter-spacing:.08em}}
 .podium{display:grid; grid-template-columns:repeat(3,minmax(0,1fr));
   grid-template-rows:repeat(4,auto);   /* rank, cover, caption, score */
   gap:0 1.1rem;                        /* rows are spaced by the bands themselves */
-  max-width:440px; margin:0 auto 2.2rem; padding:20px 0 1.5rem;
+  max-width:440px; margin:0 auto 2.2rem; padding:32px 0 1.5rem;
   border-bottom:1px solid var(--line-2)}
 .pod{display:grid; grid-template-rows:subgrid; grid-row:span 4;
   justify-items:center; align-items:end; text-align:center; position:relative;
@@ -554,10 +574,10 @@ button.artist-head:hover h2{color:var(--accent)}
 .pod.p1{animation-delay:.5s}
 @keyframes podin{to{opacity:1; transform:none}}
 @media(prefers-reduced-motion:reduce){.pod{opacity:1; transform:none; animation:none}}
-.crown{position:absolute; left:50%; top:-22px; width:54px; height:auto; z-index:3;
+.crown{position:absolute; left:50%; top:-34px; width:54px; height:auto; z-index:3;
   transform:translate(-50%,0); transform-origin:50% 92%; pointer-events:none;
   filter:drop-shadow(0 4px 6px rgba(15,37,54,.32))}
-@media(max-width:520px){.crown{width:42px; top:-16px} .podium{padding-top:15px}}
+@media(max-width:520px){.crown{width:42px; top:-26px} .podium{padding-top:26px}}
 @media(prefers-reduced-motion:reduce){.crown{transform:translate(-50%,0)!important}}
 .pod-shot{width:100%; aspect-ratio:1/1.12; background:var(--raised-2) center/cover;
   border:4px solid #fff; border-bottom:16px solid #fff; border-radius:3px;
@@ -596,6 +616,8 @@ button.artist-head:hover h2{color:var(--accent)}
   display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical}
 .wall .w-sc{font-family:"JetBrains Mono",monospace; font-size:10px; color:#FFF;
   padding:.02rem .3rem; border-radius:3px; margin-right:.3rem}
+.wall .w-rk{font-family:"JetBrains Mono",monospace; font-size:10px; color:var(--dim);
+  margin-right:.35rem; letter-spacing:.04em}
 .view-tog{display:inline-flex; border:1px solid var(--line-2); border-radius:8px; overflow:hidden}
 .view-tog button{padding:.5rem .85rem; font-size:13px; color:var(--dim)}
 .view-tog button.on{background:var(--accent); color:#EAF3FB}
@@ -614,7 +636,11 @@ button.artist-head:hover h2{color:var(--accent)}
 .rise.in{opacity:1; transform:translateY(0)}
 @media(prefers-reduced-motion:reduce){.rise{opacity:1!important; transform:none!important; transition:none!important}}
 
-.empty{padding:4rem 0; text-align:center; color:var(--faint)}
+/* The rule under an empty state belongs to the block, not to whatever section
+   follows: the next one brought its own margin and left the text sitting high. */
+.empty{padding:4rem 0; text-align:center; color:var(--faint);
+  border-bottom:1px solid var(--line-2)}
+.empty+.queue,.empty+.stats{border-top:0}
 .empty b{display:block; font-family:"Bricolage Grotesque",sans-serif; font-size:1.2rem;
   color:var(--accent); margin-bottom:.4rem; font-weight:600}
 
@@ -749,7 +775,7 @@ const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSud4ctkV
 const INI = { anthony:"AP", annette:"AA" };
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-17b";
+const BUILD = "2026-08-17g";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -1302,6 +1328,21 @@ const podWho=()=>{
 };
 const podScore=(d,who)=>who==="a"?d.a:who==="n"?d.n:d.avg;
 
+/* Top genres for whoever is selected, by their own scores. Built from the
+   same groupAvg the stats section uses, so the numbers agree. */
+function podGenresHTML(who){
+  /* With a genre chosen in the dropdown, only that genre's average belongs
+     here - the other four are about albums the page is no longer showing. */
+  const pick=$("genre")?$("genre").value:"";
+  let list=groupAvg("genre",d=>podScore(d,who));
+  list=(pick?list.filter(g=>g.k===pick):list).slice(0,5);
+  if(!list.length)return"";
+  return`<div class="pod-genres">${list.map(g=>
+    `<span class="gchip" style="--gc:${hueOf(g.k)}" title="${esc(g.k)} \u00b7 ${
+      g.n} album${g.n===1?"":"s"}"><i>${esc(g.k)}</i><b>${Math.round(g.avg)}</b></span>`
+    ).join("")}</div>`;
+}
+
 function podiumHTML(list){
   const who=podWho();
   const val=d=>podScore(d,who);
@@ -1314,14 +1355,14 @@ function podiumHTML(list){
 
   /* One of you may have rated far fewer albums than the pair have together,
      so say so rather than dropping the whole block and the tabs with it. */
-  if(top.length<3)return tabs+`<div class="podium-thin">${
+  if(top.length<3)return tabs+podGenresHTML(who)+`<div class="podium-thin">${
     who==="both"?"Three albums you have both rated will fill the podium."
                 :esc(POD_WHO.filter(p=>p[0]===who)[0][1])+" has rated "+rated.length+
                  " album"+(rated.length===1?"":"s")+" so far. Three fills the podium."
   }</div>`;
 
   const order=[top[1],top[0],top[2]];               // second, first, third
-  return tabs+`<div class="podium">${order.map((d,i)=>{
+  return tabs+podGenresHTML(who)+`<div class="podium">${order.map((d,i)=>{
     const place=d===top[0]?1:d===top[1]?2:3;
     return`<button class="pod p${place}" data-open="${ROWS.indexOf(d)}"
       title="${esc(d.artist)} — ${esc(d.album)}">
@@ -1334,12 +1375,18 @@ function podiumHTML(list){
 }
 
 function wallHTML(list){
-  if(!list.length)return`<div class="empty"><b>Nothing rated yet</b>Rate something and it lands on the wall.</div>`;
-  return podiumHTML(list)+`<div class="wall">${list.slice().sort(byScore).map(d=>
+  /* The wall is a ranking too, so it holds only rated albums, counts down from
+     the selected person's scores, and numbers them the way the list does. */
+  const who=podWho(), val=d=>podScore(d,who);
+  const shown=list.filter(d=>{const v=val(d);return v!==null&&!isNaN(v);})
+    .sort((x,y)=>val(y)-val(x));
+  if(!shown.length)return podiumHTML(list)+
+    `<div class="podium-thin">Nothing rated yet — anything you score lands on the wall.</div>`;
+  return podiumHTML(list)+`<div class="wall">${shown.map((d,i)=>
     `<button data-open="${ROWS.indexOf(d)}" title="${esc(d.artist)} — ${esc(d.album)}">
       <div class="w-shot" data-cover="${esc(d.cover)}" data-art="${esc(d.artist+" "+d.album)}">${esc(initials(d.album))}</div>
-      <div class="w-cap"><span class="w-sc" style="background:${scored(d)?ramp(d.avg):"var(--faint)"}">${
-        scored(d)?Math.round(d.avg):"\u2013"}</span>${esc(d.album)}</div>
+      <div class="w-cap"><span class="w-rk">${String(i+1).padStart(2,"0")}</span><span class="w-sc" style="background:${
+        ramp(val(d))}">${Math.round(val(d))}</span>${esc(d.album)}</div>
     </button>`).join("")}</div>`;
 }
 
@@ -1348,9 +1395,7 @@ function openAlbum(key){
   if(!d)return;
   clearTimeout(hoverTimer);
   if(HOVER_ROW)stopPreview();
-  const who=[];
-  if(d.a!==null)who.push(INI.anthony+" "+d.a); else if(d.aSkip)who.push(INI.anthony+" \u2013");
-  if(d.n!==null)who.push(INI.annette+" "+d.n); else if(d.nSkip)who.push(INI.annette+" \u2013");
+  const who=whoBits(d);
   $("album-body").innerHTML=`<div class="m-head">
       <div class="m-shot" data-cover="${esc(d.cover)}" data-art="${esc(d.artist+" "+d.album)}">${esc(initials(d.album))}</div>
       <div><div class="m-title">${esc(d.album)}</div>
@@ -1757,9 +1802,25 @@ $("file").onchange=e=>{
 document.querySelectorAll("[data-adj]").forEach(b=>b.onclick=()=>openCrop(b.dataset.adj));
 
 /* ── rendering ───────────────────────────────────────────────── */
+/* Under Anthony or Annette, every score readout on the page is theirs alone:
+   the row's scores, the gauge, and the panel. Both restores the pair. */
+const podOnly=()=>{const w=podWho();return w==="a"?"anthony":w==="n"?"annette":null;};
+function whoBits(d){
+  const only=podOnly(),out=[];
+  if(only!=="annette"){
+    if(d.a!==null)out.push(INI.anthony+" "+d.a); else if(d.aSkip)out.push(INI.anthony+" \u2013");
+  }
+  if(only!=="anthony"){
+    if(d.n!==null)out.push(INI.annette+" "+d.n); else if(d.nSkip)out.push(INI.annette+" \u2013");
+  }
+  return out;
+}
 function gauge(d){
-  const vals=[d.a,d.n].filter(v=>v!==null);
-  const benched=[["anthony",d.aSkip],["annette",d.nSkip]].filter(x=>x[1]).map(x=>x[0]);
+  const only=podOnly();
+  const aV=only==="annette"?null:d.a, nV=only==="anthony"?null:d.n;
+  const aB=only==="annette"?false:d.aSkip, nB=only==="anthony"?false:d.nSkip;
+  const vals=[aV,nV].filter(v=>v!==null);
+  const benched=[["anthony",aB],["annette",nB]].filter(x=>x[1]).map(x=>x[0]);
   if(!vals.length&&!benched.length)return"";
   const solo=benched.length>0;
   const bench=benched.map(who=>
@@ -1767,10 +1828,10 @@ function gauge(d){
   if(!vals.length)return`<div class="gauge-wrap">${bench}<span class="none-yet">not rated</span></div>`;
   const lo=Math.min(...vals),hi=Math.max(...vals);
   let h=`<div class="gauge-wrap">${bench}<div class="gauge${solo?" solo":""}"><div class="scale"><div class="track"></div>`;
-  if(d.a!==null&&d.n!==null&&d.gap>0)h+=`<div class="span" title="${d.gap} point${
+  if(!only&&d.a!==null&&d.n!==null&&d.gap>0)h+=`<div class="span" title="${d.gap} point${
     d.gap===1?"":"s"} apart" style="--l:${lo}%;--w:${hi-lo}%;--sp:${
     gapHue(d.gap)};--spa:${gapWeight(d.gap)}"></div>`;
-  for(const[label,who,v]of[[INI.anthony,"anthony",d.a],[INI.annette,"annette",d.n]]){
+  for(const[label,who,v]of[[INI.anthony,"anthony",aV],[INI.annette,"annette",nV]]){
     if(v===null)continue;
     h+=`<div class="pip" data-who="${who}" style="--v:${v}%;color:${ramp(v)};background-color:${ramp(v)}" title="${who[0].toUpperCase()+who.slice(1)}: ${v}">${label}</div>`;
   }
@@ -1813,15 +1874,27 @@ function verdict(v,who,letter){
 }
 function detailHTML(d){
   const rows=songTable(d);
-  const takes=take("Anthony","anthony",d.a,d.aText,d.aSkip)+take("Annette","annette",d.n,d.nText,d.nSkip);
-  const both=d.a!==null&&d.n!==null;
-  const liked=rows.filter(r=>r.a==="y"||r.n==="y").length;
+  /* One person's podium is one person's panel: their write-up, their score,
+     their picks. Nothing here compares the two of you unless Both is up. */
+  const who=podWho();
+  const solo=who==="a"?"anthony":who==="n"?"annette":null;
+  const soloName=solo==="anthony"?"Anthony":"Annette";
+  const mine=solo==="anthony"?"a":solo==="annette"?"n":null;
+  const soloV=solo==="anthony"?d.a:d.n;
+  let takes=solo
+    ?take(soloName,solo,soloV,solo==="anthony"?d.aText:d.nText,solo==="anthony"?d.aSkip:d.nSkip)
+    :take("Anthony","anthony",d.a,d.aText,d.aSkip)+take("Annette","annette",d.n,d.nText,d.nSkip);
+  if(solo&&!takes)takes=`<div class="take"><p class="muted">${
+    soloName} hasn\u2019t weighed in on this one yet.</p></div>`;
+  const both=!solo&&d.a!==null&&d.n!==null;
+  const liked=rows.filter(r=>mine?r[mine]==="y":(r.a==="y"||r.n==="y")).length;
   const shared=rows.filter(r=>r.a==="y"&&r.n==="y").length;
   const facts=[
+    solo&&soloV!==null?[`Score`,soloV,ramp(soloV)]:null,
     both?[`Average`,Math.round(d.avg),ramp(d.avg)]:null,
     both?[`Apart`,d.gap+" pts",gapHue(d.gap)]:null,
     rows.length?[`Tracks`,rows.length,null]:null,
-    liked?[`Liked`,liked,null]:null,
+    liked?[solo?`Picked`:`Liked`,liked,null]:null,
     both&&shared?[`Agreed on`,shared,null]:null
   ].filter(Boolean);
   const strip=facts.length?`<div class="facts">${facts.map(([k,v,c])=>
@@ -1832,15 +1905,15 @@ function detailHTML(d){
     <div class="tl-wrap${tall?" tall":""}"><ul>${rows.map((r,i)=>`<li style="animation-delay:${Math.min(i,14)*0.035}s"><span class="tl-name">${esc(r.label)}</span>
       <span class="rowend">
         <button class="play" data-artist="${esc(d.artist)}" data-album="${esc(d.album)}" data-song="${esc(r.label)}" title="Play a 30s clip" aria-label="Play a clip of ${esc(r.label)}">\u25b6</button>
-        <span class="marks">${d.aSkip?benchMark("anthony"):verdict(r.a,"anthony",INI.anthony)}${d.nSkip?benchMark("annette"):verdict(r.n,"annette",INI.annette)}</span>
+        <span class="marks">${
+          solo==="annette"?"":(d.aSkip?benchMark("anthony"):verdict(r.a,"anthony",INI.anthony))}${
+          solo==="anthony"?"":(d.nSkip?benchMark("annette"):verdict(r.n,"annette",INI.annette))}</span>
       </span></li>`).join("")}</ul></div>
   </div>`:"";
   return`<div class="detail-wrap"><div class="detail-inner"><div class="detail"><div class="takes">${takes}${strip}</div>${list}</div></div></div>`;
 }
 function albumHTML(d,withArtist,rank){
-  const who=[];
-  if(d.a!==null)who.push(INI.anthony+" "+d.a); else if(d.aSkip)who.push(INI.anthony+" \u2013");
-  if(d.n!==null)who.push(INI.annette+" "+d.n); else if(d.nSkip)who.push(INI.annette+" \u2013");
+  const who=whoBits(d);
   return`<article class="album${rank?" ranked":""}" tabindex="0" role="button" aria-expanded="false"
     data-idx="${ROWS.indexOf(d)}" style="--gc:${hueOf(d.genre)};--sc:${isNaN(d.avg)?"transparent":ramp(d.avg)}">${rank?`<span class="rankno">${String(rank).padStart(2,"0")}</span>`:""}
     <div class="cover" data-cover="${esc(d.cover)}" data-art="${esc(d.artist+" "+d.album)}">${esc(initials(d.album))}</div>
@@ -1990,7 +2063,14 @@ function render(){
         ${al.map(d=>albumHTML(d,false)).join("")}</section>`;
     }).join("");
   }else{
-    const ordered=list.slice().sort(SORTS[sort]);
+    const who=podWho();
+    /* A ranking is of rated albums only - an unscored record has no place in it. */
+    const pool=sort==="rating"
+      ? list.filter(d=>{const v=podScore(d,who);return v!==null&&!isNaN(v);})
+      : list;
+    const ordered=sort==="rating"
+      ? pool.slice().sort((x,y)=>podScore(y,who)-podScore(x,who))
+      : pool.slice().sort(SORTS[sort]);
     const byYear=(sort==="new"||sort==="old");
     let seen="",body="";
     ordered.forEach((d,i)=>{
@@ -2001,7 +2081,7 @@ function render(){
       }
       body+=albumHTML(d,true,sort==="rating"?i+1:0);
     });
-    html=(sort==="rating"?podiumHTML(list):"")+`<section class="artist">${body}</section>`;
+    html=(sort==="rating"?podiumHTML(pool):"")+`<section class="artist">${body}</section>`;
   }
 
   out.innerHTML=html+queueHTML(q,g)+statsHTML();
@@ -2280,6 +2360,8 @@ function hideBoot(){ const b=$("boot"); if(b)b.classList.add("done"); }
 
 /* ── boot ────────────────────────────────────────────────────── */
 /* Each digit is its own little reel, so the number rolls into place. */
+/* No longer called: see paintTally. Left in place because the odometer is worth
+   keeping if it is ever wanted somewhere it cannot disturb a shared baseline. */
 function countUp(el,to,ms){
   if(!el)return;
   if(window.matchMedia("(prefers-reduced-motion: reduce)").matches){el.textContent=to;return;}
@@ -2314,19 +2396,27 @@ function paintTally(){
   const gN=new Set(ROWS.map(d=>d.genre).filter(Boolean)).size;
   /* The two averages take their colour from the score ramp, so they mean the
      same thing here as everywhere else. The counts get fixed hues. */
-  const tile=(v,label,c)=>`<div style="--tc:${c}"><b class="d${
-    Math.min(4,String(v).length)}">${v}</b><span>${label}</span></div>`;
+  /* px, inline, so no stylesheet rule and no unit support question stands
+     between this and the screen. Every number in a group shares a size, or
+     their labels end up on different lines. */
+  const tile=(v,label,c,size)=>`<div style="--tc:${c}"><b style="font-size:${
+    size}px">${v}</b><span>${label}</span></div>`;
+  const counts=
+    tile(ROWS.length,"albums","var(--accent)",34)+
+    tile(ROSTER.size,"artists","#2E5875",34)+
+    (gN?tile(gN,"genres","#5C3F7A",34):"")+
+    (QUEUE.length?tile(QUEUE.length,"to listen","var(--ink)",34):"");
+  const avgs=
+    (am!==null?tile(Math.round(am),"anthony avg",ramp(am),58):"")+
+    (nm!==null?tile(Math.round(nm),"annette avg",ramp(nm),58):"");
   $("tally").innerHTML=
-    tile(ROWS.length,"albums","var(--accent)")+
-    tile(ROSTER.size,"artists","#5E7F9B")+
-    (gN?tile(gN,"genres","#8A6A9B"):"")+
-    (am!==null?tile(Math.round(am),"anthony avg",ramp(am)):"")+
-    (nm!==null?tile(Math.round(nm),"annette avg",ramp(nm)):"")+
-    (QUEUE.length?tile(QUEUE.length,"to listen","var(--faint)"):"");
-  $("tally").querySelectorAll("b").forEach(b=>{
-    const n=parseInt(b.textContent,10);
-    if(!isNaN(n))countUp(b,n,1000);
-  });
+    `<div class="t-group t-counts">${counts}</div>`+
+    (avgs?`<div class="t-group t-avgs">${avgs}</div>`:"");
+  /* The odometer used to run here. It added its own class to the number
+     element, turning each one into an inline-flex box of inline-block slots
+     whose baselines sat wherever the font's descender put them - which is what
+     kept knocking the row out of line. It had already blanked the whole tally
+     once. A number that is simply a number cannot do either. */
 }
 
 function boot(rows,sample,header){
