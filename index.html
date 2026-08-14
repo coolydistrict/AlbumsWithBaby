@@ -432,6 +432,13 @@ button.artist-head:hover h2{color:var(--accent)}
 .stats h2{font-family:"Bricolage Grotesque",sans-serif; font-weight:600;
   font-size:clamp(1.2rem,3vw,1.6rem); letter-spacing:-.025em}
 .stats>p{color:var(--dim); font-size:14px; margin:.3rem 0 1.6rem; max-width:52ch}
+/* Labels the three-across bands inside The numbers. Quiet enough not to
+   compete with the section title above it. */
+.band{font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:.18em;
+  text-transform:uppercase; color:var(--faint); font-weight:400;
+  margin:2.2rem 0 .9rem; display:flex; align-items:center; gap:.9rem}
+.band::after{content:""; flex:1; height:1px; background:var(--line-2)}
+.band:first-of-type{margin-top:1.6rem}
 .grid2{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:1.1rem}
 .stat-block{background:var(--raised-2); border-radius:14px; padding:1.3rem 1.4rem 1.5rem}
 .stat-block h3{font-family:"JetBrains Mono",monospace; font-size:10px; letter-spacing:.16em;
@@ -709,7 +716,7 @@ const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSud4ctkV
 const INI = { anthony:"AP", annette:"AA" };
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-16u";
+const BUILD = "2026-08-16x";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -1225,8 +1232,36 @@ function radarHTML(){
    comparison, so it has to be kept out of the sort rather than sorted. */
 const scored=d=>!isNaN(d.avg);
 const byScore=(x,y)=>(scored(y)?y.avg:-1)-(scored(x)?x.avg:-1);
+
+/* An edition marker only counts when it is bracketed or set off by a dash.
+   A record actually named Version or Remastered keeps its name. */
+const EDITION_BRACKET=/\s*[([][^)\]]*\b(deluxe|expanded|extended|anniversary|super|platinum|complete|bonus|tour|special|collector\w*|edition|version|remaster\w*|reissue)\b[^)\]]*[)\]]\s*$/i;
+const EDITION_DASH=/\s*[-\u2013\u2014]\s*[^-\u2013\u2014]*\b(deluxe|expanded|extended|anniversary|super|platinum|complete|bonus|tour|special|collector\w*|edition|version|remaster\w*|reissue)\b[^-\u2013\u2014]*$/i;
+const baseAlbum=t=>{
+  const s=String(t||"").trim().replace(EDITION_BRACKET,"").replace(EDITION_DASH,"").trim();
+  return s||String(t||"").trim();
+};
+
+/* Editions of one record settle it between themselves before the podium: a
+   deluxe can beat the original or lose to it, but they cannot both stand
+   there. The list and the wall still show every edition separately. */
+function bestEdition(list){
+  const best=new Map();
+  list.forEach(d=>{
+    const base=baseAlbum(d.album);
+    const key=normT(d.artist)+"|"+normT(base);
+    const cur=best.get(key);
+    if(!cur){best.set(key,d);return;}
+    const isOriginal=normT(d.album)===normT(base);
+    const wasOriginal=normT(cur.album)===normT(base);
+    // higher average wins; a dead heat goes to the original record
+    if(d.avg>cur.avg||(d.avg===cur.avg&&isOriginal&&!wasOriginal))best.set(key,d);
+  });
+  return [...best.values()];
+}
+
 function podiumHTML(list){
-  const top=list.filter(scored).sort(byScore).slice(0,3);
+  const top=bestEdition(list.filter(scored)).sort(byScore).slice(0,3);
   if(top.length<3)return"";
   const order=[top[1],top[0],top[2]];               // second, first, third
   return`<div class="podium">${order.map((d,i)=>{
@@ -1298,6 +1333,7 @@ function statsHTML(){
   if(!ROWS.length)return"";
   const both=groupAvg("genre",d=>d.avg), byArtist=groupAvg("artist",d=>d.avg);
   const aGenre=groupAvg("genre",d=>d.a), nGenre=groupAvg("genre",d=>d.n);
+  const aArtist=groupAvg("artist",d=>d.a), nArtist=groupAvg("artist",d=>d.n);
   // gap is -1 when only one of you rated it, which is not a disagreement
   const gGenre=groupAvg("genre",d=>d.gap>=0?d.gap:null);
   if(!both.length&&!byArtist.length)return"";
@@ -1307,15 +1343,27 @@ function statsHTML(){
     <h2 class="rise">The numbers</h2>
     <p class="rise">Averages across everything rated so far. The small figure is how many albums each is based on.</p>
     <div class="chart-row">${scatterHTML()}${radarHTML()}</div>
-    <div class="grid2">
-      ${blk("Genres, both of us",both,6)}
-      ${blk("Artists, both of us",byArtist,6)}
-      ${blk("Anthony by genre",aGenre,5)}
-      ${blk("Annette by genre",nGenre,5)}
-      ${gGenre.length?`<div class="stat-block rise"><h3><span>Apart by genre</span><em>pts \u00b7 albums</em></h3>${barRowsGap(gGenre,6)}</div>`:""}
-      ${fingerprint(ROWS.map(d=>d.a).filter(v=>v!==null),"How Anthony rates")}
-      ${fingerprint(ROWS.map(d=>d.n).filter(v=>v!==null),"How Annette rates")}
-    </div>
+    ${(byArtist.length||aArtist.length||nArtist.length)?`
+      <div class="band rise">By artist</div>
+      <div class="grid2">
+        ${blk("Both of us",byArtist,6)}
+        ${blk("Anthony",aArtist,6)}
+        ${blk("Annette",nArtist,6)}
+      </div>`:""}
+    ${(both.length||aGenre.length||nGenre.length)?`
+      <div class="band rise">By genre</div>
+      <div class="grid2">
+        ${blk("Both of us",both,6)}
+        ${blk("Anthony",aGenre,6)}
+        ${blk("Annette",nGenre,6)}
+        ${gGenre.length?`<div class="stat-block rise"><h3><span>Apart by genre</span><em>pts \u00b7 albums</em></h3>${barRowsGap(gGenre,6)}</div>`:""}
+      </div>`:""}
+    ${(ROWS.some(d=>d.a!==null)||ROWS.some(d=>d.n!==null))?`
+      <div class="band rise">Rating habits</div>
+      <div class="grid2">
+        ${fingerprint(ROWS.map(d=>d.a).filter(v=>v!==null),"How Anthony rates")}
+        ${fingerprint(ROWS.map(d=>d.n).filter(v=>v!==null),"How Annette rates")}
+      </div>`:""}
   </section>`;
 }
 
