@@ -775,7 +775,7 @@ const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSud4ctkV
 const INI = { anthony:"AP", annette:"AA" };
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-17g";
+const BUILD = "2026-08-17h";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -1077,6 +1077,13 @@ function showPlayer(label){
   $("p-title").textContent=label||"";
   $("player").classList.toggle("on",!!label);
 }
+/* A preview that fails silently is impossible to diagnose. This puts the
+   reason in the player bar for a few seconds and leaves it in the console. */
+function note(msg){
+  console.warn("[preview] "+msg);
+  showPlayer(msg);
+  setTimeout(()=>{ if(!AUD)showPlayer(""); },5000);
+}
 function fade(audio,to,ms,done){
   if(!audio){ if(done)done(); return; }
   if(audio.__fx){clearInterval(audio.__fx);audio.__fx=null;}
@@ -1166,11 +1173,29 @@ function preview(btn,alts,override){
   jsonp("https://itunes.apple.com/search?entity=song&limit=25&term="+
     encodeURIComponent(artist+" "+song)).then(d=>{
     if(btn.__seq!=null&&btn.__seq!==HOVER_SEQ)return;  // left the row mid-lookup
-    const hit=pickTrack(d&&d.results,song,artist,album);
+    /* A lookup that never came back is a different failure from one that came
+       back empty, and they need different fixes. Say which. */
+    if(!d){
+      if(!btn.isConnected)HOVER_ROW=null;
+      btn.classList.add("dead");btn.textContent="\u2013";
+      btn.title="The lookup to itunes.apple.com never returned \u2014 blocked or offline";
+      note("Preview lookup blocked \u2014 ad blocker, VPN or Opera's shield");
+      return;
+    }
+    const hit=pickTrack(d.results,song,artist,album);
     if(!hit){
       if(alts&&alts.length){ preview(btn,alts.slice(1),alts[0]); return; }   // try the next track
       if(!btn.isConnected)HOVER_ROW=null;            // hovering found nothing playable here
-      btn.classList.add("dead");btn.textContent="\u2013";btn.title="No preview matching this song";return;
+      btn.classList.add("dead");btn.textContent="\u2013";btn.title="No preview matching this song";
+      note("No clip found for \u201c"+song+"\u201d");
+      return;
+    }
+    if(!/^https:/i.test(String(hit.previewUrl||""))){
+      // an http clip on an https page is blocked before it ever plays
+      btn.classList.add("dead");btn.textContent="\u2013";
+      btn.title="This clip is served over http and the browser blocks it";
+      note("Clip blocked \u2014 served over http, not https");
+      return;
     }
     AUD=new Audio(hit.previewUrl); AUD.volume=0;
     AUD.onended=stopPreview;
@@ -1186,11 +1211,12 @@ function preview(btn,alts,override){
         stopPreview();
         if(err&&err.name==="NotAllowedError"){
           // not a dead track: the page has not been clicked yet
-          showPlayer("Click anywhere once to allow previews");
-          setTimeout(()=>{ if(!AUD)showPlayer(""); },4000);
+          note("Click anywhere once to allow previews");
           return;
         }
         btn.classList.add("dead");btn.textContent="\u2013";
+        btn.title="Playback failed: "+((err&&err.name)||"unknown");
+        note("Playback failed \u2014 "+((err&&err.name)||"unknown error"));
       });
     NOWPLAYING=key; btn.classList.add("on"); btn.textContent="\u25a0";
     markPlaying(btn.closest?.(".album")||HOVER_ROW||null);
@@ -1375,9 +1401,10 @@ function podiumHTML(list){
 }
 
 function wallHTML(list){
-  /* The wall is a ranking too, so it holds only rated albums, counts down from
-     the selected person's scores, and numbers them the way the list does. */
-  const who=podWho(), val=d=>podScore(d,who);
+  /* The wall is a ranking too, so it holds only rated albums and numbers them
+     the way the list does. It ranks on the pair's average like everything
+     outside the podium. */
+  const val=d=>d.avg;
   const shown=list.filter(d=>{const v=val(d);return v!==null&&!isNaN(v);})
     .sort((x,y)=>val(y)-val(x));
   if(!shown.length)return podiumHTML(list)+
@@ -1804,21 +1831,18 @@ document.querySelectorAll("[data-adj]").forEach(b=>b.onclick=()=>openCrop(b.data
 /* ── rendering ───────────────────────────────────────────────── */
 /* Under Anthony or Annette, every score readout on the page is theirs alone:
    the row's scores, the gauge, and the panel. Both restores the pair. */
-const podOnly=()=>{const w=podWho();return w==="a"?"anthony":w==="n"?"annette":null;};
+/* The Both / Anthony / Annette tabs choose whose podium is on show and
+   nothing else. They used to filter every score on the page, which made one
+   of you disappear from rows, gauges and panels site-wide. A row reports both
+   of you whatever is selected. */
 function whoBits(d){
-  const only=podOnly(),out=[];
-  if(only!=="annette"){
-    if(d.a!==null)out.push(INI.anthony+" "+d.a); else if(d.aSkip)out.push(INI.anthony+" \u2013");
-  }
-  if(only!=="anthony"){
-    if(d.n!==null)out.push(INI.annette+" "+d.n); else if(d.nSkip)out.push(INI.annette+" \u2013");
-  }
+  const out=[];
+  if(d.a!==null)out.push(INI.anthony+" "+d.a); else if(d.aSkip)out.push(INI.anthony+" \u2013");
+  if(d.n!==null)out.push(INI.annette+" "+d.n); else if(d.nSkip)out.push(INI.annette+" \u2013");
   return out;
 }
 function gauge(d){
-  const only=podOnly();
-  const aV=only==="annette"?null:d.a, nV=only==="anthony"?null:d.n;
-  const aB=only==="annette"?false:d.aSkip, nB=only==="anthony"?false:d.nSkip;
+  const aV=d.a, nV=d.n, aB=d.aSkip, nB=d.nSkip;
   const vals=[aV,nV].filter(v=>v!==null);
   const benched=[["anthony",aB],["annette",nB]].filter(x=>x[1]).map(x=>x[0]);
   if(!vals.length&&!benched.length)return"";
@@ -1828,7 +1852,7 @@ function gauge(d){
   if(!vals.length)return`<div class="gauge-wrap">${bench}<span class="none-yet">not rated</span></div>`;
   const lo=Math.min(...vals),hi=Math.max(...vals);
   let h=`<div class="gauge-wrap">${bench}<div class="gauge${solo?" solo":""}"><div class="scale"><div class="track"></div>`;
-  if(!only&&d.a!==null&&d.n!==null&&d.gap>0)h+=`<div class="span" title="${d.gap} point${
+  if(d.a!==null&&d.n!==null&&d.gap>0)h+=`<div class="span" title="${d.gap} point${
     d.gap===1?"":"s"} apart" style="--l:${lo}%;--w:${hi-lo}%;--sp:${
     gapHue(d.gap)};--spa:${gapWeight(d.gap)}"></div>`;
   for(const[label,who,v]of[[INI.anthony,"anthony",aV],[INI.annette,"annette",nV]]){
@@ -1874,27 +1898,18 @@ function verdict(v,who,letter){
 }
 function detailHTML(d){
   const rows=songTable(d);
-  /* One person's podium is one person's panel: their write-up, their score,
-     their picks. Nothing here compares the two of you unless Both is up. */
-  const who=podWho();
-  const solo=who==="a"?"anthony":who==="n"?"annette":null;
-  const soloName=solo==="anthony"?"Anthony":"Annette";
-  const mine=solo==="anthony"?"a":solo==="annette"?"n":null;
-  const soloV=solo==="anthony"?d.a:d.n;
-  let takes=solo
-    ?take(soloName,solo,soloV,solo==="anthony"?d.aText:d.nText,solo==="anthony"?d.aSkip:d.nSkip)
-    :take("Anthony","anthony",d.a,d.aText,d.aSkip)+take("Annette","annette",d.n,d.nText,d.nSkip);
-  if(solo&&!takes)takes=`<div class="take"><p class="muted">${
-    soloName} hasn\u2019t weighed in on this one yet.</p></div>`;
-  const both=!solo&&d.a!==null&&d.n!==null;
-  const liked=rows.filter(r=>mine?r[mine]==="y":(r.a==="y"||r.n==="y")).length;
+  /* Both takes, always. Which podium is selected has nothing to do with what
+     an album panel says. */
+  const takes=take("Anthony","anthony",d.a,d.aText,d.aSkip)+
+              take("Annette","annette",d.n,d.nText,d.nSkip);
+  const both=d.a!==null&&d.n!==null;
+  const liked=rows.filter(r=>r.a==="y"||r.n==="y").length;
   const shared=rows.filter(r=>r.a==="y"&&r.n==="y").length;
   const facts=[
-    solo&&soloV!==null?[`Score`,soloV,ramp(soloV)]:null,
     both?[`Average`,Math.round(d.avg),ramp(d.avg)]:null,
     both?[`Apart`,d.gap+" pts",gapHue(d.gap)]:null,
     rows.length?[`Tracks`,rows.length,null]:null,
-    liked?[solo?`Picked`:`Liked`,liked,null]:null,
+    liked?[`Liked`,liked,null]:null,
     both&&shared?[`Agreed on`,shared,null]:null
   ].filter(Boolean);
   const strip=facts.length?`<div class="facts">${facts.map(([k,v,c])=>
@@ -1906,8 +1921,8 @@ function detailHTML(d){
       <span class="rowend">
         <button class="play" data-artist="${esc(d.artist)}" data-album="${esc(d.album)}" data-song="${esc(r.label)}" title="Play a 30s clip" aria-label="Play a clip of ${esc(r.label)}">\u25b6</button>
         <span class="marks">${
-          solo==="annette"?"":(d.aSkip?benchMark("anthony"):verdict(r.a,"anthony",INI.anthony))}${
-          solo==="anthony"?"":(d.nSkip?benchMark("annette"):verdict(r.n,"annette",INI.annette))}</span>
+          d.aSkip?benchMark("anthony"):verdict(r.a,"anthony",INI.anthony)}${
+          d.nSkip?benchMark("annette"):verdict(r.n,"annette",INI.annette)}</span>
       </span></li>`).join("")}</ul></div>
   </div>`:"";
   return`<div class="detail-wrap"><div class="detail-inner"><div class="detail"><div class="takes">${takes}${strip}</div>${list}</div></div></div>`;
@@ -2063,13 +2078,12 @@ function render(){
         ${al.map(d=>albumHTML(d,false)).join("")}</section>`;
     }).join("");
   }else{
-    const who=podWho();
     /* A ranking is of rated albums only - an unscored record has no place in it. */
     const pool=sort==="rating"
-      ? list.filter(d=>{const v=podScore(d,who);return v!==null&&!isNaN(v);})
+      ? list.filter(d=>!isNaN(d.avg))
       : list;
     const ordered=sort==="rating"
-      ? pool.slice().sort((x,y)=>podScore(y,who)-podScore(x,who))
+      ? pool.slice().sort(byScore)
       : pool.slice().sort(SORTS[sort]);
     const byYear=(sort==="new"||sort==="old");
     let seen="",body="";
