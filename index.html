@@ -775,7 +775,7 @@ const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSud4ctkV
 const INI = { anthony:"AP", annette:"AA" };
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-17h";
+const BUILD = "2026-08-17i";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -1162,6 +1162,76 @@ function pickTrack(results,song,artist,album){
   return bs>0?best:null;
 }
 
+/* Two sources, because one of them will fail.
+   iTunes rate-limits at roughly twenty searches a minute per address and
+   returns a 403, which arrives here as a script error - indistinguishable from
+   being blocked outright. A long artist page hovers past that inside a minute.
+   Deezer carries a 30-second preview on every track and is already trusted on
+   this page for artist photos and popularity, so it stands in. Once iTunes has
+   failed we stop asking it for the rest of the session rather than waiting out
+   an 8s timeout on every row. */
+let ITUNES_DOWN=false;
+const CLIP=new Map();                      // artist|song -> {url,src} or null
+
+function itunesClip(song,artist,album){
+  if(ITUNES_DOWN)return Promise.resolve({skip:true});
+  return jsonp("https://itunes.apple.com/search?entity=song&limit=25&term="+
+    encodeURIComponent(artist+" "+song)).then(d=>{
+      if(!d){ ITUNES_DOWN=true; return {blocked:true}; }
+      const hit=pickTrack(d.results,song,artist,album);
+      if(!hit)return null;
+      // an http clip on an https page never plays, so it counts as no clip
+      return /^https:/i.test(String(hit.previewUrl||""))
+        ? {url:hit.previewUrl,src:"iTunes"} : null;
+    });
+}
+
+/* The same scoring as pickTrack, against Deezer's shape. */
+function pickDz(list,song,artist,album){
+  const forms=titleForms(song), wa=normT(artist), wl=normT(album);
+  let best=null,bs=0;
+  (list||[]).forEach(t=>{
+    if(!t||!t.preview)return;
+    const tt=normT(t.title);
+    let s=0;
+    if(forms.indexOf(tt)>-1)s=6;
+    else if(forms.some(f=>f&&(tt.indexOf(f)===0||f.indexOf(tt)===0)))s=3;
+    else return;                                   // not this song at all
+    const ra=normT(t.artist&&t.artist.name);
+    if(ra===wa)s+=3;
+    else if(wa&&(ra.indexOf(wa)>-1||wa.indexOf(ra)>-1))s+=1;
+    else return;                                   // somebody else's song
+    if(wl&&normT(t.album&&t.album.title)===wl)s+=2;
+    if(s>bs){bs=s;best=t;}
+  });
+  return bs>0?{url:best.preview,src:"Deezer"}:null;
+}
+
+function deezerClip(song,artist,album){
+  const q='artist:"'+String(artist).replace(/"/g,"")+'" track:"'+
+          String(song).replace(/"/g,"")+'"';
+  return jsonp("https://api.deezer.com/search?output=jsonp&limit=25&q="+
+    encodeURIComponent(q)).then(r=>r?pickDz(r.data,song,artist,album):{blocked:true});
+}
+
+/* Resolves to {url,src}, or null for no match anywhere, or {blocked:true} when
+   the catalogues could not be reached at all. Answers are remembered, so
+   hovering the same row twice costs one lookup, not two. */
+function findClip(song,artist,album){
+  const key=artist+"|"+song;
+  if(CLIP.has(key))return Promise.resolve(CLIP.get(key));
+  return itunesClip(song,artist,album).then(a=>{
+    if(a&&a.url){ CLIP.set(key,a); return a; }
+    const itunesFailed=!!(a&&(a.blocked||a.skip));
+    return deezerClip(song,artist,album).then(b=>{
+      if(b&&b.url){ CLIP.set(key,b); return b; }
+      if(b&&b.blocked)return {blocked:true,both:itunesFailed};
+      CLIP.set(key,null);                          // Deezer answered, nothing there
+      return null;
+    });
+  });
+}
+
 function preview(btn,alts,override){
   if(override)btn.dataset.song=override;
   const song=btn.dataset.song,artist=btn.dataset.artist,album=btn.dataset.album||"";
@@ -1170,34 +1240,30 @@ function preview(btn,alts,override){
   if(btn.__seq!=null&&btn.__seq!==HOVER_SEQ)return;   // pointer already moved on
   stopPreview();
   btn.textContent="\u00b7\u00b7\u00b7";
-  jsonp("https://itunes.apple.com/search?entity=song&limit=25&term="+
-    encodeURIComponent(artist+" "+song)).then(d=>{
+  const reset=()=>{ btn.classList.remove("on"); btn.textContent="\u25b6"; };
+
+  findClip(song,artist,album).then(got=>{
     if(btn.__seq!=null&&btn.__seq!==HOVER_SEQ)return;  // left the row mid-lookup
-    /* A lookup that never came back is a different failure from one that came
-       back empty, and they need different fixes. Say which. */
-    if(!d){
+
+    if(got&&got.blocked){
+      // unreachable is temporary by nature, so the button stays usable
       if(!btn.isConnected)HOVER_ROW=null;
-      btn.classList.add("dead");btn.textContent="\u2013";
-      btn.title="The lookup to itunes.apple.com never returned \u2014 blocked or offline";
-      note("Preview lookup blocked \u2014 ad blocker, VPN or Opera's shield");
+      reset();
+      btn.title="Could not reach the preview catalogues";
+      note(got.both?"Both preview sources unreachable \u2014 ad blocker, VPN or shield"
+                   :"Preview lookup blocked \u2014 ad blocker, VPN or shield");
       return;
     }
-    const hit=pickTrack(d.results,song,artist,album);
-    if(!hit){
+    if(!got){
       if(alts&&alts.length){ preview(btn,alts.slice(1),alts[0]); return; }   // try the next track
       if(!btn.isConnected)HOVER_ROW=null;            // hovering found nothing playable here
-      btn.classList.add("dead");btn.textContent="\u2013";btn.title="No preview matching this song";
+      btn.classList.add("dead");btn.textContent="\u2013";
+      btn.title="No clip for this song on iTunes or Deezer";
       note("No clip found for \u201c"+song+"\u201d");
       return;
     }
-    if(!/^https:/i.test(String(hit.previewUrl||""))){
-      // an http clip on an https page is blocked before it ever plays
-      btn.classList.add("dead");btn.textContent="\u2013";
-      btn.title="This clip is served over http and the browser blocks it";
-      note("Clip blocked \u2014 served over http, not https");
-      return;
-    }
-    AUD=new Audio(hit.previewUrl); AUD.volume=0;
+
+    AUD=new Audio(got.url); AUD.volume=0;
     AUD.onended=stopPreview;
     AUD.addEventListener("timeupdate",()=>{
       if(AUD&&AUD.duration&&AUD.duration-AUD.currentTime<0.9&&!AUD.__out){
@@ -1214,13 +1280,13 @@ function preview(btn,alts,override){
           note("Click anywhere once to allow previews");
           return;
         }
-        btn.classList.add("dead");btn.textContent="\u2013";
+        reset();
         btn.title="Playback failed: "+((err&&err.name)||"unknown");
         note("Playback failed \u2014 "+((err&&err.name)||"unknown error"));
       });
     NOWPLAYING=key; btn.classList.add("on"); btn.textContent="\u25a0";
     markPlaying(btn.closest?.(".album")||HOVER_ROW||null);
-    showPlayer(song);
+    showPlayer(song+(got.src==="Deezer"?" \u00b7 Deezer":""));
   });
 }
 
