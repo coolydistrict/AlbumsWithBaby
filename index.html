@@ -166,8 +166,9 @@ h1 em{font-style:normal; color:var(--accent)}
 
 .tally{display:grid; gap:.7rem; margin-top:1.4rem;
   grid-template-columns:repeat(auto-fit,minmax(122px,1fr))}
-.tally div{position:relative; display:flex; flex-direction:column; gap:.25rem;
-  background:var(--raised-2); border-radius:12px; padding:.95rem 1rem .85rem;
+.tally div{container-type:inline-size;
+  position:relative; display:flex; flex-direction:column; gap:.1rem;
+  background:var(--raised-2); border-radius:12px; padding:.85rem .8rem .7rem;
   border:1px solid var(--line); overflow:hidden;
   transition:transform .25s ease-out, border-color .25s ease-out}
 /* the tile's own colour, laid under it rather than painted on the number */
@@ -178,9 +179,16 @@ h1 em{font-style:normal; color:var(--accent)}
 .tally div::after{content:""; position:absolute; left:0; top:0; bottom:0; width:3px;
   background:var(--tc,var(--accent))}
 .tally div:hover{transform:translateY(-2px); border-color:var(--line-2)}
-.tally b{position:relative; font-family:"JetBrains Mono",monospace;
-  font-size:clamp(1.9rem,4.4vw,2.5rem); font-weight:600; letter-spacing:-.03em;
-  line-height:1; color:var(--tc,var(--ink))}
+.tally b{position:relative; display:block; font-family:"JetBrains Mono",monospace;
+  font-weight:700; letter-spacing:-.04em; line-height:.95; text-align:left;
+  color:var(--tc,var(--ink))}
+/* Sized to fill the tile across. A monospace digit is roughly 0.6em wide, so
+   the usable width divided by the digit count gives the size; cqw makes that a
+   property of the tile rather than the window. */
+.tally b.d1{font-size:min(96cqw,4.6rem)}
+.tally b.d2{font-size:min(72cqw,3.8rem)}
+.tally b.d3{font-size:min(50cqw,3rem)}
+.tally b.d4{font-size:min(38cqw,2.4rem)}
 @media(max-width:520px){.tally{grid-template-columns:repeat(auto-fit,minmax(104px,1fr)); gap:.5rem}
   .tally div{padding:.75rem .8rem .65rem}}
 .odo{display:inline-flex; overflow:hidden; height:1em; vertical-align:bottom}
@@ -518,6 +526,14 @@ button.artist-head:hover h2{color:var(--accent)}
   text-transform:uppercase; color:var(--dim)}
 .legend i{display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:.35rem}
 
+/* Sits over the podium, in the same segmented control as List and Wall. */
+.podium-thin{max-width:440px; margin:0 auto 2.2rem; padding:1.4rem 0 1.6rem;
+  text-align:center; color:var(--faint); font-size:13px;
+  border-bottom:1px solid var(--line-2)}
+.pod-who{display:flex; justify-content:center; margin:0 auto .2rem; max-width:440px}
+.pod-who .seg button{padding:.34rem .8rem; font-size:12px;
+  font-family:"JetBrains Mono",monospace; letter-spacing:.04em}
+@media(max-width:520px){.pod-who .seg button{padding:.3rem .6rem; font-size:11px}}
 .podium{display:grid; grid-template-columns:repeat(3,minmax(0,1fr));
   grid-template-rows:repeat(4,auto);   /* rank, cover, caption, score */
   gap:0 1.1rem;                        /* rows are spaced by the bands themselves */
@@ -733,7 +749,7 @@ const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSud4ctkV
 const INI = { anthony:"AP", annette:"AA" };
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-16z";
+const BUILD = "2026-08-17b";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -1262,7 +1278,8 @@ const baseAlbum=t=>{
 /* Editions of one record settle it between themselves before the podium: a
    deluxe can beat the original or lose to it, but they cannot both stand
    there. The list and the wall still show every edition separately. */
-function bestEdition(list){
+function bestEdition(list,val){
+  const score=val||(d=>d.avg);
   const best=new Map();
   list.forEach(d=>{
     const base=baseAlbum(d.album);
@@ -1271,17 +1288,40 @@ function bestEdition(list){
     if(!cur){best.set(key,d);return;}
     const isOriginal=normT(d.album)===normT(base);
     const wasOriginal=normT(cur.album)===normT(base);
-    // higher average wins; a dead heat goes to the original record
-    if(d.avg>cur.avg||(d.avg===cur.avg&&isOriginal&&!wasOriginal))best.set(key,d);
+    // higher score wins; a dead heat goes to the original record
+    if(score(d)>score(cur)||(score(d)===score(cur)&&isOriginal&&!wasOriginal))best.set(key,d);
   });
   return [...best.values()];
 }
 
+/* Whose podium: the pair's average, or one of you alone. */
+const POD_WHO=[["both","Both"],["a","Anthony"],["n","Annette"]];
+const podWho=()=>{
+  const w=store.get("aoty-pod-who","both");
+  return POD_WHO.some(p=>p[0]===w)?w:"both";
+};
+const podScore=(d,who)=>who==="a"?d.a:who==="n"?d.n:d.avg;
+
 function podiumHTML(list){
-  const top=bestEdition(list.filter(scored)).sort(byScore).slice(0,3);
-  if(top.length<3)return"";
+  const who=podWho();
+  const val=d=>podScore(d,who);
+  const rated=list.filter(d=>{const v=val(d);return v!==null&&!isNaN(v);});
+  const top=bestEdition(rated,val).sort((x,y)=>val(y)-val(x)).slice(0,3);
+
+  const tabs=`<div class="pod-who"><div class="seg">${POD_WHO.map(p=>
+    `<button data-podwho="${p[0]}"${p[0]===who?' class="on"':""}>${p[1]}</button>`
+    ).join("")}</div></div>`;
+
+  /* One of you may have rated far fewer albums than the pair have together,
+     so say so rather than dropping the whole block and the tabs with it. */
+  if(top.length<3)return tabs+`<div class="podium-thin">${
+    who==="both"?"Three albums you have both rated will fill the podium."
+                :esc(POD_WHO.filter(p=>p[0]===who)[0][1])+" has rated "+rated.length+
+                 " album"+(rated.length===1?"":"s")+" so far. Three fills the podium."
+  }</div>`;
+
   const order=[top[1],top[0],top[2]];               // second, first, third
-  return`<div class="podium">${order.map((d,i)=>{
+  return tabs+`<div class="podium">${order.map((d,i)=>{
     const place=d===top[0]?1:d===top[1]?2:3;
     return`<button class="pod p${place}" data-open="${ROWS.indexOf(d)}"
       title="${esc(d.artist)} — ${esc(d.album)}">
@@ -1289,7 +1329,7 @@ function podiumHTML(list){
       <span class="rank">${place===1?"":place}</span>
       <span class="pod-shot" data-cover="${esc(d.cover)}" data-art="${esc(d.artist+" "+d.album)}">${esc(initials(d.album))}</span>
       <span class="pod-cap"><b>${esc(d.album)}</b>${esc(d.artist)}</span>
-      <span class="pod-sc" style="background:${ramp(d.avg)}">${Math.round(d.avg)}</span>
+      <span class="pod-sc" style="background:${ramp(val(d))}">${Math.round(val(d))}</span>
     </button>`;}).join("")}</div>`;
 }
 
@@ -2069,6 +2109,14 @@ document.addEventListener("keydown",e=>{
 });
 $("gear").onclick=()=>$("panel").classList.toggle("on");
 $("mini-back").onclick=()=>goArtist(null);
+/* The tabs live inside the rendered output, so the handler is delegated. */
+document.addEventListener("click",e=>{
+  const b=e.target.closest?.("[data-podwho]");
+  if(!b)return;
+  e.stopPropagation();
+  store.set("aoty-pod-who",b.dataset.podwho);
+  render();
+});
 document.querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>{
   VIEW=b.dataset.view;
   document.querySelectorAll("[data-view]").forEach(x=>x.classList.toggle("on",x.dataset.view===VIEW));
@@ -2266,7 +2314,8 @@ function paintTally(){
   const gN=new Set(ROWS.map(d=>d.genre).filter(Boolean)).size;
   /* The two averages take their colour from the score ramp, so they mean the
      same thing here as everywhere else. The counts get fixed hues. */
-  const tile=(v,label,c)=>`<div style="--tc:${c}"><b>${v}</b><span>${label}</span></div>`;
+  const tile=(v,label,c)=>`<div style="--tc:${c}"><b class="d${
+    Math.min(4,String(v).length)}">${v}</b><span>${label}</span></div>`;
   $("tally").innerHTML=
     tile(ROWS.length,"albums","var(--accent)")+
     tile(ROSTER.size,"artists","#5E7F9B")+
