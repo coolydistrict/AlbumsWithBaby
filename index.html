@@ -415,6 +415,24 @@ button.artist-head:hover h2{color:var(--accent)}
 .mark.no::after{content:""; position:absolute; left:-4px; right:-4px; top:50%; height:1.5px;
   background:var(--ink,#10263A); opacity:.75; transform:rotate(-38deg)}
 .songlist li:hover .mark.no{opacity:.72}
+/* Once you have started on a record, anything you have not liked is a pass -
+   it wears the same slash a hair lighter, because you never typed it. */
+.mark.no.implied{opacity:.42}
+.mark.no.implied::after{opacity:.55}
+.songlist li:hover .mark.no.implied{opacity:.6}
+/* Each change says itself: a slash drawing on, a like swelling, a reset
+   draining to grey. No "to" frame - the resting state is whatever the class
+   already asks for, so these never fight the theme. */
+@keyframes mk-no{0%{transform:scale(1)} 38%{transform:scale(.82)} 100%{transform:scale(1)}}
+@keyframes mk-slash{from{transform:rotate(-38deg) scaleX(0); opacity:0}}
+@keyframes mk-yes{0%{transform:scale(1)} 32%{transform:scale(1.24)} 64%{transform:scale(.97)} 100%{transform:scale(1)}}
+@keyframes mk-off{from{filter:grayscale(0); opacity:.85; transform:scale(1.08)}}
+.mark.anim-no{animation:mk-no .34s cubic-bezier(.3,.8,.2,1) both}
+.mark.anim-no::after{animation:mk-slash .3s cubic-bezier(.2,.85,.2,1) both}
+.mark.anim-yes{animation:mk-yes .4s cubic-bezier(.3,1.35,.4,1) both}
+.mark.anim-off{animation:mk-off .46s ease-out both}
+@media(prefers-reduced-motion:reduce){
+  .mark.anim-no,.mark.anim-no::after,.mark.anim-yes,.mark.anim-off{animation:none}}
 .mark.benched{filter:grayscale(1); opacity:.38; box-shadow:inset 0 0 0 1px var(--line-2)}
 .songlist li:hover .mark.benched{opacity:.55}
 .mark.none{background:none; box-shadow:none; position:relative}
@@ -940,6 +958,18 @@ function splitSongs(raw){
   return{order,liked,disliked,dis,yes,all:order};
 }
 
+/** Nothing marked at all - the one case that reads as "not rated yet". */
+function noMarks(s){ return !s||(!s.dis.size&&!(s.yes&&s.yes.size)); }
+/** What a single track should show. Once someone has marked anything on the
+ *  album, an unmarked track is a pass rather than a silence - which is what
+ *  the score has always counted it as. */
+function markState(s,song){
+  const k=String(song).toLowerCase();
+  if(s.dis.has(k))return "n";
+  if(s.yes&&s.yes.has(k))return "y";
+  return noMarks(s)?"":"i";
+}
+
 /** Liked out of the whole tracklist, the same sum the script does.
     Null until something is marked, so an untouched album keeps its typed
     rating instead of reading as zero. */
@@ -1034,6 +1064,9 @@ function shape(raw,cols){
     out.push({artist,genre,album,year:tidyNum(r[K.year]).trim(),
       cover:(/^https?:\/\//i.test(String(r[K.cover]||"").trim())?String(r[K.cover]).trim():""),
       a:isNaN(A)?null:A,n:isNaN(N)?null:N,aSkip:aOut,nSkip:nOut,
+      /* what the sheet itself typed, untouched by anything done here: a reset
+         watches this to know whether the sheet has moved on */
+      a0:isNaN(A)?null:A,n0:isNaN(N)?null:N,
       aS:aS_,aText:aText_,
       nS:nS_,nText:nText_,
       get avg(){const v=[this.a,this.n].filter(x=>x!==null);return v.reduce((s,x)=>s+x,0)/v.length;},
@@ -1530,6 +1563,34 @@ function sheetSays(d,who,song){
   return s.dis.has(k)?"n":(s.yes&&s.yes.has(k))?"y":"";
 }
 
+/* A reset clears your marks, but the sheet's own rating column is typed by
+   hand and no mark of ours can rub it out. So the reset is remembered here and
+   re-applied to every fresh copy of the sheet, until the sheet's own number
+   changes - at which point somebody has rated it again and we step aside. */
+const CLEAR_KEY="aoty-cleared";
+function clearsLoad(){
+  try{ const v=JSON.parse(store.get(CLEAR_KEY,"[]")); return Array.isArray(v)?v:[]; }
+  catch(err){ return []; }
+}
+function clearsSave(list){ try{ store.set(CLEAR_KEY,JSON.stringify(list.slice(-200))); }catch(err){} }
+function rememberClear(d,who){
+  const e={artist:d.artist,album:d.album,who:who,base:who==="anthony"?d.a0:d.n0};
+  const list=clearsLoad().filter(x=>!(x.artist===e.artist&&x.album===e.album&&x.who===e.who));
+  list.push(e); clearsSave(list);
+}
+function applyClears(){
+  const list=clearsLoad(),keep=[];
+  list.forEach(e=>{
+    const d=ROWS.find(x=>x.artist===e.artist&&x.album===e.album);
+    if(!d){ keep.push(e); return; }                  // not loaded yet
+    const base=e.who==="anthony"?d.a0:d.n0;
+    if(base!==e.base)return;                         // the sheet has moved on
+    if(e.who==="anthony")d.a=null; else d.n=null;
+    keep.push(e);
+  });
+  if(keep.length!==list.length)clearsSave(keep);
+}
+
 /* Put every outstanding mark back on top of whatever the sheet just handed
    us, and throw away the ones the sheet has caught up with. */
 function replayEdits(){
@@ -1603,10 +1664,15 @@ function markSong(btn){
   const who=btn.dataset.mark, song=btn.dataset.song;
   const was=btn.dataset.now||"";
   const next=NEXT_MARK[was];
+  const sNow=who==="anthony"?d.aS:d.nS;
+  const wasEmpty=noMarks(sNow);            // this is the first mark on the record
 
   applyMark(d,who,song,next);
   rememberEdit(d,who,song,next);
-  redrawOpen(d,who,song);
+  /* the first mark turns the rest of the album into passes, and the last one
+     leaving turns it all back to grey - both are whole-column moves */
+  if(wasEmpty||noMarks(sNow))redrawColumn(d,who,song);
+  else redrawOpen(d,who,song);
 
   markCall({what:"mark",artist:d.artist,album:d.album,song:song,
             who:who==="anthony"?"a":"n",
@@ -1634,13 +1700,21 @@ function wipeMine(btn){
   const s=who==="anthony"?d.aS:d.nS;
   const mine=s.order.filter(t=>{const k=t.toLowerCase();
     return s.dis.has(k)||(s.yes&&s.yes.has(k));});
-  if(!mine.length){note("You haven\u2019t marked anything on this one");return;}
-  if(!confirm("Clear your "+mine.length+" mark"+(mine.length===1?"":"s")+
+  const scored=(who==="anthony"?d.a:d.n)!==null;
+  /* A rating typed straight into the sheet has no marks behind it, and the
+     reset used to refuse to touch it - so the score sat there for good. */
+  if(!mine.length&&!scored){note("You haven\u2019t rated this one");return;}
+  if(!confirm((mine.length
+        ?"Clear your "+mine.length+" mark"+(mine.length===1?"":"s")
+        :"Clear your rating")+
               " on "+d.album+"? Your rating goes back to nothing said."))return;
   // clear them on screen at once, then tell the sheet one at a time so a
   // failure halfway leaves it consistent with itself
   mine.forEach(song=>{applyMark(d,who,song,"");rememberEdit(d,who,song,"");});
-  redrawOpen(d);
+  /* and the score with them, for good: nothing in the sheet will clear it */
+  if(who==="anthony")d.a=null; else d.n=null;
+  rememberClear(d,who);
+  redrawOpen(d,null,null,"off");
   let failed=0;
   mine.reduce((chain,song)=>chain.then(()=>
     markCall({what:"mark",artist:d.artist,album:d.album,song:song,
@@ -1654,19 +1728,31 @@ function wipeMine(btn){
 /* Updates only the pieces that changed. Rebuilding the whole row threw away
    the element under your finger, replayed every animation and bounced the page
    back up the list on every single tap. */
-function refreshMark(root,d,who,song){
+function refreshMark(root,d,who,song,delay,force){
   const s=who==="anthony"?d.aS:d.nS;
-  const k=String(song).toLowerCase();
-  const v=s.dis.has(k)?"n":(s.yes&&s.yes.has(k))?"y":"";
+  const v=markState(s,song);
   const btn=[...root.querySelectorAll("[data-mark]")]
     .find(b=>b.dataset.mark===who&&b.dataset.song===song);
   if(!btn)return;
-  btn.dataset.now=v;
-  btn.className="mark "+(v==="y"?"":v==="n"?"no ":"blank ")+"mine";
+  /* what it was showing, read off the classes, so the right animation plays */
+  const prev=btn.classList.contains("no")?(btn.classList.contains("implied")?"i":"n")
+    :btn.classList.contains("blank")?"":"y";
+  btn.dataset.now=v==="i"?"":v;
+  btn.className="mark "+(v==="y"?"":v==="n"?"no ":v==="i"?"no implied ":"blank ")+"mine";
   btn.textContent=INI[who];
   btn.title=v==="y"?"You liked this \u2014 tap to change"
           :v==="n"?"Not for you \u2014 tap to change"
+          :v==="i"?"A pass for now \u2014 tap if you liked it"
           :"Tap to say what you thought";
+  const move=force||(v!==prev?(v==="y"?"yes":v?"no":"off"):"");
+  if(move){
+    const cls="anim-"+move;
+    btn.classList.remove("anim-yes","anim-no","anim-off");
+    btn.style.animationDelay=(delay||0)+"ms";
+    void btn.offsetWidth;                       // let the same animation replay
+    btn.classList.add(cls);
+    setTimeout(()=>{btn.classList.remove(cls);btn.style.animationDelay="";},(delay||0)+700);
+  }
   /* Every state wears the face now - liked is full strength, not for me is the
      same face dimmed - so the picture stays put and only the class changes. */
   btn.setAttribute("data-who",who);
@@ -1726,36 +1812,84 @@ function refreshScore(root,d){
   /* the artist's own average sits above the block and was going stale */
   /* The artist's average appears twice: as the badge beside the name, and
      again as "avg NN" on the genre line of an artist's own page. */
+  syncAverages(d);
+}
+/** Counts up or down from where it stands, so a changed average is seen to
+ *  change rather than just being different next time you look. */
+function tickTo(el,to){
+  const from=parseInt(el.textContent,10);
+  const end=Math.round(to);
+  if(isNaN(from)||from===end||(typeof RM!=="undefined"&&RM)){el.textContent=end;return;}
+  const t0=performance.now(),ms=520;
+  const step=now=>{
+    const k=Math.min(1,(now-t0)/ms),e=1-Math.pow(1-k,3);
+    el.textContent=Math.round(from+(end-from)*e);
+    if(k<1)requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+let AVG_T=null;
+/** One mark moves this album's score, its artist's average and the tally at the
+ *  top - every one of them, wherever it appears on the page. */
+function syncAverages(d){
   const av=artistAvg(d.artist);
-  /* From the modal there is no enclosing section, and taking the first one on
-     the page wrote this album's average onto whichever artist happened to be
-     at the top. Find the block that actually belongs to this artist. */
-  let sec=root.closest?root.closest("section.artist"):null;
-  if(!sec){
-    sec=[...document.querySelectorAll("section.artist")].find(x=>{
-      const h=x.querySelector(".artist-head h2");
-      return h&&h.textContent===d.artist;
-    })||null;
-  }
-  const scope=sec;
-  const badge=scope&&scope.querySelector(".artist-head .avg");
-  if(badge){
-    if(av===null)badge.remove();
-    else{badge.textContent=Math.round(av); badge.style.background=ramp(av);}
-  }
-  const line=scope&&scope.querySelector(".artist-head .a-avg");
-  if(line&&av!==null)line.textContent=Math.round(av);
+  document.querySelectorAll(".artist-head").forEach(head=>{
+    const h=head.querySelector("h2");
+    if(!h||h.textContent!==d.artist)return;
+    let badge=head.querySelector(".avg");
+    if(av===null){ if(badge)badge.remove(); }
+    else{
+      if(!badge){
+        const meta=head.querySelector(".meta");
+        if(meta){
+          badge=document.createElement("span");
+          badge.className="avg"; badge.textContent=Math.round(av);
+          meta.appendChild(badge);
+        }
+      }
+      if(badge){ badge.style.background=ramp(av); tickTo(badge,av); }
+    }
+    const line=head.querySelector(".a-avg");
+    if(line&&av!==null)tickTo(line,av);
+  });
   paintTally();
+  /* The wall and the artist podium are ranked lists of these numbers, and both
+     are only markable through the panel - so rebuilding them costs nothing
+     that is open. The list view keeps its rows and updates in place. */
+  clearTimeout(AVG_T);
+  if(!FOCUS&&VIEW!=="list")AVG_T=setTimeout(()=>{ if(typeof render==="function")render(true); },700);
 }
 
 /** One song changed: touch that mark and the numbers, nothing else. */
-function redrawOpen(d,who,song){
+function redrawOpen(d,who,song,force){
   const i=ROWS.indexOf(d);
   const inModal=$("album-modal").classList.contains("on");
   const root=inModal?$("album-body"):document.querySelector('.album[data-idx="'+i+'"]');
   if(!root)return;
   if(who&&song)refreshMark(root,d,who,song);
-  else root.querySelectorAll("[data-mark]").forEach(b=>refreshMark(root,d,b.dataset.mark,b.dataset.song));
+  else{
+    /* a whole column turning over at once - the rest of the album passing, or a
+       reset draining it - runs down the list rather than blinking as one */
+    let n=0;
+    root.querySelectorAll("[data-mark]").forEach(b=>{
+      refreshMark(root,d,b.dataset.mark,b.dataset.song,Math.min(n++,16)*38,force);
+    });
+  }
+  refreshScore(root,d);
+}
+/** The first mark on an album turns every other track into a pass, so that
+ *  person's whole column is redrawn - the one they tapped without a delay. */
+function redrawColumn(d,who,song){
+  const i=ROWS.indexOf(d);
+  const inModal=$("album-modal").classList.contains("on");
+  const root=inModal?$("album-body"):document.querySelector('.album[data-idx="'+i+'"]');
+  if(!root){return;}
+  refreshMark(root,d,who,song);
+  let n=0;
+  root.querySelectorAll("[data-mark]").forEach(b=>{
+    if(b.dataset.mark!==who||b.dataset.song===song)return;
+    refreshMark(root,d,who,b.dataset.song,60+Math.min(n++,16)*42);
+  });
   refreshScore(root,d);
 }
 
@@ -2494,20 +2628,24 @@ function benchMark(who){
 function verdict(v,who,letter,song,none){
   const me=store.get("aoty-me","")===who && !!MARK_URL && !!MARK_KEY;
   const tag=me?"button":"span";
-  const hook=me?` data-mark="${who}" data-song="${esc(song||"")}" data-now="${v||""}"`:"";
+  const now=v==="i"?"":v;   // a pass was never typed, so one tap still likes it
+  const hook=me?` data-mark="${who}" data-song="${esc(song||"")}" data-now="${now||""}"`:"";
   const tip=me
     ? (v==="y"?"You liked this \u2014 tap to change"
       :v==="n"?"Not for you \u2014 tap to change"
+      :v==="i"?"A pass for now \u2014 tap if you liked it"
       :"Tap to say what you thought")
     : (v==="y"?"liked it":v==="n"?"not for them"
-      :none?"hasn\u2019t marked anything on this album":"didn't say");
+      :v==="i"?"a pass"
+      :none?"hasn\u2019t rated this album yet":"didn't say");
   /* Whose slot this is has to be readable at a glance, so an unmarked slot
      still shows the face - dimmed, waiting. Only the other person's unmarked
      slot stays a bare dot, because there is nothing there to act on. */
   /* Nothing said is nothing said, whether the whole album is untouched or just
      this track: the face, greyed out. The old bare dot was a fourth vocabulary
      for the same absence. */
-  const cls=(v==="y"?"mark":v==="n"?"mark no":me?"mark blank":"mark none unrated")+(me?" mine":"");
+  const cls=(v==="y"?"mark":v==="n"?"mark no":v==="i"?"mark no implied"
+    :me?"mark blank":"mark none unrated")+(me?" mine":"");
   const body=letter;
   const face=` data-who="${who}"`;
   return`<${tag} class="${cls}"${face}${hook} title="${tip}">${body}</${tag}>`;
@@ -2524,8 +2662,8 @@ function detailHTML(d){
      nobody has been through. A typed score with no marks behind it counts as
      absent too: the score still shows on the gauge, but the tracklist has
      nothing of theirs to report. */
-  const none=x=>!x.dis.size&&!(x.yes&&x.yes.size);
-  const aNone=!d.aSkip&&none(d.aS), nNone=!d.nSkip&&none(d.nS);
+  const aNone=!d.aSkip&&noMarks(d.aS), nNone=!d.nSkip&&noMarks(d.nS);
+  const aOn=!noMarks(d.aS), nOn=!noMarks(d.nS);   // started, so the rest pass
   const liked=rows.filter(r=>r.a==="y"||r.n==="y").length;
   const shared=rows.filter(r=>r.a==="y"&&r.n==="y").length;
   const facts=[
@@ -2547,8 +2685,8 @@ function detailHTML(d){
       <span class="rowend">
         <button class="play" data-artist="${esc(d.artist)}" data-album="${esc(d.album)}" data-song="${esc(r.label)}" title="Play a 30s clip" aria-label="Play a clip of ${esc(r.label)}">\u25b6</button>
         <span class="marks">${
-          d.aSkip?benchMark("anthony"):verdict(r.a,"anthony",INI.anthony,r.label,aNone)}${
-          d.nSkip?benchMark("annette"):verdict(r.n,"annette",INI.annette,r.label,nNone)}</span>
+          d.aSkip?benchMark("anthony"):verdict(r.a||(aOn?"i":""),"anthony",INI.anthony,r.label,aNone)}${
+          d.nSkip?benchMark("annette"):verdict(r.n||(nOn?"i":""),"annette",INI.annette,r.label,nNone)}</span>
       </span></li>`).join("")}</ul></div>
   </div>`:"";
   return`<div class="detail-wrap"><div class="detail-inner"><div class="detail"><div class="takes">${takes}${strip}</div>${list}</div></div></div>`;
@@ -3181,7 +3319,7 @@ function boot(rows,sample,header){
   $("foot").textContent=(sample?"Sample data":(LIVE?"Live \u00b7 sheet "+LIVE_SHEET_ID.slice(0,6):"Published CSV \u00b7 up to 5 min behind"))
   +" \u00b7 build "+BUILD+(MSGSTAT==="off"?"":" \u00b7 "+MSGSTAT);
 
-  replayEdits();          // marks made before a refresh are still yours
+  replayEdits(); applyClears();          // marks made before a refresh are still yours
   flushOutbox();          // and any that never reached the script go again
   paintProfiles();
   wireFilters();
@@ -3251,7 +3389,7 @@ function applyCSV(text,header){
     sel.innerHTML='<option value="">All genres</option>'+want.map(g=>`<option>${esc(g)}</option>`).join("");
     sel.value=want.indexOf(had)>-1?had:"";
   }
-  replayEdits();          // the sheet's copy may be minutes behind your taps
+  replayEdits(); applyClears();          // the sheet's copy may be minutes behind your taps
   flushOutbox();          // and anything that never got there is sent again
   paintTally();
   buildMarquee();
