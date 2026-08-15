@@ -778,7 +778,7 @@ const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSud4ctkV
 const INI = { anthony:"AP", annette:"AA" };
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-17k";
+const BUILD = "2026-08-17m";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -833,7 +833,7 @@ const PIC_DEFAULT={
 const picOf = who => store.get("aoty-pic-"+who,"") || PIC_DEFAULT[who] || "";
 
 const $ = id => document.getElementById(id);
-let ROWS=[], QUEUE=[], ROSTER=new Map(), FOCUS=null, VIEW="list", usingSample=true;
+let ROWS=[], QUEUE=[], ALBUMQ=[], ROSTER=new Map(), FOCUS=null, VIEW="list", usingSample=true;
 
 /* ── colour ramp ─────────────────────────────────────────────── */
 /* Red is fully in by 45, and the top of the scale is a lighter, fresher green. */
@@ -972,13 +972,18 @@ function shape(raw,cols){
       get gap(){return(this.a===null||this.n===null)?-1:Math.abs(this.a-this.n);},
       get aSongs(){return this.aS.liked;}, get nSongs(){return this.nS.liked;}});
   }
+  /* To listen is people you have not started on at all */
   const queue=[];
   roster.forEach((v,artist)=>{ if(!rated.has(artist)) queue.push({artist,genre:v.genre}); });
-  /* an artist already on the shelf as a whole does not need their albums
-     listed underneath as well */
-  const waiting=new Set(queue.map(x=>x.artist));
-  unrated.forEach(x=>{ if(!waiting.has(x.artist))queue.push(x); });
-  return{rows:out,queue,roster};
+  /* and albums with no score by an artist you have already rated are their own
+     list - a gap in a record you know, not a stranger */
+  const albumq=unrated.filter(x=>rated.has(x.artist));
+  /* the rest belong to artists you have not started on: they are represented
+     by that artist's tile, but the count is worth saying out loud */
+  const behind=new Map();
+  unrated.forEach(x=>{ if(!rated.has(x.artist))behind.set(x.artist,(behind.get(x.artist)||0)+1); });
+  queue.forEach(x=>{ x.albums=behind.get(x.artist)||0; });
+  return{rows:out,queue,roster,albumq};
 }
 
 /* ── artwork ─────────────────────────────────────────────────── */
@@ -994,7 +999,51 @@ function jsonp(src){
     tag.src=src+"&callback="+cb; document.head.appendChild(tag);
   });
 }
-const artistShot=name=>jsonp("https://api.deezer.com/search/artist?limit=1&output=jsonp&q="+encodeURIComponent(name))
+/* Everything that talks to Deezer goes through here.
+ *
+ * Two problems this solves. Deezer allows roughly fifty requests every five
+ * seconds; a page carrying two full discographies fires artist photos, popular
+ * tracks and previews all at once and sails past that. And when it does, Deezer
+ * does not fail - it returns a perfectly valid object with an "error" in it and
+ * no "data". Code that only checked the response was truthy read that as "this
+ * song does not exist", which is why sixteen Daft Punk tracks all reported no
+ * clip found.
+ *
+ * So: requests are spaced out, and a quota reply pauses Deezer for a minute
+ * instead of being mistaken for an empty catalogue. */
+let DZ_GATE=Promise.resolve(), DZ_PAUSED=0, DZ_GAP=130;
+function dzFetch(url){
+  if(Date.now()<DZ_PAUSED)return Promise.resolve({paused:true});
+  const run=()=>new Promise(go=>setTimeout(go,DZ_GAP)).then(()=>jsonp(url));
+  DZ_GATE=DZ_GATE.then(run,run);
+  return DZ_GATE;
+}
+
+/* Turns a Deezer reply into either {data:[...]} or {blocked:true,why:"..."}.
+   An error payload and an empty result are NOT the same thing. */
+function dzRead(r){
+  if(!r)return{blocked:true,why:"Deezer did not respond"};
+  if(r.paused)return{blocked:true,why:"Deezer lookups paused after a quota warning"};
+  if(r.error){
+    const m=String(r.error.message||r.error.type||"error");
+    if(/quota|limit|too many/i.test(m)){
+      DZ_PAUSED=Date.now()+60000;      // sit out a minute rather than dig in deeper
+      forgetMisses();                  // anything "missing" during this was a lie
+    }
+    return{blocked:true,why:"Deezer: "+m};
+  }
+  if(!Array.isArray(r.data))return{blocked:true,why:"Deezer sent something unexpected"};
+  return{data:r.data};
+}
+
+/* A miss recorded while we were being throttled is not a real miss. Hits are
+   kept; only the nulls are dropped, so nothing has to be looked up twice. */
+function forgetMisses(){
+  if(typeof CLIP==="undefined")return;
+  [...CLIP.keys()].forEach(k=>{ if(!CLIP.get(k))CLIP.delete(k); });
+}
+
+const artistShot=name=>dzFetch("https://api.deezer.com/search/artist?limit=1&output=jsonp&q="+encodeURIComponent(name))
   .then(d=>{const h=d&&d.data&&d.data[0];
     return h&&h.picture_big&&h.picture_big.indexOf("/artist//")<0?h.picture_big:null;});
 const albumShot=term=>jsonp("https://itunes.apple.com/search?entity=album&limit=1&term="+encodeURIComponent(term))
@@ -1183,14 +1232,17 @@ function pickTrack(results,song,artist,album){
    this page for artist photos and popularity, so it stands in. Once iTunes has
    failed we stop asking it for the rest of the session rather than waiting out
    an 8s timeout on every row. */
-let ITUNES_DOWN=false;
+/* iTunes throttles at about twenty searches a minute and answers a 403, which
+   arrives as a script error. Standing down for five minutes and then trying
+   again beats writing it off for the whole session - the limit clears. */
+let ITUNES_BACK=0;
 const CLIP=new Map();                      // artist|song -> {url,src} or null
 
 function itunesClip(song,artist,album){
-  if(ITUNES_DOWN)return Promise.resolve({skip:true});
+  if(Date.now()<ITUNES_BACK)return Promise.resolve({skip:true});
   return jsonp("https://itunes.apple.com/search?entity=song&limit=25&term="+
     encodeURIComponent(artist+" "+song)).then(d=>{
-      if(!d){ ITUNES_DOWN=true; return {blocked:true}; }
+      if(!d){ ITUNES_BACK=Date.now()+5*60000; return {blocked:true,why:"iTunes did not respond"}; }
       const hit=pickTrack(d.results,song,artist,album);
       if(!hit)return null;
       // an http clip on an https page never plays, so it counts as no clip
@@ -1223,25 +1275,57 @@ function pickDz(list,song,artist,album){
 function deezerClip(song,artist,album){
   const q='artist:"'+String(artist).replace(/"/g,"")+'" track:"'+
           String(song).replace(/"/g,"")+'"';
-  return jsonp("https://api.deezer.com/search?output=jsonp&limit=25&q="+
-    encodeURIComponent(q)).then(r=>r?pickDz(r.data,song,artist,album):{blocked:true});
+  return dzFetch("https://api.deezer.com/search?output=jsonp&limit=25&q="+
+    encodeURIComponent(q)).then(r=>{
+      const got=dzRead(r);
+      return got.blocked?got:pickDz(got.data,song,artist,album);
+    });
 }
 
 /* Resolves to {url,src}, or null for no match anywhere, or {blocked:true} when
    the catalogues could not be reached at all. Answers are remembered, so
    hovering the same row twice costs one lookup, not two. */
+/* One pass over both catalogues for a given wording of the title. */
+function clipOnce(song,artist,album){
+  return itunesClip(song,artist,album).then(a=>{
+    if(a&&a.url)return a;
+    const itunesFailed=!!(a&&(a.blocked||a.skip));
+    return deezerClip(song,artist,album).then(b=>{
+      if(b&&b.url)return b;
+      if(b&&b.blocked)return {blocked:true,both:itunesFailed,why:b.why};
+      return null;                                  // both answered, nothing there
+    });
+  });
+}
+/* Sheets carry titles as they appear on the sleeve: "(feat. ...)", "- 2011
+   Remaster", "[Bonus Track]". The catalogues index the plain title, so a miss
+   is retried on a tidied wording, then with the album dropped, before the
+   track is written off. */
+function tidyTitle(t){
+  return String(t||"")
+    .replace(/\s*[\(\[][^)\]]*\b(feat\.?|ft\.?|with|remaster(ed)?|version|edit|mix|bonus|live|deluxe|mono|stereo|explicit|clean|reprise)\b[^)\]]*[\)\]]/gi,"")
+    .replace(/\s*[-\u2013]\s*(\d{4}\s*)?(remaster(ed)?|live|mono|stereo|bonus track|single version|album version|radio edit)\b.*$/i,"")
+    .replace(/\s{2,}/g," ").trim();
+}
 function findClip(song,artist,album){
   const key=artist+"|"+song;
   if(CLIP.has(key))return Promise.resolve(CLIP.get(key));
-  return itunesClip(song,artist,album).then(a=>{
-    if(a&&a.url){ CLIP.set(key,a); return a; }
-    const itunesFailed=!!(a&&(a.blocked||a.skip));
-    return deezerClip(song,artist,album).then(b=>{
-      if(b&&b.url){ CLIP.set(key,b); return b; }
-      if(b&&b.blocked)return {blocked:true,both:itunesFailed};
-      CLIP.set(key,null);                          // Deezer answered, nothing there
-      return null;
+  const bare=tidyTitle(song);
+  const wordings=[[song,album]];
+  if(bare&&bare.toLowerCase()!==String(song).toLowerCase())wordings.push([bare,album]);
+  if(album)wordings.push([bare||song,""]);
+  const step=i=>{
+    if(i>=wordings.length)return Promise.resolve(null);
+    return clipOnce(wordings[i][0],artist,wordings[i][1]).then(res=>{
+      if(res&&(res.url||res.blocked))return res;
+      return step(i+1);
     });
+  };
+  return step(0).then(res=>{
+    if(res&&res.url){CLIP.set(key,res);return res;}
+    if(res&&res.blocked)return res;                 // temporary, so not cached
+    CLIP.set(key,null);
+    return null;
   });
 }
 
@@ -1262,9 +1346,10 @@ function preview(btn,alts,override){
       // unreachable is temporary by nature, so the button stays usable
       if(!btn.isConnected)HOVER_ROW=null;
       reset();
-      btn.title="Could not reach the preview catalogues";
-      note(got.both?"Both preview sources unreachable \u2014 ad blocker, VPN or shield"
-                   :"Preview lookup blocked \u2014 ad blocker, VPN or shield");
+      btn.title=got.why||"Could not reach the preview catalogues";
+      note(got.why
+        ? got.why+(got.both?" (iTunes is down too)":"")
+        : "Preview lookup blocked \u2014 ad blocker, VPN or shield");
       return;
     }
     if(!got){
@@ -2068,20 +2153,35 @@ function queueHTML(q,g){
     return true;
   }).sort((a,b)=>a.artist.toLowerCase().localeCompare(b.artist.toLowerCase()));
   if(!list.length)return"";
-  const albums=list.filter(x=>x.album).length;
   return`<section class="queue">
     <div class="queue-head rise"><h2>To listen</h2><span>${list.length}</span></div>
-    <p class="rise">On the list, nothing rated yet${
-      albums?` \u2014 including ${albums} album${albums===1?"":"s"} sitting in the sheet without a score`:""}.</p>
-    <div class="shelf">${list.map(x=>x.album
-      ?`<button data-artist="${esc(x.artist)}" title="${esc(x.artist)} \u2014 ${esc(x.album)}"><figure>
-        <div class="thumb sleeve" data-cover="${esc(x.cover||"")}" data-art="${esc(x.artist+" "+x.album)}">${esc(initials(x.album))}</div>
-        <figcaption class="rise"><em>${esc(x.artist)}</em>${esc(x.album)}</figcaption><span class="g rise" style="color:${hueOf(x.genre)}">${esc(x.genre||"")}</span>
-      </figure></button>`
-      :`<button data-artist="${esc(x.artist)}"><figure>
-        <div class="thumb" data-art="${esc(x.artist)}" data-kind="artist">${esc(initials(x.artist))}</div>
-        <figcaption class="rise">${esc(x.artist)}</figcaption><span class="g rise" style="color:${hueOf(x.genre)}">${esc(x.genre||"")}</span>
-      </figure></button>`).join("")}</div></section>`;
+    <p class="rise">Artists with nothing rated yet${(()=>{
+      const n=list.reduce((t,x)=>t+(x.albums||0),0);
+      return n?` \u2014 ${n} album${n===1?" of theirs is":"s of theirs are"} waiting in the sheet`:"";
+    })()}.</p>
+    <div class="shelf">${list.map(x=>`<button data-artist="${esc(x.artist)}"><figure>
+      <div class="thumb" data-art="${esc(x.artist)}" data-kind="artist">${esc(initials(x.artist))}</div>
+      <figcaption class="rise">${esc(x.artist)}</figcaption><span class="g rise" style="color:${hueOf(x.genre)}">${
+        x.albums?`${x.albums} album${x.albums===1?"":"s"}`:esc(x.genre||"")}</span>
+    </figure></button>`).join("")}</div></section>`;
+}
+
+/* Albums sitting in the sheet with no score, by artists already on the wall. */
+function albumQueueHTML(q,g){
+  const list=ALBUMQ.filter(x=>{
+    if(g&&x.genre!==g)return false;
+    if(q&&!((x.artist+" "+x.album).toLowerCase().includes(q)))return false;
+    return true;
+  }).sort((a,b)=>a.artist.toLowerCase().localeCompare(b.artist.toLowerCase())
+    ||(a.year||"").localeCompare(b.year||""));
+  if(!list.length)return"";
+  return`<section class="queue albumq">
+    <div class="queue-head rise"><h2>Still to hear</h2><span>${list.length}</span></div>
+    <p class="rise">Records by artists you have already rated, sitting in the sheet without a score.</p>
+    <div class="shelf">${list.map(x=>`<button data-artist="${esc(x.artist)}" title="${esc(x.artist)} \u2014 ${esc(x.album)}"><figure>
+      <div class="thumb sleeve" data-cover="${esc(x.cover||"")}" data-art="${esc(x.artist+" "+x.album)}">${esc(initials(x.album))}</div>
+      <figcaption class="rise"><em>${esc(x.artist)}</em>${esc(x.album)}</figcaption><span class="g rise" style="color:${hueOf(x.genre)}">${esc(x.year||x.genre||"")}</span>
+    </figure></button>`).join("")}</div></section>`;
 }
 
 const SORTS={
@@ -2202,7 +2302,7 @@ function render(){
     html=(sort==="rating"?podiumHTML(pool):"")+`<section class="artist">${body}</section>`;
   }
 
-  out.innerHTML=html+queueHTML(q,g)+statsHTML();
+  out.innerHTML=html+queueHTML(q,g)+albumQueueHTML(q,g)+statsHTML();
   out.querySelectorAll("[data-art]").forEach(loadImage);
   dressAvatars(out);
   reveal(out);
@@ -2395,11 +2495,13 @@ function popularFirst(d,done){
   const wa=normT(d.artist), wl=normT(d.album);
   if(!wa||!wl){done(null);return;}
   const q=`artist:"${d.artist.replace(/"/g,"")}" album:"${d.album.replace(/"/g,"")}"`;
-  jsonp("https://api.deezer.com/search?output=jsonp&limit=100&q="+encodeURIComponent(q))
+  dzFetch("https://api.deezer.com/search?output=jsonp&limit=100&q="+encodeURIComponent(q))
     .then(r=>{
+      const got=dzRead(r);
+      if(got.blocked){done(null);return;}     // fall back to the tracklist order
       // the search is a whole-catalogue one, so check each hit really is
       // this record before letting its rank count for anything
-      const hits=((r&&r.data)||[]).filter(t=>t&&t.title&&
+      const hits=got.data.filter(t=>t&&t.title&&
         normT(t.artist&&t.artist.name)===wa&&normT(t.album&&t.album.title)===wl);
       if(!hits.length){done(null);return;}
       hits.sort((a,b)=>(b.rank||0)-(a.rank||0));
@@ -2575,7 +2677,7 @@ function paintTally(){
 
 function boot(rows,sample,header){
   const shaped=shape(rows,mapCols(header));
-  ROWS=shaped.rows;QUEUE=shaped.queue;ROSTER=shaped.roster;usingSample=sample;
+  ROWS=shaped.rows;QUEUE=shaped.queue;ALBUMQ=shaped.albumq||[];ROSTER=shaped.roster;usingSample=sample;
 
   const genres=[...new Set([...ROWS.map(d=>d.genre),...QUEUE.map(d=>d.genre)].filter(Boolean))].sort();
   $("genre").insertAdjacentHTML("beforeend",genres.map(g=>`<option>${esc(g)}</option>`).join(""));
@@ -2642,7 +2744,7 @@ function applyCSV(text,header){
   LASTCSV=text;
   const all=parseCSV(text);
   const shaped=shape(all.slice(1),mapCols(all[0]));
-  ROWS=shaped.rows; QUEUE=shaped.queue; ROSTER=shaped.roster;
+  ROWS=shaped.rows; QUEUE=shaped.queue; ALBUMQ=shaped.albumq||[]; ROSTER=shaped.roster;
   imgCache.clear();
 
   // keep the genre list in step without disturbing the current choice
@@ -2948,7 +3050,18 @@ button.artist-head:hover::before{opacity:.9}
 .a-rank[data-medal]>.rankno::after{animation:none; opacity:0}}
 
 /* Tally: numbers centred over their labels, one hairline for the whole row. */
-.tally{border-top:1px solid var(--line-2); padding-top:1.15rem; margin-top:1.9rem}
+/* One property owns the space under the figures: the header's own bottom
+   padding and the controls' top margin used to add 43px below against 19px
+   above, which is what made the band read bottom-heavy. */
+.tally{border-top:1px solid var(--line-2); padding-top:.95rem; padding-bottom:1.35rem;
+  margin-top:1.9rem; justify-content:center; text-align:center}
+/* the row sits centred as one piece - counts and averages together - and the
+   figures ride a little higher in the band than they sit low */
+.tally{display:flex; flex-wrap:wrap; justify-content:center}
+/* the four counts ride a few pixels above the averages' baseline */
+.tally .t-counts{justify-content:center; margin-bottom:5px}
+header:has(.tally:last-child){padding-bottom:0}
+.controls{margin-top:0}
 .tally .t-group>div{align-items:center; gap:.4rem}
 .tally b{font-weight:800; letter-spacing:-.05em; font-variant-numeric:tabular-nums;
   text-align:center; width:100%}
@@ -2997,8 +3110,15 @@ button.artist-head:hover::before{opacity:.9}
 
 /* An album waiting to be heard shows its sleeve, square, beside the round
    portraits of artists waiting as a whole. */
+.shelf .thumb:not(.sleeve){border-radius:50%; aspect-ratio:1}
 .shelf .thumb.sleeve{border-radius:3px; border:3px solid #fff; border-bottom-width:9px;
   box-shadow:.2em .25em .6em rgba(15,37,54,.2); aspect-ratio:1/1.1; height:auto}
+/* the caption box was measured for one line of artist name; an album tile
+   carries two, so it sizes itself and the shelf aligns to the top */
+.queue.albumq figcaption{height:auto; min-height:2.5em; overflow:visible;
+  -webkit-line-clamp:unset; display:block; text-wrap:pretty}
+.queue.albumq .shelf{align-items:start}
+.queue.albumq .shelf figure{height:auto}
 /* the album's own line: whose it is above, what it is below, genre in the
    coloured slot every other tile uses */
 .shelf figcaption em{display:block; font-style:normal; font-family:"JetBrains Mono",monospace;
@@ -3024,13 +3144,44 @@ button.artist-head:hover::before{opacity:.9}
 .a-count{font-family:"JetBrains Mono",monospace; font-size:10px; letter-spacing:.16em;
   text-transform:uppercase; color:var(--faint)}
 
-/* Fifty-odd rows of polaroids, gauges and panels: the ones off screen do not
-   need laying out or painting until they are near. */
-.album{content-visibility:auto; contain-intrinsic-size:auto 118px}
-.album.open{content-visibility:visible}
-.wall button{content-visibility:auto; contain-intrinsic-size:auto 158px}
-.a-rank{content-visibility:auto; contain-intrinsic-size:auto 110px}
-.shelf button{content-visibility:auto; contain-intrinsic-size:auto 132px}
+/* Rows keep their layout work to themselves, which is most of the saving.
+   Paint containment is NOT usable here: a sleeve lifts, tilts and glows past
+   its own box, and paint containment clips exactly that. */
+.album,.a-rank,.wall button,.shelf button{contain:layout}
+
+/* ── jump rail ──────────────────────────────────────────────────── */
+.v4-rail{position:fixed; left:1.1rem; bottom:1.5rem; z-index:71; display:flex;
+  flex-direction:column; align-items:flex-start; gap:.5rem; pointer-events:none;
+  opacity:0; transform:translateY(10px); transition:opacity .3s ease-out,
+    transform .4s cubic-bezier(.32,.72,.28,1)}
+/* the arrow keeps to the right, below the jumps and in from the edge */
+.v4-top{position:fixed; right:2.4rem; bottom:4.6rem; z-index:71;
+  width:44px; height:44px; border-radius:50%; display:grid; place-items:center;
+  font-size:15px; color:var(--dim); background:var(--raised-2);
+  box-shadow:0 0 0 1px var(--line-2), 0 6px 18px rgba(15,37,54,.16);
+  opacity:0; transform:translateY(10px); pointer-events:none;
+  transition:opacity .3s ease-out, transform .4s cubic-bezier(.32,.72,.28,1),
+    color .2s ease-out, box-shadow .25s ease-out}
+.v4-top.on{opacity:1; transform:none; pointer-events:auto}
+.v4-top:hover{color:var(--accent); transform:translateY(-2px);
+  box-shadow:0 0 0 1px var(--accent-soft), 0 10px 22px rgba(15,37,54,.2)}
+.night .v4-top{box-shadow:0 0 0 1px var(--line-2), 0 6px 20px rgba(0,0,0,.45)}
+.night .v4-top:hover{box-shadow:0 0 0 1px var(--accent), 0 0 18px -6px var(--accent)}
+@media(max-width:560px){.v4-top{right:1.1rem; bottom:5.6rem}}
+.v4-rail.on{opacity:1; transform:none; pointer-events:auto}
+.v4-rail button{display:flex; align-items:center; gap:.5rem; border-radius:999px;
+  background:var(--raised-2); color:var(--dim); padding:.5rem .9rem;
+  font-family:"JetBrains Mono",monospace; font-size:10px; letter-spacing:.14em;
+  text-transform:uppercase; box-shadow:0 0 0 1px var(--line-2), 0 6px 18px rgba(15,37,54,.16);
+  transition:color .2s ease-out, box-shadow .25s ease-out, transform .25s ease-out}
+.v4-rail button:hover{color:var(--accent); transform:translateY(-2px);
+  box-shadow:0 0 0 1px var(--accent-soft), 0 10px 22px rgba(15,37,54,.2)}
+
+.night .v4-rail button{box-shadow:0 0 0 1px var(--line-2), 0 6px 20px rgba(0,0,0,.45)}
+.night .v4-rail button:hover{box-shadow:0 0 0 1px var(--accent), 0 0 18px -6px var(--accent)}
+@media(max-width:560px){.v4-rail .label{display:none}
+  .v4-rail button{width:42px; height:42px; justify-content:center; padding:0; font-size:14px}}
+@media(prefers-reduced-motion:reduce){.v4-rail{transition:none}}
 
 /* Skeletons instead of a blocking spinner. */
 #boot{display:none!important}
@@ -3803,6 +3954,7 @@ function paintArtists(){
 
 function pass(){
   paintBackdrop();climb();paintSpectrum();halos();caps();medals();wallHero();pipColours();
+  if(window.__syncRail)window.__syncRail();
   /* ask for the artwork of everything already on screen, rather than waiting
      for the observer's next pass */
   if(typeof sweep==="function")sweep();
@@ -3969,6 +4121,64 @@ document.addEventListener("click",function(e){
   e.stopPropagation();
   comeBack(el);
 },true);
+})();
+
+
+/* ── the jump rail ─────────────────────────────────────────────────
+   Appears once the search bar is off screen: back to the top, and straight to
+   either waiting list. Buttons only exist while their section does. */
+(function(){
+var rail=document.createElement("div");
+rail.className="v4-rail";
+rail.innerHTML=
+  '<button class="jump" data-to=".queue.albumq"><span class="glyph">\u266b</span>'+
+    '<span class="label">Still to hear</span></button>'+
+  '<button class="jump" data-to=".queue:not(.albumq)"><span class="glyph">\u25f7</span>'+
+    '<span class="label">To listen</span></button>'+
+  '';
+document.body.appendChild(rail);
+var up=document.createElement("button");
+up.className="v4-top";
+up.setAttribute("aria-label","Back to the top");
+up.textContent="\u2191";
+document.body.appendChild(up);
+var soft=matchMedia("(prefers-reduced-motion:reduce)").matches?"auto":"smooth";
+/* everything in a jumped-to section is asked for and shown at once, rather
+   than waiting for an observer that the jump outran */
+function wake(el){
+  if(!el)return;
+  el.querySelectorAll("[data-art]").forEach(function(n){
+    if(typeof loadImage==="function")loadImage(n);
+  });
+  el.querySelectorAll(".thumb,.cover,.rise,.gauge").forEach(function(n){
+    if(typeof showNow==="function")showNow(n); else n.classList.add("in");
+  });
+  if(typeof dressAvatars==="function")dressAvatars(el);
+}
+up.onclick=function(){ scrollTo({top:0,behavior:soft}); };
+rail.querySelectorAll(".jump").forEach(function(b){
+  b.onclick=function(){
+    var el=document.querySelector(b.dataset.to);
+    if(!el)return;
+    scrollTo({top:el.getBoundingClientRect().top+scrollY-70,behavior:soft});
+    wake(el);
+    setTimeout(function(){wake(el);},420);
+    setTimeout(function(){wake(el);},900);
+  };
+});
+function syncRail(){
+  var bar=document.querySelector(".controls");
+  var past=bar?bar.getBoundingClientRect().bottom<0:scrollY>240;
+  rail.classList.toggle("on",past);
+  up.classList.toggle("on",past);
+  if(past)rail.querySelectorAll(".jump").forEach(function(b){
+    b.hidden=!document.querySelector(b.dataset.to);
+  });
+}
+addEventListener("scroll",syncRail,{passive:true});
+addEventListener("resize",syncRail,{passive:true});
+syncRail();
+window.__syncRail=syncRail;
 })();
 
 /* ── evening, with the tubes striking up ───────────────────────── */
