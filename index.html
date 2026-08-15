@@ -801,7 +801,7 @@ const MARK_URL = "https://script.google.com/macros/s/AKfycbxvNggOJvLx8yY0JsKWdpX
 const MARK_KEY = "puppy";
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-17w";
+const BUILD = "2026-08-17y";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -1620,8 +1620,7 @@ function refreshScore(root,d){
   /* the artist's own average sits above the block and was going stale */
   /* The artist's average appears twice: as the badge beside the name, and
      again as "avg NN" on the genre line of an artist's own page. */
-  const mine=ROWS.filter(x=>x.artist===d.artist&&!isNaN(x.avg));
-  const av=mine.length?mean(mine.map(x=>x.avg)):null;
+  const av=artistAvg(d.artist);
   const sec=root.closest?root.closest("section.artist"):null;
   const scope=sec||document;
   const badge=scope.querySelector(".artist-head .avg");
@@ -2397,6 +2396,15 @@ function detailHTML(d){
 }
 /* The line under an album title, built in one place so the first render and
    every refresh after it cannot drift apart. */
+/* An unrated album has an avg of 0/0, which is NaN, and NaN poisons any sum it
+   lands in. Since unrated records now sit in the list alongside rated ones,
+   every artist average has to skip them - and say nothing at all rather than
+   NaN when an artist has no scored album yet. */
+function artistAvg(name){
+  const rated=ROWS.filter(x=>x.artist===name&&!isNaN(x.avg));
+  return rated.length?mean(rated.map(x=>x.avg)):null;
+}
+
 function subInner(d){
   return (d.year?`<span class="yr">${esc(d.year)}</span>`:"")+
     whoBits(d).join("  ")+
@@ -2501,10 +2509,16 @@ function renderArtist(name){
   const mine=ROWS.filter(d=>d.artist===name);
   const shown=mine.filter(d=>(!g||d.genre===g)&&matches(d,q)).sort(SORTS[sort]||SORTS.artist);
 
-  const avg=mine.length?Math.round(mean(mine.map(d=>d.avg))):null;
-  const extra=mine.length
-    ? `${mine.length} album${mine.length>1?"s":""}<span class="sep">·</span>avg <b class="a-avg">${avg}</b>`
-    : "nothing rated yet";
+  const av=artistAvg(name);
+  const avg=av===null?null:Math.round(av);
+  const scored=mine.filter(d=>!isNaN(d.avg)).length;
+  const extra=!mine.length
+    ? "nothing here yet"
+    : `${mine.length} album${mine.length>1?"s":""}`+
+      (avg===null
+        ? `<span class="sep">·</span>none rated yet`
+        : `<span class="sep">·</span>avg <b class="a-avg">${avg}</b>`+
+          (scored<mine.length?` <span class="sep">·</span>${scored} rated`:""));
   const filtered=mine.length&&shown.length!==mine.length;
   $("count").textContent=mine.length
     ? (filtered?shown.length+" of "+mine.length:shown.length+(shown.length===1?" album":" albums"))
@@ -2570,7 +2584,7 @@ function render(){
     html=[...groups.keys()].sort((a,b)=>a.toLowerCase().localeCompare(b.toLowerCase())).map(name=>{
       const al=groups.get(name).slice().sort((x,y)=>(x.year||"").localeCompare(y.year||""));
       const info=ROSTER.get(name)||{genre:al[0].genre};
-      const av=mean(al.map(d=>d.avg));
+      const av=artistAvg(name);
       return`<section class="artist">${artistHead(name,info.genre||al[0].genre,true,
         `${al.length} album${al.length>1?"s":""}`,av,sparkline(al))}
         ${al.map(d=>albumHTML(d,false)).join("")}</section>`;
@@ -3056,7 +3070,11 @@ function applyCSV(text,header){
   const all=parseCSV(text);
   const shaped=shape(all.slice(1),mapCols(all[0]));
   ROWS=shaped.rows; QUEUE=shaped.queue; ALBUMQ=shaped.albumq||[]; ROSTER=shaped.roster;
-  imgCache.clear();
+  /* Deliberately NOT cleared. The cache key already carries the pasted cover
+     link, so changing one in the sheet makes a new key by itself. Emptying it
+     on every reload meant that marking a song - which changes the sheet, which
+     the poll then notices - threw away every resolved image and left the
+     covers showing initials until each lookup came back. */
 
   // keep the genre list in step without disturbing the current choice
   const want=[...new Set([...ROWS.map(d=>d.genre),...QUEUE.map(d=>d.genre)].filter(Boolean))].sort();
