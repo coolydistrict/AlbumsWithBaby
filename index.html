@@ -52,13 +52,16 @@ button{font:inherit; color:inherit; background:none; border:0; cursor:pointer}
 .marquee i::after{content:"\25C6"; margin:0 1.9rem; opacity:.4; font-size:9px; vertical-align:middle}
 .marquee b{font-weight:500}
 .fx{font-family:"Fredoka",system-ui,sans-serif; font-size:15px; letter-spacing:.01em}
-.fx span{display:inline-block; white-space:pre;
-  animation:hueflow 3.4s linear infinite, bob 2.4s ease-in-out infinite}
-@keyframes hueflow{
-  0%{color:#FF9AA2} 16%{color:#FFD59E} 33%{color:#FCF6A0}
-  50%{color:#A8E6A3} 66%{color:#9AD5F5} 83%{color:#C9A8F0} 100%{color:#FF9AA2}}
+/* One flowing gradient across the whole phrase, and one bob, instead of a
+   colour animation and a transform animation on every single letter. */
+.fx{background:linear-gradient(92deg,#FF9AA2,#FFD59E 14%,#FCF6A0 28%,#A8E6A3 44%,
+    #9AD5F5 60%,#C9A8F0 76%,#FF9AA2 100%);
+  background-size:260% 100%; -webkit-background-clip:text; background-clip:text;
+  color:transparent; animation:hueflow 5.5s linear infinite}
+.fx span{display:inline-block; white-space:pre; animation:bob 2.4s ease-in-out infinite}
+@keyframes hueflow{from{background-position:0 0} to{background-position:260% 0}}
 @keyframes bob{0%,100%{transform:translateY(0)} 50%{transform:translateY(-3.5px)}}
-@media(prefers-reduced-motion:reduce){.fx span{animation:hueflow 6s linear infinite}}
+@media(prefers-reduced-motion:reduce){.fx,.fx span{animation:none}}
 
 .modal{position:fixed; inset:0; z-index:100; background:rgba(15,37,54,.55);
   display:none; align-items:center; justify-content:center; padding:1rem}
@@ -730,7 +733,7 @@ footer button:hover{border-color:var(--accent)}
     <option value="gap">Biggest disagreement</option>
   </select>
   <span class="view-tog" id="view-tog">
-    <button data-view="list" class="on">List</button><button data-view="wall">Wall</button><button data-view="artists">Artists</button>
+    <button data-view="list" class="on">List</button><button data-view="wall">Albums</button><button data-view="artists">Artists</button>
   </span>
   <span class="count" id="count"></span>
 </div>
@@ -1499,7 +1502,7 @@ function wallHTML(list){
   if(!shown.length)return podiumHTML(list)+
     `<div class="podium-thin">${who==="both"
       ?"Nothing you have both rated yet \u2014 albums you have each scored land here."
-      :"Nothing rated yet \u2014 anything you score lands on the wall."}</div>`;
+      :"Nothing rated yet \u2014 anything you score lands here."}</div>`;
   return podiumHTML(list)+`<div class="wall">${shown.map((d,i)=>
     `<button data-open="${ROWS.indexOf(d)}" title="${esc(d.artist)} — ${esc(d.album)}">
       <div class="w-shot" data-cover="${esc(d.cover)}" data-art="${esc(d.artist+" "+d.album)}">${esc(initials(d.album))}</div>
@@ -2724,7 +2727,8 @@ body{background:none}
 .night .v3-back{opacity:0}
 .night .v3-back.on{opacity:.85}
 .v3-grain{position:fixed; inset:0; z-index:96; pointer-events:none; opacity:.4;
-  mix-blend-mode:multiply; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='.42'/%3E%3C/svg%3E"); background-size:180px 180px}
+  mix-blend-mode:multiply; will-change:opacity; transform:translateZ(0); contain:strict;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='.42'/%3E%3C/svg%3E"); background-size:180px 180px}
 
 @property --em1{syntax:"<color>"; inherits:false; initial-value:#175A8C}
 @property --em2{syntax:"<color>"; inherits:false; initial-value:#3E86BE}
@@ -3020,6 +3024,14 @@ button.artist-head:hover::before{opacity:.9}
 .a-count{font-family:"JetBrains Mono",monospace; font-size:10px; letter-spacing:.16em;
   text-transform:uppercase; color:var(--faint)}
 
+/* Fifty-odd rows of polaroids, gauges and panels: the ones off screen do not
+   need laying out or painting until they are near. */
+.album{content-visibility:auto; contain-intrinsic-size:auto 118px}
+.album.open{content-visibility:visible}
+.wall button{content-visibility:auto; contain-intrinsic-size:auto 158px}
+.a-rank{content-visibility:auto; contain-intrinsic-size:auto 110px}
+.shelf button{content-visibility:auto; contain-intrinsic-size:auto 132px}
+
 /* Skeletons instead of a blocking spinner. */
 #boot{display:none!important}
 .v3-skel{display:flex; flex-direction:column; gap:.2rem; padding-top:.4rem}
@@ -3112,12 +3124,16 @@ html:not(.night) .agree b{filter:brightness(.6) saturate(1.12)}
   0 7px 15px rgba(0,0,0,.5)}
 /* the rail blooms in a gradient drawn between the two scores themselves:
    pass() copies the pip colours and their positions onto the gauge */
-.gauge .scale::after{content:""; position:absolute; top:27px; height:5px;
-  left:var(--gl,0); width:var(--gw,0); border-radius:5px; pointer-events:none;
+/* a pseudo-element paints after its siblings, so the bloom needs putting
+   behind the portraits rather than over them - and it hugs the rail */
+.gauge .scale::after{content:""; position:absolute; top:22px; height:15px; z-index:-1;
+  left:var(--gl,0); width:var(--gw,0); border-radius:8px; pointer-events:none;
   background:linear-gradient(90deg,var(--ga,var(--accent)),var(--gb,var(--accent)));
-  filter:blur(7px); opacity:0; transition:opacity .5s ease-out,
+  -webkit-mask-image:radial-gradient(115% 58% at 50% 50%,#000 0%,rgba(0,0,0,.5) 42%,transparent 76%);
+  mask-image:radial-gradient(115% 58% at 50% 50%,#000 0%,rgba(0,0,0,.5) 42%,transparent 76%);
+  opacity:0; transition:opacity .5s ease-out,
     left 1.05s cubic-bezier(.34,1.5,.42,1), width 1.05s cubic-bezier(.34,1.5,.42,1)}
-.night .gauge .scale::after{opacity:.85}
+.night .gauge .scale::after{opacity:.6}
 .night .gauge .track{box-shadow:0 0 8px -3px color-mix(in srgb,var(--sc,var(--accent)) 45%,transparent)}
 .night .span{box-shadow:0 0 8px -2px color-mix(in srgb,var(--sp,var(--accent)) 85%,transparent),
   0 0 30px -4px color-mix(in srgb,var(--sp,var(--accent)) 55%,transparent)}
@@ -3158,14 +3174,42 @@ html:not(.night) .agree b{filter:brightness(.6) saturate(1.12)}
 .night .crumb-note,.night .seg button.on,.night .view-tog button.on,
 .night .pod-who .seg button.on{box-shadow:0 0 12px -3px var(--accent), 0 0 28px -8px var(--accent)}
 
-/* One clock for the whole switch: every colour eases together, then the class
-   comes off so nothing else on the page is slowed. */
-html.theming,html.theming *,html.theming *::before,html.theming *::after{
-  transition-property:background-color,color,border-color,box-shadow,fill,stroke,opacity,filter,text-shadow,--em1,--em2,--em3!important;
-  transition-duration:.55s!important;
-  transition-timing-function:cubic-bezier(.4,0,.2,1)!important;
-  transition-delay:0s!important}
-.v3-grain{transition:opacity .55s ease}
+/* One clock for the whole switch. The palette tokens are registered colours,
+   so the theme change is ONE animation on <html> that every var() reads from,
+   rather than a transition on every element for every property - the universal
+   rule that used to do this spawned some thirteen thousand of them. */
+@property --ground{syntax:"<color>"; inherits:true; initial-value:#CFE2F3}
+@property --raised{syntax:"<color>"; inherits:true; initial-value:#DFEBF7}
+@property --raised-2{syntax:"<color>"; inherits:true; initial-value:#EEF5FB}
+@property --ink{syntax:"<color>"; inherits:true; initial-value:#0F2536}
+@property --dim{syntax:"<color>"; inherits:true; initial-value:#42607A}
+@property --faint{syntax:"<color>"; inherits:true; initial-value:#7591A9}
+@property --line{syntax:"<color>"; inherits:true; initial-value:rgba(16,38,58,.16)}
+@property --line-2{syntax:"<color>"; inherits:true; initial-value:rgba(16,38,58,.28)}
+@property --accent{syntax:"<color>"; inherits:true; initial-value:#175A8C}
+@property --accent-soft{syntax:"<color>"; inherits:true; initial-value:rgba(23,90,140,.42)}
+html{transition:--ground .55s cubic-bezier(.4,0,.2,1), --raised .55s cubic-bezier(.4,0,.2,1),
+  --raised-2 .55s cubic-bezier(.4,0,.2,1), --ink .55s cubic-bezier(.4,0,.2,1),
+  --dim .55s cubic-bezier(.4,0,.2,1), --faint .55s cubic-bezier(.4,0,.2,1),
+  --line .55s cubic-bezier(.4,0,.2,1), --line-2 .55s cubic-bezier(.4,0,.2,1),
+  --accent .55s cubic-bezier(.4,0,.2,1), --accent-soft .55s cubic-bezier(.4,0,.2,1),
+  background-color .55s cubic-bezier(.4,0,.2,1)}
+/* the handful of night rules written with literal colours instead of tokens
+   carry their own matching transition */
+.marquee,.mini-head,.player,.crumb-note,.gtag,.scroll-line,
+.v3-spectrum .bandbar,.seg button,.view-tog button,
+.pod-who .seg button,.track,.rail,.hero::after,h1 em{
+  transition-property:background-color,color,border-color,opacity,--em1,--em2,--em3;
+  transition-duration:.55s;
+  transition-timing-function:cubic-bezier(.4,0,.2,1)}
+/* the pips and the gap bar keep their spring; their glow switches outright */
+.pip,.span{transition-property:left,width;
+  transition-duration:1.05s;
+  transition-timing-function:cubic-bezier(.34,1.5,.42,1)}
+/* a blended full-screen layer repainting against an animating palette is the
+   single most expensive thing in the switch: stand it down until it is over */
+html.theming .v3-grain{visibility:hidden}
+html.theming .v3-back{transition:none}
 
 /* Neon striking up: a flash across the room plus a stutter on the lit parts. */
 .v3-flash{position:fixed; inset:0; z-index:97; pointer-events:none; opacity:0;
@@ -3597,7 +3641,9 @@ function pipColours(root){
      lighter green. The fill is also kept as --pipc so the night bloom still
      glows in the score colour rather than in the ink. */
   (root||document).querySelectorAll(CHIPS).forEach(function(el){
-    var c=getComputedStyle(el).backgroundColor;
+    if(el.__inked)return;
+    el.__inked=1;
+    var c=el.style.backgroundColor||getComputedStyle(el).backgroundColor;
     if(!c||c==="rgba(0, 0, 0, 0)"||c==="transparent")return;
     var l=lumOf(c);
     if(l===null)return;
@@ -3611,8 +3657,10 @@ function pipColours(root){
   /* the rail's bloom is a gradient drawn between the two scores: take the pip
      colours and their positions straight off the gauge that owns them */
   (root||document).querySelectorAll(".gauge").forEach(function(g){
+    if(g.__bloomed)return;
     var pips=[].slice.call(g.querySelectorAll(".pip"));
     if(!pips.length)return;
+    g.__bloomed=1;
     var pos=pips.map(function(p){return parseFloat(p.style.getPropertyValue("--v"))||0;});
     var cols=pips.map(function(p){return p.style.backgroundColor||getComputedStyle(p).backgroundColor;});
     var lo=Math.min.apply(null,pos),hi=Math.max.apply(null,pos);
@@ -3681,7 +3729,7 @@ function wallHero(){
   if(cap&&!cap.querySelector(".hero-note")){
     var n=document.createElement("span");
     n.className="hero-note";
-    n.textContent="top of the wall";
+    n.textContent="top of the list";
     cap.appendChild(n);
   }
 }
@@ -3773,24 +3821,34 @@ var eyeIO="IntersectionObserver" in window?new IntersectionObserver(function(es,
 },{rootMargin:"900px 0px 900px 0px",threshold:0}):null;
 function earlyReveal(){
   if(!eyeIO)return;
-  document.querySelectorAll("#out .cover:not(.in),#out .rise:not(.in),#out .gauge:not(.in)")
-    .forEach(function(el){ if(!el.__eyed){el.__eyed=1;eyeIO.observe(el);} });
+  collectPending();
+  pending.forEach(function(el){ if(!el.__eyed){el.__eyed=1;eyeIO.observe(el);} });
+  lastY=-1e9;
   edgeReveal();
 }
 /* and a plain scroll pass, because an observer in a backgrounded frame can be
-   delayed long enough to be noticed */
-var edgeQueued=false;
+   delayed long enough to be noticed. It works from a list it prunes as it
+   goes, so a long scroll is not a full DOM query every frame. */
+var pending=[],edgeQueued=false,lastY=-1e9;
+function collectPending(){
+  pending=[].slice.call(document.querySelectorAll(
+    "#out .cover:not(.in),#out .rise:not(.in),#out .gauge:not(.in)"));
+}
 function edgeReveal(){
-  if(edgeQueued)return;
+  if(edgeQueued||!pending.length)return;
+  if(Math.abs(scrollY-lastY)<120&&lastY>-1e9)return;
   edgeQueued=true;
   requestAnimationFrame(function(){
-    edgeQueued=false;
-    var edge=innerHeight+900;
-    document.querySelectorAll("#out .cover:not(.in),#out .rise:not(.in),#out .gauge:not(.in)")
-      .forEach(function(el){
-        var t=el.getBoundingClientRect().top;
-        if(t<edge&&t>-1200){ if(typeof showNow==="function")showNow(el); else el.classList.add("in"); }
-      });
+    edgeQueued=false;lastY=scrollY;
+    var edge=innerHeight+900,keep=[];
+    for(var i=0;i<pending.length;i++){
+      var el=pending[i];
+      if(!el.isConnected)continue;
+      var t=el.getBoundingClientRect().top;
+      if(t<edge&&t>-1400){ if(typeof showNow==="function")showNow(el); else el.classList.add("in"); }
+      else keep.push(el);
+    }
+    pending=keep;
   });
 }
 addEventListener("scroll",edgeReveal,{passive:true});
@@ -3919,9 +3977,19 @@ var themeT=null,flickT=null;
 function applyNight(strike){
   var root=document.documentElement;
   root.classList.add("theming");
-  root.classList.toggle("night",night);
+  /* resolve styles once with the transition in place, then change the palette
+     on the next frame so every element eases from its current colour */
+  void getComputedStyle(root).backgroundColor;
+  var applied=false;
+  var swap=function(){
+    if(applied)return;
+    applied=true;
+    root.classList.toggle("night",night);
+  };
+  requestAnimationFrame(swap);
+  setTimeout(swap,60);          /* a throttled frame must not strand the theme */
   clearTimeout(themeT);
-  themeT=setTimeout(function(){root.classList.remove("theming");},600);
+  themeT=setTimeout(function(){root.classList.remove("theming");},700);
   /* the tubes strike up only once the room has finished going dark */
   clearTimeout(flickT);
   root.classList.remove("flick");
@@ -3929,7 +3997,7 @@ function applyNight(strike){
     flickT=setTimeout(function(){
       root.classList.add("flick");
       flickT=setTimeout(function(){root.classList.remove("flick");},1400);
-    },620);
+    },700);
   }
 }
 if(night)applyNight(false);
