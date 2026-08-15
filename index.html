@@ -797,7 +797,7 @@ const MARK_URL = "https://script.google.com/macros/s/AKfycbxvNggOJvLx8yY0JsKWdpX
 const MARK_KEY = "puppy";
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-17n";
+const BUILD = "2026-08-17p";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -2602,7 +2602,12 @@ document.querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>{
   if(FOCUS)goArtist(null); else render();
 });
 document.querySelectorAll("[data-me]").forEach(b=>b.onclick=()=>{
-  store.set("aoty-me",b.dataset.me);paintProfiles();
+  store.set("aoty-me",b.dataset.me);
+  paintProfiles();
+  /* Which of you is looking decides whose song marks are buttons, and that is
+     baked in when a row is drawn. Repainting the avatars alone left every mark
+     on screen dead until something else happened to force a redraw. */
+  render();
 });
 function paintHover(){
   const v=store.get("aoty-hover","on");
