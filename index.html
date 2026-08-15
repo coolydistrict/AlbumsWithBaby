@@ -3155,7 +3155,7 @@ header:has(.tally:last-child){padding-bottom:0}
   opacity:0; transform:translateY(10px); transition:opacity .3s ease-out,
     transform .4s cubic-bezier(.32,.72,.28,1)}
 /* the arrow keeps to the right, below the jumps and in from the edge */
-.v4-top{position:fixed; right:2.4rem; bottom:4.6rem; z-index:71;
+.v4-top{position:fixed; right:2.4rem; bottom:1.5rem; z-index:71;
   width:44px; height:44px; border-radius:50%; display:grid; place-items:center;
   font-size:15px; color:var(--dim); background:var(--raised-2);
   box-shadow:0 0 0 1px var(--line-2), 0 6px 18px rgba(15,37,54,.16);
@@ -3167,7 +3167,10 @@ header:has(.tally:last-child){padding-bottom:0}
   box-shadow:0 0 0 1px var(--accent-soft), 0 10px 22px rgba(15,37,54,.2)}
 .night .v4-top{box-shadow:0 0 0 1px var(--line-2), 0 6px 20px rgba(0,0,0,.45)}
 .night .v4-top:hover{box-shadow:0 0 0 1px var(--accent), 0 0 18px -6px var(--accent)}
-@media(max-width:560px){.v4-top{right:1.1rem; bottom:5.6rem}}
+/* it shares the jump buttons' baseline, and steps up out of the way only
+   while the player is actually on screen */
+body:has(.player.on) .v4-top{bottom:5.6rem}
+@media(max-width:560px){.v4-top{right:1.1rem}}
 .v4-rail.on{opacity:1; transform:none; pointer-events:auto}
 .v4-rail button{display:flex; align-items:center; gap:.5rem; border-radius:999px;
   background:var(--raised-2); color:var(--dim); padding:.5rem .9rem;
