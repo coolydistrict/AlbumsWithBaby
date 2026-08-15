@@ -801,7 +801,7 @@ const MARK_URL = "https://script.google.com/macros/s/AKfycbxvNggOJvLx8yY0JsKWdpX
 const MARK_KEY = "puppy";
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-18a";
+const BUILD = "2026-08-18c";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -1475,30 +1475,93 @@ const NEXT_MARK={"y":"n","n":"y","":"y"};
    would vanish on the next poll and reappear once the cache caught up - which
    is exactly what it did. Anything marked in the last few minutes is put back
    on top of whatever the sheet says. */
-const RECENT=new Map();
-const RECENT_FOR=4*60*1000;
+/* ── the outbox ──────────────────────────────────────────────────────
+   A mark has to survive three things: the script taking a second to answer,
+   Google serving a copy of the sheet that is minutes behind, and you
+   reloading the page in between. Holding it in a variable covered none of
+   them - a refresh wiped it and the stale sheet then overwrote it.
 
-function editKey(d,who,song){
-  return [d.artist,d.album,who,song].join("\u0000").toLowerCase();
+   So every mark is written to this browser's own storage the moment you make
+   it, and stays there until the sheet itself comes back agreeing. Anything
+   that never reached the script is sent again on the next load. */
+const OUTBOX_KEY="aoty-outbox";
+const OUTBOX_FOR=30*60*1000;          // give up on an unconfirmed mark after this
+
+function editKey(e){
+  return [e.artist,e.album,e.who,e.song].join("\u0000").toLowerCase();
+}
+function outboxLoad(){
+  try{ const v=JSON.parse(store.get(OUTBOX_KEY,"[]")); return Array.isArray(v)?v:[]; }
+  catch(err){ return []; }
+}
+function outboxSave(list){
+  try{ store.set(OUTBOX_KEY,JSON.stringify(list.slice(-300))); }catch(err){}
 }
 function rememberEdit(d,who,song,v){
-  RECENT.set(editKey(d,who,song),{v:v,at:Date.now(),
-    artist:d.artist,album:d.album,who:who,song:song});
+  const e={artist:d.artist,album:d.album,who:who,song:song,v:v,at:Date.now(),sent:false};
+  const list=outboxLoad().filter(x=>editKey(x)!==editKey(e));
+  list.push(e);
+  outboxSave(list);
 }
+function markSent(d,who,song,ok){
+  const k=editKey({artist:d.artist,album:d.album,who:who,song:song});
+  const list=outboxLoad();
+  const hit=list.filter(x=>editKey(x)===k)[0];
+  if(hit){ hit.sent=!!ok; outboxSave(list); }
+}
+
+/** What the sheet itself currently says about one song. */
+function sheetSays(d,who,song){
+  const s=who==="anthony"?d.aS:d.nS;
+  const k=String(song).toLowerCase();
+  return s.dis.has(k)?"n":(s.yes&&s.yes.has(k))?"y":"";
+}
+
+/* Put every outstanding mark back on top of whatever the sheet just handed
+   us, and throw away the ones the sheet has caught up with. */
 function replayEdits(){
   const now=Date.now();
-  [...RECENT.entries()].forEach(([k,e])=>{
-    if(now-e.at>RECENT_FOR){RECENT.delete(k);return;}
+  const list=outboxLoad();
+  const keep=[];
+  list.forEach(e=>{
     const d=ROWS.find(x=>x.artist===e.artist&&x.album===e.album);
-    if(d)applyMark(d,e.who,e.song,e.v);
+    if(!d){ if(now-e.at<OUTBOX_FOR)keep.push(e); return; }   // row not loaded yet
+    if(e.sent&&sheetSays(d,e.who,e.song)===e.v)return;       // the sheet agrees: done
+    if(now-e.at>OUTBOX_FOR)return;                           // too old to keep pushing
+    applyMark(d,e.who,e.song,e.v);
+    keep.push(e);
   });
+  if(keep.length!==list.length)outboxSave(keep);
+}
+
+/** Anything that never reached the script gets another go. */
+let FLUSHING=false;
+function flushOutbox(){
+  if(FLUSHING||!MARK_URL||!MARK_KEY)return;
+  const list=outboxLoad().filter(x=>!x.sent);
+  if(!list.length)return;
+  FLUSHING=true;
+  list.reduce((chain,e)=>chain.then(()=>
+    markCall({what:"mark",artist:e.artist,album:e.album,song:e.song,
+              who:e.who==="anthony"?"a":"n",
+              verdict:e.v==="y"?"yes":e.v==="n"?"no":"clear"})
+      .then(r=>{
+        if(!r.ok)return;
+        const d=ROWS.find(x=>x.artist===e.artist&&x.album===e.album);
+        if(d)markSent(d,e.who,e.song,true);
+      })
+  ),Promise.resolve()).then(()=>{FLUSHING=false;},()=>{FLUSHING=false;});
 }
 
 function markCall(params){
   if(!MARK_URL||!MARK_KEY)return Promise.resolve({ok:false,error:"no endpoint set"});
   const q=Object.keys(params).map(k=>k+"="+encodeURIComponent(params[k])).join("&");
   return jsonp(MARK_URL+"?key="+encodeURIComponent(MARK_KEY)+"&"+q)
-    .then(r=>r||{ok:false,error:"the script did not answer"});
+    /* noReply is not the same as a refusal. Nothing coming back means the
+       script never heard us, so the mark stands and is sent again later.
+       A refusal means the sheet considered it and said no, and only then
+       does the mark go back. */
+    .then(r=>r||{ok:false,noReply:true,error:"the script did not answer"});
 }
 
 /** Puts the new state into the row we already hold, so the gauge, the score
@@ -1535,9 +1598,15 @@ function markSong(btn){
   markCall({what:"mark",artist:d.artist,album:d.album,song:song,
             who:who==="anthony"?"a":"n",
             verdict:next==="y"?"yes":next==="n"?"no":"clear"}).then(r=>{
-    if(r.ok)return;
+    if(r.ok){ markSent(d,who,song,true); return; }
+    if(r.noReply){
+      // it stays on screen and in the outbox, and goes again on the next load
+      note("Saved here \u2014 the sheet has not confirmed it yet");
+      return;
+    }
     applyMark(d,who,song,was);        // put it back exactly as it was
     rememberEdit(d,who,song,was);
+    markSent(d,who,song,true);        // the revert is the truth now
     redrawOpen(d,who,song);
     note(r.error||"The sheet refused that");
   });
@@ -1563,7 +1632,7 @@ function wipeMine(btn){
   mine.reduce((chain,song)=>chain.then(()=>
     markCall({what:"mark",artist:d.artist,album:d.album,song:song,
               who:who==="anthony"?"a":"n",verdict:"clear"})
-      .then(r=>{ if(!r.ok)failed++; })
+      .then(r=>{ if(r.ok)markSent(d,who,song,true); else failed++; })
   ),Promise.resolve()).then(()=>{
     if(failed)note(failed+" of "+mine.length+" did not save \u2014 reload to see the sheet");
   });
@@ -3093,6 +3162,8 @@ function boot(rows,sample,header){
   $("foot").textContent=(sample?"Sample data":(LIVE?"Live \u00b7 sheet "+LIVE_SHEET_ID.slice(0,6):"Published CSV \u00b7 up to 5 min behind"))
   +" \u00b7 build "+BUILD+(MSGSTAT==="off"?"":" \u00b7 "+MSGSTAT);
 
+  replayEdits();          // marks made before a refresh are still yours
+  flushOutbox();          // and any that never reached the script go again
   paintProfiles();
   wireFilters();
   readHash();
@@ -3162,6 +3233,7 @@ function applyCSV(text,header){
     sel.value=want.indexOf(had)>-1?had:"";
   }
   replayEdits();          // the sheet's copy may be minutes behind your taps
+  flushOutbox();          // and anything that never got there is sent again
   paintTally();
   buildMarquee();
 }
