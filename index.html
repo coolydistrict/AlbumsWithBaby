@@ -797,7 +797,7 @@ const MARK_URL = "https://script.google.com/macros/s/AKfycbxvNggOJvLx8yY0JsKWdpX
 const MARK_KEY = "puppy";
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-17q";
+const BUILD = "2026-08-17s";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -886,7 +886,10 @@ function parseCSV(text){
   if(cell||row.length){row.push(cell);rows.push(row);}
   return rows;
 }
-/* Three states now: ~ disliked, + liked, bare name means nothing said.
+/* Three states now: ~ disliked, * liked, bare name means nothing said.
+   A star and not a plus: Sheets reads a cell starting with + as a formula and
+   turns it into #ERROR!. A leading + is still understood, so cells written by
+   the earlier build still read correctly until the sheet rewrites them.
    Absence used to count as liked, which was fine by hand but would have given
    every freshly fetched album a perfect score the moment ratings started
    working themselves out from the marks. */
@@ -900,8 +903,8 @@ function splitSongs(raw){
     : text.split(/[;,\u2022\u00b7]+/);
   parts.map(x=>x.trim()).filter(Boolean).forEach(t=>{
     const struck=/^~/.test(t);
-    const plus=!struck&&/^\+/.test(t);
-    const name=t.replace(/^[~+]+\s*/,"").replace(/\s*~+$/,"").trim();
+    const plus=!struck&&/^[*+]/.test(t);
+    const name=t.replace(/^[~*+]+\s*/,"").replace(/\s*~+$/,"").trim();
     if(!name)return;
     const k=name.toLowerCase();
     if(seen.has(k))return;
@@ -912,13 +915,15 @@ function splitSongs(raw){
   return{order,liked,disliked,dis,yes,all:order};
 }
 
-/** liked out of everything judged, the same sum the script does. */
+/** Liked out of the whole tracklist, the same sum the script does.
+    Null until something is marked, so an untouched album keeps its typed
+    rating instead of reading as zero. */
 function scoreOf(s){
-  if(!s)return null;
+  if(!s||!s.order.length)return null;
   let y=0,n=0;
   s.order.forEach(t=>{const k=t.toLowerCase();
     if(s.dis.has(k))n++; else if(s.yes&&s.yes.has(k))y++;});
-  return (y+n)?Math.round(y/(y+n)*100):null;
+  return (y+n)?Math.round(y/s.order.length*100):null;
 }
 
 const DEFAULT_COLS={photo:0,artist:1,genre:2,cover:3,album:4,year:5,
