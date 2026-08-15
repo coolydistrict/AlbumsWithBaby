@@ -40,7 +40,7 @@ button{font:inherit; color:inherit; background:none; border:0; cursor:pointer}
 #confetti{position:fixed; inset:0; pointer-events:none; z-index:90}
 
 .scroll-line{position:fixed; left:0; top:38px; height:4px; width:0; z-index:61;
-  background:linear-gradient(90deg,#7FC5E8,var(--accent),#E8A0B4); pointer-events:none;
+  background:linear-gradient(90deg,#7FC0E6,var(--accent),#D07FA4); pointer-events:none;
   box-shadow:0 0 10px rgba(23,90,140,.55); border-radius:0 4px 4px 0;
   transition:width .12s linear}
 .marquee{position:fixed; left:0; right:0; top:0; z-index:60; height:38px;
@@ -292,7 +292,7 @@ button.artist-head:hover h2{color:var(--accent)}
 .cover.in{opacity:1; transform:translateY(0) rotateZ(-1.6deg)}
 .cover::after{content:""; position:absolute; inset:-4px -4px -15px -4px;
   border-radius:3px; pointer-events:none; opacity:0;
-  box-shadow:0 0 20px 0 color-mix(in srgb,var(--gc,#7FC5E8) 60%,transparent);
+  box-shadow:0 0 20px 0 color-mix(in srgb,var(--gc,#7FC0E6) 60%,transparent);
   transition:opacity .6s ease-out}
 .album.playing .cover{z-index:2}
 .album.playing .cover::after{opacity:1;
@@ -301,8 +301,8 @@ button.artist-head:hover h2{color:var(--accent)}
 /* Only the layer breathes. Opacity is left to the transition above so the
    glow can fade out when the track stops. */
 @keyframes breathe{
-  0%,100%{box-shadow:0 0 16px -2px color-mix(in srgb,var(--gc,#7FC5E8) 55%,transparent)}
-  50%{box-shadow:0 0 44px 8px color-mix(in srgb,var(--gc,#7FC5E8) 95%,transparent)}}
+  0%,100%{box-shadow:0 0 16px -2px color-mix(in srgb,var(--gc,#7FC0E6) 55%,transparent)}
+  50%{box-shadow:0 0 44px 8px color-mix(in srgb,var(--gc,#7FC0E6) 95%,transparent)}}
 @media(prefers-reduced-motion:reduce){.album.playing .cover::after{animation:none}}
 .album:nth-of-type(2n) .cover.in{transform:translateY(0) rotateZ(1.9deg)}
 .album:nth-of-type(3n) .cover.in{transform:translateY(0) rotateZ(-.5deg)}
@@ -730,7 +730,7 @@ footer button:hover{border-color:var(--accent)}
     <option value="gap">Biggest disagreement</option>
   </select>
   <span class="view-tog" id="view-tog">
-    <button data-view="list" class="on">List</button><button data-view="wall">Wall</button>
+    <button data-view="list" class="on">List</button><button data-view="wall">Wall</button><button data-view="artists">Artists</button>
   </span>
   <span class="count" id="count"></span>
 </div>
@@ -775,7 +775,7 @@ const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSud4ctkV
 const INI = { anthony:"AP", annette:"AA" };
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-17i";
+const BUILD = "2026-08-17k";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -809,15 +809,14 @@ const SAMPLE = [
 const CROWN="data:image/png;base64,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";
 
 const GENRE_HUE={
-  "hip hop":"#A8552B","r&b":"#8E3B6B","pop":"#C0407A","j-pop":"#C2568C","j-rock":"#A33B4E",
-  "k-pop":"#B0407F",
-  "rock":"#8A3A3A","alt rock":"#6B4BA8","psych rock":"#7A4BB8","indie":"#2E7D6B",
-  "emo":"#5A4B9A","punk":"#B23A48","metal":"#4A4A55","electronic":"#2F6FA8",
-  "jazz":"#8A6A1F","lo-fi":"#4A7A5A","soundtrack":"#6A6A2F","other":"#5F6B78",
-  "c-pop":"#B34A6A","country":"#9A6B3A","folk":"#7A6A3F","classical":"#5A5A7A",
-  "blues":"#3A5A8A","reggae":"#3F7A4A","latin":"#C05A2F","afrobeats":"#B07A20",
-  "drum & bass":"#2F5F7A","hyperpop":"#D14A9A","post-rock":"#4A5F6B",
-  "gospel":"#8A5A2F","disco":"#A8407A"
+  "hip hop":"oklch(47% 0.128 40)","r&b":"oklch(47% 0.128 355)","pop":"oklch(47% 0.128 345)","j-pop":"oklch(47% 0.128 330)",
+  "j-rock":"oklch(47% 0.128 10)","k-pop":"oklch(47% 0.128 338)","rock":"oklch(47% 0.128 25)","alt rock":"oklch(47% 0.128 300)",
+  "psych rock":"oklch(47% 0.128 290)","indie":"oklch(47% 0.128 160)","emo":"oklch(47% 0.128 285)","punk":"oklch(47% 0.128 15)",
+  "metal":"oklch(47% 0.045 255)","electronic":"oklch(47% 0.128 245)","jazz":"oklch(47% 0.128 85)","lo-fi":"oklch(47% 0.128 150)",
+  "soundtrack":"oklch(47% 0.128 105)","other":"oklch(47% 0.045 250)","c-pop":"oklch(47% 0.128 350)","country":"oklch(47% 0.128 55)",
+  "folk":"oklch(47% 0.128 95)","classical":"oklch(47% 0.045 270)","blues":"oklch(47% 0.128 235)","reggae":"oklch(47% 0.128 145)",
+  "latin":"oklch(47% 0.128 30)","afrobeats":"oklch(47% 0.128 70)","drum & bass":"oklch(47% 0.128 225)","hyperpop":"oklch(47% 0.128 320)",
+  "post-rock":"oklch(47% 0.045 205)","gospel":"oklch(47% 0.128 60)","disco":"oklch(47% 0.128 315)"
 };
 const hueOf = g => GENRE_HUE[String(g||"").trim().toLowerCase()]||"var(--faint)";
 
@@ -834,7 +833,8 @@ const $ = id => document.getElementById(id);
 let ROWS=[], QUEUE=[], ROSTER=new Map(), FOCUS=null, VIEW="list", usingSample=true;
 
 /* ── colour ramp ─────────────────────────────────────────────── */
-const STOPS=[[0,193,58,58],[50,169,131,20],[100,44,125,81]];
+/* Red is fully in by 45, and the top of the scale is a lighter, fresher green. */
+const STOPS=[[0,168,38,38],[45,203,76,52],[62,201,150,42],[80,118,172,84],[100,96,196,132]];
 function ramp(v){
   v=Math.max(0,Math.min(100,v));
   for(let i=0;i<STOPS.length-1;i++){
@@ -847,7 +847,7 @@ function ramp(v){
 
 /* One language for disagreement. The facts strip and the span under the pips
    read the same thresholds, so "Apart 24 pts" in red sits over a red span. */
-function gapHue(g){ return g>=20?"#C13A3A":g>=8?"#A98314":"#2C7D51"; }
+function gapHue(g){ return g>=20?"#C2493C":g>=8?"#BE952C":"#3E9A63"; }
 /* Hue says which band, weight says how far into it: a 9 and a 19 are both
    amber but should not look identical. Never fully transparent. */
 function gapWeight(g){ return (.35+Math.min(1,Math.max(0,g)/30)*.55).toFixed(2); }
@@ -921,7 +921,7 @@ const notNA = v => {
 
 function shape(raw,cols){
   const K=cols||DEFAULT_COLS;
-  const out=[],roster=new Map(),rated=new Set();
+  const out=[],roster=new Map(),rated=new Set(),unrated=[];
   let lastArtist="",lastGenre="";
   for(const r of raw){
     const artist=(r[K.artist]||"").trim()||lastArtist;
@@ -942,7 +942,13 @@ function shape(raw,cols){
     const rawN=String(r[K.nRate]==null?"":r[K.nRate]).trim();
     const skipA=/^[-\u2013\u2014]$/.test(rawA), skipN=/^[-\u2013\u2014]$/.test(rawN);
     const A=parseInt(rawA,10),N=parseInt(rawN,10);
-    if(isNaN(A)&&isNaN(N)&&!skipA&&!skipN)continue;
+    if(isNaN(A)&&isNaN(N)&&!skipA&&!skipN){
+      /* an album in the sheet that nobody has scored is not nothing: it is
+         something waiting to be heard, so it goes to the queue */
+      unrated.push({artist,genre,album,year:tidyNum(r[K.year]).trim(),
+        cover:(/^https?:\/\//i.test(String(r[K.cover]||"").trim())?String(r[K.cover]).trim():"")});
+      continue;
+    }
     rated.add(artist);
     // one of you rated it and the other left everything empty - that is a solo
     // listen, whether or not a dash was typed
@@ -965,6 +971,10 @@ function shape(raw,cols){
   }
   const queue=[];
   roster.forEach((v,artist)=>{ if(!rated.has(artist)) queue.push({artist,genre:v.genre}); });
+  /* an artist already on the shelf as a whole does not need their albums
+     listed underneath as well */
+  const waiting=new Set(queue.map(x=>x.artist));
+  unrated.forEach(x=>{ if(!waiting.has(x.artist))queue.push(x); });
   return{rows:out,queue,roster};
 }
 
@@ -1372,11 +1382,11 @@ function radarHTML(){
     <svg class="radar" viewBox="-16 -14 132 128" role="img" aria-label="Genre comparison">
       ${rings}${spokes}
       <polygon class="shape" points="${poly(aG)}" stroke="#175A8C" fill="#175A8C"/>
-      <polygon class="shape" points="${poly(nG)}" stroke="#C13A3A" fill="#C13A3A"/>
+      <polygon class="shape" points="${poly(nG)}" stroke="#C2493C" fill="#C2493C"/>
       ${labels}
     </svg>
     <div class="legend"><span><i style="background:#175A8C"></i>${INI.anthony}</span>
-      <span><i style="background:#C13A3A"></i>${INI.annette}</span></div></div>`;
+      <span><i style="background:#C2493C"></i>${INI.annette}</span></div></div>`;
 }
 
 /* avg is 0/0 when neither of you has put a number on it. NaN loses every
@@ -1420,13 +1430,25 @@ const podWho=()=>{
 };
 const podScore=(d,who)=>who==="a"?d.a:who==="n"?d.n:d.avg;
 
+/* Under Both, a ranking is of albums you have BOTH put a number on. An average
+   built from one score is one person's opinion wearing the pair's name, which
+   put solo listens on a shared podium and made the top of the wall meaningless.
+   Under a single name it is simply whether that person has rated it.
+   Only rankings use this - the list, the rows and the panels still show every
+   album either of you has scored. */
+function ranks(d,who){
+  if(who==="a")return d.a!==null;
+  if(who==="n")return d.n!==null;
+  return d.a!==null&&d.n!==null;
+}
+
 /* Top genres for whoever is selected, by their own scores. Built from the
    same groupAvg the stats section uses, so the numbers agree. */
 function podGenresHTML(who){
   /* With a genre chosen in the dropdown, only that genre's average belongs
      here - the other four are about albums the page is no longer showing. */
   const pick=$("genre")?$("genre").value:"";
-  let list=groupAvg("genre",d=>podScore(d,who));
+  let list=groupAvg("genre",d=>ranks(d,who)?podScore(d,who):null);
   list=(pick?list.filter(g=>g.k===pick):list).slice(0,5);
   if(!list.length)return"";
   return`<div class="pod-genres">${list.map(g=>
@@ -1438,7 +1460,7 @@ function podGenresHTML(who){
 function podiumHTML(list){
   const who=podWho();
   const val=d=>podScore(d,who);
-  const rated=list.filter(d=>{const v=val(d);return v!==null&&!isNaN(v);});
+  const rated=list.filter(d=>ranks(d,who));
   const top=bestEdition(rated,val).sort((x,y)=>val(y)-val(x)).slice(0,3);
 
   const tabs=`<div class="pod-who"><div class="seg">${POD_WHO.map(p=>
@@ -1448,7 +1470,10 @@ function podiumHTML(list){
   /* One of you may have rated far fewer albums than the pair have together,
      so say so rather than dropping the whole block and the tabs with it. */
   if(top.length<3)return tabs+podGenresHTML(who)+`<div class="podium-thin">${
-    who==="both"?"Three albums you have both rated will fill the podium."
+    who==="both"?(rated.length
+        ?"You have both rated "+rated.length+" album"+(rated.length===1?"":"s")+
+         ". Three fills the podium \u2014 or see one of you alone above."
+        :"Nothing you have both rated yet. Three fills the podium.")
                 :esc(POD_WHO.filter(p=>p[0]===who)[0][1])+" has rated "+rated.length+
                  " album"+(rated.length===1?"":"s")+" so far. Three fills the podium."
   }</div>`;
@@ -1467,14 +1492,14 @@ function podiumHTML(list){
 }
 
 function wallHTML(list){
-  /* The wall is a ranking too, so it holds only rated albums and numbers them
-     the way the list does. It ranks on the pair's average like everything
-     outside the podium. */
-  const val=d=>d.avg;
-  const shown=list.filter(d=>{const v=val(d);return v!==null&&!isNaN(v);})
-    .sort((x,y)=>val(y)-val(x));
+  /* The wall is the same ranking as the podium, continued, so it answers to
+     the same tabs and the same both-rated rule. */
+  const who=podWho(), val=d=>podScore(d,who);
+  const shown=list.filter(d=>ranks(d,who)).sort((x,y)=>val(y)-val(x));
   if(!shown.length)return podiumHTML(list)+
-    `<div class="podium-thin">Nothing rated yet — anything you score lands on the wall.</div>`;
+    `<div class="podium-thin">${who==="both"
+      ?"Nothing you have both rated yet \u2014 albums you have each scored land here."
+      :"Nothing rated yet \u2014 anything you score lands on the wall."}</div>`;
   return podiumHTML(list)+`<div class="wall">${shown.map((d,i)=>
     `<button data-open="${ROWS.indexOf(d)}" title="${esc(d.artist)} — ${esc(d.album)}">
       <div class="w-shot" data-cover="${esc(d.cover)}" data-art="${esc(d.artist+" "+d.album)}">${esc(initials(d.album))}</div>
@@ -1771,9 +1796,9 @@ function confetti(colors,count){
   })();
 }
 const PARTY={
-  anniversary:["#E8A0B4","#CFE2F3","#F5D6A0","#175A8C"],
-  annette:["#E8A0B4","#F2C4D6","#FFFFFF","#175A8C"],
-  anthony:["#7FC5E8","#CFE2F3","#FFFFFF","#175A8C"]
+  anniversary:["#D07FA4","#CFE2F3","#F5D6A0","#175A8C"],
+  annette:["#D07FA4","#F2C4D6","#FFFFFF","#175A8C"],
+  anthony:["#7FC0E6","#CFE2F3","#FFFFFF","#175A8C"]
 };
 function celebrate(kind){
   if(occasionConfetti(kind))confetti(PARTY[kind]||PARTY.anniversary,560);
@@ -2036,17 +2061,24 @@ function artistHead(name,genre,clickable,extra,avg,spark){
 function queueHTML(q,g){
   const list=QUEUE.filter(x=>{
     if(g&&x.genre!==g)return false;
-    if(q&&!x.artist.toLowerCase().includes(q))return false;
+    if(q&&!((x.artist+" "+(x.album||"")).toLowerCase().includes(q)))return false;
     return true;
   }).sort((a,b)=>a.artist.toLowerCase().localeCompare(b.artist.toLowerCase()));
   if(!list.length)return"";
+  const albums=list.filter(x=>x.album).length;
   return`<section class="queue">
     <div class="queue-head rise"><h2>To listen</h2><span>${list.length}</span></div>
-    <p class="rise">On the list, nothing rated yet.</p>
-    <div class="shelf">${list.map(x=>`<button data-artist="${esc(x.artist)}"><figure>
-      <div class="thumb" data-art="${esc(x.artist)}" data-kind="artist">${esc(initials(x.artist))}</div>
-      <figcaption class="rise">${esc(x.artist)}</figcaption><span class="g rise" style="color:${hueOf(x.genre)}">${esc(x.genre||"")}</span>
-    </figure></button>`).join("")}</div></section>`;
+    <p class="rise">On the list, nothing rated yet${
+      albums?` \u2014 including ${albums} album${albums===1?"":"s"} sitting in the sheet without a score`:""}.</p>
+    <div class="shelf">${list.map(x=>x.album
+      ?`<button data-artist="${esc(x.artist)}" title="${esc(x.artist)} \u2014 ${esc(x.album)}"><figure>
+        <div class="thumb sleeve" data-cover="${esc(x.cover||"")}" data-art="${esc(x.artist+" "+x.album)}">${esc(initials(x.album))}</div>
+        <figcaption class="rise"><em>${esc(x.artist)}</em>${esc(x.album)}</figcaption><span class="g rise" style="color:${hueOf(x.genre)}">${esc(x.genre||"")}</span>
+      </figure></button>`
+      :`<button data-artist="${esc(x.artist)}"><figure>
+        <div class="thumb" data-art="${esc(x.artist)}" data-kind="artist">${esc(initials(x.artist))}</div>
+        <figcaption class="rise">${esc(x.artist)}</figcaption><span class="g rise" style="color:${hueOf(x.genre)}">${esc(x.genre||"")}</span>
+      </figure></button>`).join("")}</div></section>`;
 }
 
 const SORTS={
@@ -2144,12 +2176,15 @@ function render(){
         ${al.map(d=>albumHTML(d,false)).join("")}</section>`;
     }).join("");
   }else{
-    /* A ranking is of rated albums only - an unscored record has no place in it. */
+    /* Highest rated is a ranking, so it follows the podium tabs: Both means
+       albums you have both scored, a name means that person's scores. Every
+       other sort shows the lot. */
+    const rw=podWho();
     const pool=sort==="rating"
-      ? list.filter(d=>!isNaN(d.avg))
+      ? list.filter(d=>ranks(d,rw))
       : list;
     const ordered=sort==="rating"
-      ? pool.slice().sort(byScore)
+      ? pool.slice().sort((x,y)=>podScore(y,rw)-podScore(x,rw))
       : pool.slice().sort(SORTS[sort]);
     const byYear=(sort==="new"||sort==="old");
     let seen="",body="";
@@ -2182,11 +2217,47 @@ let histOK=true;
 function filterState(){
   return{q:$("q").value,g:$("genre").value,sort:$("sort").value};
 }
+
+/* The search box is live: it redraws as you type, and the instant it is empty
+   the page is exactly what it was before you typed anything.
+   "input" on its own was not enough. Clearing the field with its own x, or
+   with Escape, fires "search" in WebKit and no "input" at all - which is why
+   deleting a query used to leave the filtered view sitting there. Every event
+   that can change the box is listened for, and a slow watcher catches any
+   browser that fires none of them. */
+let filterTimer=null,lastFilter=null;
+function filterSig(){
+  return $("q").value.trim()+"\u0000"+$("genre").value+"\u0000"+$("sort").value;
+}
+function applyFilters(now){
+  const sig=filterSig();
+  if(sig===lastFilter)return;              // nothing actually changed
+  lastFilter=sig;                          // claimed straight away, so the
+  clearTimeout(filterTimer);               // watcher cannot double-fire
+  const run=()=>{ filterTimer=null; render(); syncState(); };
+  if(now)run(); else filterTimer=setTimeout(run,110);
+}
+function wireFilters(){
+  lastFilter=filterSig();
+  ["input","search","change"].forEach(ev=>
+    $("q").addEventListener(ev,()=>applyFilters(false)));
+  $("q").addEventListener("keydown",e=>{
+    if(e.key==="Escape"&&$("q").value){     // Escape clears rather than exiting
+      e.preventDefault(); e.stopPropagation();
+      $("q").value=""; applyFilters(true);
+    }
+  });
+  ["genre","sort"].forEach(id=>["input","change"].forEach(ev=>
+    $(id).addEventListener(ev,()=>applyFilters(true))));
+  // last resort: if the box has changed and nothing told us, notice anyway
+  setInterval(()=>applyFilters(false),400);
+}
 function applyFilterState(f){
   if(!f)return;
   $("q").value=f.q||"";
   $("genre").value=f.g||"";
   $("sort").value=f.sort||"artist";
+  lastFilter=filterSig();          // the watcher must not treat this as a change
 }
 function ourState(){
   const st=history.state;
@@ -2280,7 +2351,7 @@ document.addEventListener("click",e=>{
 document.querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>{
   VIEW=b.dataset.view;
   document.querySelectorAll("[data-view]").forEach(x=>x.classList.toggle("on",x.dataset.view===VIEW));
-  $("sort").disabled=VIEW==="wall";
+  $("sort").disabled=VIEW==="wall"||VIEW==="artists";
   if(FOCUS)goArtist(null); else render();
 });
 document.querySelectorAll("[data-me]").forEach(b=>b.onclick=()=>{
@@ -2515,7 +2586,7 @@ function boot(rows,sample,header){
   +" \u00b7 build "+BUILD+(MSGSTAT==="off"?"":" \u00b7 "+MSGSTAT);
 
   paintProfiles();
-  ["q","genre","sort"].forEach(id=>$(id).addEventListener("input",()=>{render();syncState();}));
+  wireFilters();
   readHash();
   if(!FOCUS)render();
 
@@ -2638,6 +2709,1254 @@ if(SHEET_CSV_URL||LIVE_SHEET_ID){
 }
 loadMessages().then(start);
 setTimeout(hideBoot,6000);
+</script>
+<style id="v4-layer">
+/* ── v4 design layer ────────────────────────────────────────────────
+   Additive: delete this block and the two scripts below it and the page is
+   exactly as it was. */
+html{background:var(--ground)}
+body{background:none}
+.v3-back{position:absolute; left:0; right:0; top:0; height:940px; z-index:-1;
+  pointer-events:none; opacity:0; transition:opacity 1.1s ease-out;
+  -webkit-mask-image:linear-gradient(180deg,#000 0,#000 38%,transparent 100%);
+  mask-image:linear-gradient(180deg,#000 0,#000 38%,transparent 100%)}
+.v3-back.on{opacity:1}
+.night .v3-back{opacity:0}
+.night .v3-back.on{opacity:.85}
+.v3-grain{position:fixed; inset:0; z-index:96; pointer-events:none; opacity:.4;
+  mix-blend-mode:multiply; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='.42'/%3E%3C/svg%3E"); background-size:180px 180px}
+
+@property --em1{syntax:"<color>"; inherits:false; initial-value:#175A8C}
+@property --em2{syntax:"<color>"; inherits:false; initial-value:#3E86BE}
+@property --em3{syntax:"<color>"; inherits:false; initial-value:#C2628F}
+h1 em{--em1:#175A8C; --em2:#3E86BE; --em3:#C2628F;
+  background:linear-gradient(92deg,var(--em1),var(--em2) 42%,var(--em3) 70%,var(--em1));
+  background-size:230% 100%; -webkit-background-clip:text; background-clip:text;
+  color:transparent; animation:v3shimmer 9s ease-in-out infinite;
+  /* present in both themes so the layer never appears or disappears */
+  filter:drop-shadow(0 0 14px rgba(121,190,234,0));
+  transition:--em1 .55s cubic-bezier(.4,0,.2,1), --em2 .55s cubic-bezier(.4,0,.2,1),
+    --em3 .55s cubic-bezier(.4,0,.2,1), filter .55s ease}
+@keyframes v3shimmer{0%,100%{background-position:0 0} 50%{background-position:100% 0}}
+.marquee::after{content:""; position:absolute; inset:0; pointer-events:none;
+  background:repeating-linear-gradient(180deg,rgba(255,255,255,.05) 0 1px,transparent 1px 3px)}
+
+/* Gauge: lit rail, ruler on hover, who-sits-where readout. No histogram behind
+   it any more - it was identical on every row and sat over the portraits. */
+.track,.span{overflow:hidden}
+.track::after,.span::after{content:""; position:absolute; inset:0; border-radius:inherit;
+  pointer-events:none;
+  background:linear-gradient(180deg,rgba(255,255,255,.5),rgba(255,255,255,.06) 48%,rgba(15,37,54,.07))}
+.scale::before{content:""; position:absolute; left:0; right:0; top:20px; height:19px;
+  pointer-events:none; opacity:0; transition:opacity .25s ease-out;
+  background:repeating-linear-gradient(90deg,var(--line-2) 0 1px,transparent 1px 10%)}
+.gauge-wrap:hover .scale::before{opacity:.7}
+.g-read{position:absolute; left:0; right:0; top:-1px; text-align:center; pointer-events:none;
+  font-family:"JetBrains Mono",monospace; font-size:9.5px; font-weight:600; letter-spacing:.13em;
+  text-transform:uppercase; color:var(--dim); opacity:0; transition:opacity .2s ease-out}
+.gauge-wrap:hover .g-read{opacity:1}
+.pip{box-shadow:0 0 0 2px var(--ground),0 0 0 4px currentColor,0 6px 14px rgba(15,37,54,.24)}
+
+.album>.rise,.album .gauge-wrap,.album .cover,.album .detail-wrap{position:relative; z-index:1}
+/* the rank sits in its own fixed column so a 26px medal and a two-digit
+   number share one centre line */
+.album.ranked .rankno{position:absolute; left:.55rem; top:50%; transform:translateY(-50%);
+  width:26px; text-align:center; z-index:1}
+@media(max-width:700px){.album::after{display:none}}
+
+/* A gloss travels across a sleeve on hover. */
+/* the gloss takes the shape it lies on, so a round portrait is not covered by
+   a square sheet of light */
+.cover::before,.pod-shot::before,.wall .w-shot::before,.v3-wallhero .w-shot::before{
+  content:""; position:absolute; inset:0; z-index:2; pointer-events:none;
+  border-radius:inherit; overflow:hidden;
+  background:linear-gradient(112deg,transparent 34%,rgba(255,255,255,.52) 47%,
+    rgba(255,255,255,.1) 53%,transparent 66%);
+  background-size:280% 100%; background-position:135% 0; background-repeat:no-repeat;
+  transition:background-position .85s cubic-bezier(.3,.8,.3,1)}
+.album:hover .cover::before,.pod:hover .pod-shot::before,
+.wall button:hover .w-shot::before,.v3-wallhero button:hover .w-shot::before{background-position:-35% 0}
+.pod-shot,.wall .w-shot,.artist-head .ph{position:relative; overflow:hidden}
+.artist-head .ph::before{content:""; position:absolute; inset:0; z-index:2;
+  pointer-events:none; border-radius:inherit;
+  background:linear-gradient(112deg,transparent 34%,rgba(255,255,255,.5) 47%,
+    rgba(255,255,255,.1) 53%,transparent 66%);
+  background-size:280% 100%; background-position:135% 0; background-repeat:no-repeat;
+  transition:background-position .85s cubic-bezier(.3,.8,.3,1)}
+button.artist-head:hover .ph::before{background-position:-35% 0}
+
+/* Genre spectrum of whatever is on screen. */
+.v3-spectrum{margin:1.1rem 0 0}
+.v3-spectrum .barwrap{position:relative}
+.v3-spectrum .bandglow{position:absolute; inset:0; border-radius:7px; pointer-events:none;
+  filter:blur(9px); opacity:0; transition:opacity .5s ease-out}
+.night .v3-spectrum .bandglow{opacity:.9}
+.v3-spectrum .bandbar{position:relative; display:flex; height:7px; border-radius:7px;
+  overflow:hidden; box-shadow:inset 0 0 0 1px var(--line)}
+.v3-spectrum .bandbar i{transition:flex-grow .7s cubic-bezier(.2,.85,.25,1)}
+.v3-spectrum .keys{display:flex; flex-wrap:wrap; gap:.4rem 1.1rem; margin-top:.55rem;
+  font-family:"JetBrains Mono",monospace; font-size:9.5px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--faint)}
+.v3-spectrum .keys span{display:inline-flex; align-items:center; gap:.35rem}
+.v3-spectrum .keys em{width:7px; height:7px; border-radius:2px; font-style:normal}
+
+/* Panel sleeve, lightbox, pull quotes. */
+.v3-sleeve{position:relative; width:128px; aspect-ratio:1/1.12; flex:none; align-self:flex-start;
+  background:var(--raised) center/cover no-repeat; border:5px solid #fff; border-bottom:17px solid #fff;
+  border-radius:3px; box-shadow:.3em .4em 1em rgba(15,37,54,.26); cursor:zoom-in;
+  display:grid; place-items:center; font-family:"Bricolage Grotesque",sans-serif;
+  font-weight:600; color:var(--faint); margin-bottom:.4rem;
+  transition:transform .3s cubic-bezier(.2,.9,.25,1), box-shadow .3s}
+.v3-sleeve:hover{transform:translateY(-3px) rotate(-1.2deg); box-shadow:.35em .5em 1.2em rgba(15,37,54,.3)}
+.m-shot{cursor:zoom-in}
+.v3-lb .v3-lb-in{position:relative; display:flex; flex-direction:column; align-items:center;
+  gap:1rem; max-width:min(680px,92vw)}
+.v3-lb-art{width:min(560px,86vw); aspect-ratio:1/1; background:var(--raised-2) center/cover no-repeat;
+  border:10px solid #fff; border-bottom:34px solid #fff; border-radius:3px;
+  box-shadow:0 24px 60px rgba(15,37,54,.45); animation:v3pop .45s cubic-bezier(.2,.9,.25,1) both}
+@keyframes v3pop{from{opacity:0; transform:scale(.94)} to{opacity:1; transform:none}}
+.v3-lb-cap{text-align:center; color:#EAF3FB}
+.v3-lb-cap b{display:block; font-family:"Bricolage Grotesque",sans-serif; font-size:1.3rem;
+  font-weight:600; letter-spacing:-.02em}
+.v3-lb-cap span{font-family:"JetBrains Mono",monospace; font-size:11px; letter-spacing:.12em;
+  text-transform:uppercase; opacity:.8}
+.v3-lb .modal-x{top:-2.2rem; right:0; color:#EAF3FB}
+.detail .take p:not(.muted){font-size:16.5px; line-height:1.55; color:var(--ink); text-wrap:pretty}
+
+/* Agreement, track split, decades, blind spots. */
+.agree{margin-left:auto; flex:none; width:150px; text-align:right}
+.agree .lbl{font-family:"JetBrains Mono",monospace; font-size:9.5px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--faint); display:block; margin-bottom:.3rem}
+.agree .rail{height:5px; background:rgba(16,38,58,.09); border-radius:5px; overflow:hidden}
+.agree .rail i{display:block; height:5px; width:0; border-radius:5px;
+  transition:width 1.4s cubic-bezier(0,1,.3,1)}
+.agree.in .rail i{width:var(--w)}
+.agree b{font-family:"JetBrains Mono",monospace; font-size:11px; font-weight:600; color:var(--dim)}
+@media(max-width:660px){.agree{width:110px}}
+.v3-stack{display:flex}
+.v3-stack i{height:5px; border-radius:0}
+.v3-stack i:first-child{border-radius:5px 0 0 5px}
+.v3-stack i:last-child{border-radius:0 5px 5px 0}
+.v3-tracks{font-family:"JetBrains Mono",monospace; font-size:10.5px; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--faint); display:flex; flex-wrap:wrap; gap:.6rem;
+  align-items:center; margin:-.2rem 0 .1rem}
+.v3-tracks b{font-weight:600; color:#FFF; padding:.05rem .4rem; border-radius:4px; font-size:10px}
+.v3-drift{width:100%; height:auto; overflow:visible; display:block}
+.v3-drift .gl{stroke:var(--line-2); stroke-width:.5}
+.v3-drift .ln{fill:none; stroke-width:2; stroke-linejoin:round; stroke-linecap:round}
+.v3-drift text{font-family:"JetBrains Mono",monospace; font-size:6px; fill:var(--faint)}
+.v3-heat{display:grid; grid-template-columns:auto repeat(2,minmax(0,1fr)); gap:.35rem .5rem;
+  align-items:center}
+.v3-heat span{font-family:"JetBrains Mono",monospace; font-size:10px; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--faint); white-space:nowrap}
+.v3-heat b{display:block; text-align:center; font-family:"JetBrains Mono",monospace;
+  font-size:13px; font-weight:600; color:#FFF; padding:.42rem 0; border-radius:5px}
+.v3-heat b.none{background:rgba(16,38,58,.07); color:var(--faint)}
+.v3-heat .hd{justify-self:center}
+.v3-blind{display:flex; flex-wrap:wrap; gap:.5rem}
+.v3-blind span{font-family:"JetBrains Mono",monospace; font-size:10.5px; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--dim); padding:.3rem .7rem; border-radius:20px;
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--gc,var(--line-2)) 40%,transparent)}
+.v3-blind span b{color:var(--gc-text,var(--gc,var(--ink))); font-weight:600}
+.v3-blind .clear{color:var(--faint)}
+
+/* Halo of the artist's own genre. */
+.artist-head{position:relative}
+.artist-head>*{position:relative; z-index:1}
+.artist-head::before{content:""; position:absolute; left:-14px; top:50%; width:150px; height:150px;
+  transform:translateY(-50%); border-radius:50%; z-index:0; pointer-events:none;
+  background:radial-gradient(circle,color-mix(in srgb,var(--gc,transparent) 42%,transparent) 0%,transparent 68%);
+  opacity:.55; transition:opacity .4s ease-out}
+button.artist-head:hover::before{opacity:.9}
+
+/* Wall: one tile size, the leader in a band of its own, captions that wrap
+   instead of clipping, and the medal clear of the score. */
+.wall{grid-template-columns:repeat(auto-fill,minmax(108px,1fr))}
+.wall button{align-self:start}
+.wall .w-cap{display:flex; flex-wrap:wrap; align-items:center; gap:.25rem .4rem;
+  height:auto; overflow:visible; -webkit-line-clamp:unset}
+.wall .w-name,.v3-wallhero .w-name{flex:1 1 100%; line-height:1.3; text-wrap:pretty}
+/* rank and score are two numbers side by side, so they are told apart by
+   shape and by a hash: plain ranks sit close, medals get room to breathe */
+.wall .w-rk,.v3-wallhero .w-rk{color:var(--faint); font-weight:400; margin-right:.15rem}
+.wall [data-medal] .w-rk,.v3-wallhero [data-medal] .w-rk{margin-right:.3rem}
+.wall .w-rk::before,.v3-wallhero .w-rk::before{content:"#"; opacity:.55; margin-right:.05em}
+.wall [data-medal] .w-rk::before,.v3-wallhero [data-medal] .w-rk::before{content:none}
+.wall .w-sc{margin-right:0}
+.wall .w-cap,.v3-wallhero .w-cap{align-items:baseline}
+.wall .w-cap .w-sc,.v3-wallhero .w-cap .w-sc{align-self:center}
+.v3-wallhero{margin:.2rem 0 1.4rem}
+.v3-wallhero button{display:grid; grid-template-columns:minmax(0,232px) minmax(0,1fr);
+  gap:1.6rem; align-items:center; width:100%; text-align:left}
+.v3-wallhero .w-shot{width:100%; aspect-ratio:1/1.13; background:var(--raised-2) center/cover;
+  border:5px solid #fff; border-bottom:16px solid #fff; border-radius:3px;
+  box-shadow:.25em .35em .9em rgba(15,37,54,.24); display:grid; place-items:center;
+  font-family:"Bricolage Grotesque",sans-serif; font-size:22px; font-weight:600;
+  color:var(--faint); transition:transform .35s cubic-bezier(.2,.9,.25,1); position:relative}
+.v3-wallhero button:hover .w-shot{transform:translateY(-5px) rotate(-1.4deg)}
+.v3-wallhero .w-cap{display:flex; flex-wrap:wrap; align-items:center; gap:.4rem .7rem;
+  height:auto; overflow:visible; -webkit-line-clamp:unset; margin-top:0}
+.v3-wallhero .w-name{font-family:"Bricolage Grotesque",sans-serif; font-weight:600;
+  font-size:clamp(1.2rem,3.4vw,1.9rem); letter-spacing:-.025em; line-height:1.12}
+.v3-wallhero .w-sc{font-family:"JetBrains Mono",monospace; color:#FFF; font-size:14px;
+  padding:.16rem .55rem; border-radius:4px; margin:0}
+.v3-wallhero .w-rk{font-size:12px; margin-right:.6rem}
+.v3-wallhero .hero-note{flex:1 1 100%; font-family:"JetBrains Mono",monospace; font-size:10px;
+  letter-spacing:.18em; text-transform:uppercase; color:var(--faint); margin-top:.2rem}
+@media(max-width:560px){.v3-wallhero button{grid-template-columns:minmax(0,1fr); gap:.9rem}}
+
+/* Medals follow the ranking, and read as single digits. */
+/* Struck metal: a bright quarter, a dark quarter, a bevelled rim and a raised
+   centre - plus a shine that sweeps across once every four seconds. */
+/* the shine needs a containing block, but each context already has its own
+   positioning: the album rank is absolute, the artist rank sits in flow */
+.wall [data-medal] .w-rk,.v3-wallhero [data-medal] .w-rk,
+.album.ranked[data-medal] .rankno,.a-rank[data-medal]>.rankno{overflow:hidden;
+  width:26px; height:26px; display:inline-grid; place-items:center; border-radius:50%;
+  font-weight:700; font-size:11px; letter-spacing:0; z-index:1;
+  box-shadow:0 2px 5px rgba(15,37,54,.3),
+    inset 0 1px 1px rgba(255,255,255,.75),
+    inset 0 -1px 2px rgba(0,0,0,.28),
+    inset 0 0 0 1px rgba(255,255,255,.35)}
+.v3-wallhero [data-medal] .w-rk{width:30px; height:30px; font-size:13px}
+[data-medal] .w-rk::after,.album.ranked[data-medal] .rankno::after,
+.a-rank[data-medal]>.rankno::after{
+  content:""; position:absolute; inset:-30%; pointer-events:none; border-radius:50%;
+  background:linear-gradient(112deg,transparent 42%,rgba(255,255,255,.9) 50%,transparent 58%);
+  background-size:260% 100%; background-position:170% 0; background-repeat:no-repeat;
+  animation:v4shine 4s linear infinite}
+@keyframes v4shine{
+  0%{background-position:170% 0} 14%{background-position:-70% 0} 100%{background-position:-70% 0}}
+[data-medal="1"] .w-rk,.album.ranked[data-medal="1"] .rankno,.a-rank[data-medal="1"]>.rankno{color:#4A3708;
+  background:radial-gradient(circle at 32% 28%,#FFF3C4 0 18%,#F0CE63 42%,#C9971F 78%,#8F6A12 100%)}
+[data-medal="2"] .w-rk,.album.ranked[data-medal="2"] .rankno,.a-rank[data-medal="2"]>.rankno{color:#2E353B;
+  background:radial-gradient(circle at 32% 28%,#FFFFFF 0 18%,#DCE3E8 42%,#A4B0B9 78%,#77828B 100%)}
+[data-medal="3"] .w-rk,.album.ranked[data-medal="3"] .rankno,.a-rank[data-medal="3"]>.rankno{color:#3E230F;
+  background:radial-gradient(circle at 32% 28%,#F6D4B4 0 18%,#DDA877 42%,#AE7442 78%,#7C5028 100%)}
+.wall [data-medal] .w-rk,.v3-wallhero [data-medal] .w-rk{position:relative}
+.a-rank[data-medal]>.rankno{position:relative; left:auto; top:auto; transform:none}
+.night [data-medal] .w-rk,.night .album.ranked[data-medal] .rankno,
+.night .a-rank[data-medal]>.rankno{
+  box-shadow:0 2px 6px rgba(0,0,0,.5), inset 0 1px 1px rgba(255,255,255,.7),
+    inset 0 -1px 2px rgba(0,0,0,.35), 0 0 14px -4px rgba(244,217,138,.6)}
+@media(prefers-reduced-motion:reduce){
+  [data-medal] .w-rk::after,.album.ranked[data-medal] .rankno::after,
+.a-rank[data-medal]>.rankno::after{animation:none; opacity:0}}
+
+/* Tally: numbers centred over their labels, one hairline for the whole row. */
+.tally{border-top:1px solid var(--line-2); padding-top:1.15rem; margin-top:1.9rem}
+.tally .t-group>div{align-items:center; gap:.4rem}
+.tally b{font-weight:800; letter-spacing:-.05em; font-variant-numeric:tabular-nums;
+  text-align:center; width:100%}
+/* One tonal ramp built from the theme's own ink and accent, so the counts are
+   right in both themes instead of two hand-picked hexes that only suit one. */
+.tally .t-counts>div:nth-child(1) b{color:var(--accent)}
+.tally .t-counts>div:nth-child(2) b{color:color-mix(in srgb,var(--accent) 66%,var(--ink))}
+.tally .t-counts>div:nth-child(3) b{color:color-mix(in srgb,var(--accent) 34%,var(--ink))}
+.tally .t-counts>div:nth-child(4) b{color:var(--ink)}
+.tally span{font-size:9.5px; letter-spacing:.2em; text-align:center}
+.tally:empty{border-top:0; padding-top:0; margin-top:0}
+.notice:empty{display:none}
+/* Every score wears the same chip: a centred pill on a ring, never a bare
+   rectangle with off-centre digits. */
+.avg,.pod-sc,.wall .w-sc,.v3-wallhero .w-sc,.take .hd .sc,.bar .n,.w-sc,
+.take .hd .sc.off{display:inline-grid; place-items:center; min-width:2.35em;
+  padding:.22em .5em; border-radius:999px; line-height:1;
+  font-family:"JetBrains Mono",monospace; font-weight:600;
+  font-variant-numeric:tabular-nums; letter-spacing:.02em;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.34), 0 1px 3px rgba(15,37,54,.22)}
+.facts b{font-variant-numeric:tabular-nums}
+.take .hd .sc.off{min-width:0; box-shadow:inset 0 0 0 1px var(--line-2)}
+.pod-sc{margin-top:.5rem; font-size:12px; padding:.28em .6em}
+/* .artist-head .avg in the base sheet outranks a one-class rule, so match it */
+.avg,.artist-head .avg{font-size:11px; border-radius:999px; padding:.24em .55em;
+  min-width:2.35em; align-self:center}
+.v3-wallhero .w-sc{font-size:14px; padding:.26em .62em}
+.wall .w-sc{font-size:10px; padding:.2em .45em; box-shadow:inset 0 0 0 1px rgba(255,255,255,.3)}
+.bar .n{font-size:11.5px}
+.mark,.benched{font-variant-numeric:tabular-nums; line-height:1}
+
+/* A sleeve you can turn: held, it follows the pointer in 3D; flicked, it spins
+   or flips about the axis you threw it along. */
+/* only the magnified artwork turns; sleeves in the list keep their own tilt */
+.v3-lb-art{cursor:grab; touch-action:none; will-change:transform}
+/* the entrance animation is filled both ways, so it outranks any inline
+   transform: once the sleeve has been handled, the animation steps aside */
+.v3-lb-art.turning{cursor:grabbing}
+.v3-lb-art.posed{animation:none!important}
+.v3-lb-art.thrown{cursor:pointer}
+.v3-lb-in{perspective:1100px}
+
+/* The fly-in was 2.4s, which read as artwork failing to arrive. */
+.cover{transition:transform 1.05s .03s cubic-bezier(0,1,.3,1),
+  opacity .26s .03s ease-out, box-shadow .55s ease-out!important}
+
+/* An album waiting to be heard shows its sleeve, square, beside the round
+   portraits of artists waiting as a whole. */
+.shelf .thumb.sleeve{border-radius:3px; border:3px solid #fff; border-bottom-width:9px;
+  box-shadow:.2em .25em .6em rgba(15,37,54,.2); aspect-ratio:1/1.1; height:auto}
+/* the album's own line: whose it is above, what it is below, genre in the
+   coloured slot every other tile uses */
+.shelf figcaption em{display:block; font-style:normal; font-family:"JetBrains Mono",monospace;
+  font-size:9.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--faint);
+  margin-bottom:.1rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.night .shelf .thumb.sleeve{border-color:#E9F1F7}
+
+/* ── artists: the same podium and ranking, for people ────────────── */
+.pod.artistpod .pod-shot{aspect-ratio:1; border-radius:50%; border-width:5px;
+  border-bottom-width:5px}
+.pod.artistpod .pod-cap b{font-size:14px}
+.a-rank{display:grid; grid-template-columns:34px minmax(0,1fr); gap:0 .6rem;
+  align-items:center; padding:.35rem 0; border-bottom:1px solid var(--line)}
+.a-rank:last-child{border-bottom:0}
+.a-rank>.rankno{position:static; transform:none; justify-self:center;
+  font-family:"JetBrains Mono",monospace; font-size:12px; color:var(--faint)}
+.a-rank .artist-head{margin-bottom:0; padding:.35rem 0}
+.a-rank .artist-head .ph{width:76px; height:76px; font-size:24px}
+.a-rank .artist-head h2{font-size:clamp(1.2rem,3vw,1.6rem)}
+.a-rank[data-medal]>.rankno{color:#4A3708}
+@media(max-width:560px){.a-rank{grid-template-columns:26px minmax(0,1fr)}
+  .a-rank .artist-head .ph{width:60px; height:60px; font-size:19px}}
+.a-count{font-family:"JetBrains Mono",monospace; font-size:10px; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--faint)}
+
+/* Skeletons instead of a blocking spinner. */
+#boot{display:none!important}
+.v3-skel{display:flex; flex-direction:column; gap:.2rem; padding-top:.4rem}
+.v3-skel .r{display:grid; grid-template-columns:76px minmax(0,1fr) 380px; gap:1.1rem;
+  align-items:center; padding:.55rem 3.1rem .55rem .9rem}
+.v3-skel .s,.v3-skel .l,.v3-skel .g{background:linear-gradient(90deg,
+  color-mix(in srgb,var(--ink) 6%,transparent) 0%, color-mix(in srgb,var(--ink) 12%,transparent) 40%,
+  color-mix(in srgb,var(--ink) 6%,transparent) 80%);
+  background-size:220% 100%; border-radius:6px; animation:v3shim 1.5s linear infinite}
+.v3-skel .s{width:76px; height:87px; border-radius:2px;
+  border:4px solid color-mix(in srgb,var(--ink) 5%,transparent); border-bottom-width:15px}
+.v3-skel .l{height:13px}
+.v3-skel .l.two{height:10px; width:42%; margin-top:.5rem}
+.v3-skel .g{height:5px; align-self:center}
+@keyframes v3shim{from{background-position:120% 0} to{background-position:-60% 0}}
+@media(max-width:860px){.v3-skel .r{grid-template-columns:76px minmax(0,1fr)} .v3-skel .g{display:none}}
+
+/* One shape does both: the disc shrinks and a bite slides across for the moon,
+   the rays fan out for the sun. Geometry properties (cx/cy/r) in px, because a
+   transform on an element inside <mask> is not reliably applied. */
+#v3-night{font-size:0; overflow:visible; color:var(--dim)}
+#v3-night:hover{color:var(--accent)}
+#v3-night svg{width:19px; height:19px; display:block; overflow:visible}
+#v3-night .core{fill:currentColor; transition:r .5s cubic-bezier(.4,0,.2,1)}
+#v3-night .bite{fill:#000;
+  transition:cx .5s cubic-bezier(.4,0,.2,1), cy .5s cubic-bezier(.4,0,.2,1)}
+#v3-night .rays{stroke:currentColor; stroke-width:1.7; stroke-linecap:round;
+  transform-origin:12px 12px; transform-box:fill-box;
+  transition:opacity .45s ease-out, transform .6s cubic-bezier(.34,1.4,.5,1)}
+#v3-night .bite{cx:16.8px; cy:7.6px; r:8.2px}
+#v3-night .core{r:8.6px}
+#v3-night .rays{opacity:0; transform:rotate(-45deg) scale(.35)}
+.night #v3-night{color:#F4D98A}
+.night #v3-night .bite{cx:27px; cy:-3px}
+.night #v3-night .core{r:5.6px}
+.night #v3-night .rays{opacity:1; transform:rotate(0deg) scale(1)}
+.night #v3-night svg{filter:drop-shadow(0 0 7px rgba(244,217,138,.55))}
+
+/* ── evening ─────────────────────────────────────────────────────── */
+html.night{background:#0E1B26}
+.night{--ground:#0E1B26; --raised:#152532; --raised-2:#1B2E3D;
+  --line:rgba(200,225,245,.13); --line-2:rgba(200,225,245,.24);
+  --ink:#E7F1F9; --dim:#A2BFD4; --faint:#7793AB;
+  --accent:#79BEEA; --accent-soft:rgba(121,190,234,.45)}
+/* genre hues are picked for light paper: as TEXT at night they read through
+   --gc-text, blended toward the night ink */
+.night .detail,.night .album,.night .gtag,.night .v3-blind span,.night .artist-head,
+.night .pod,.night .wall button,.night .v3-wallhero,.night #album-body{
+  --gc-text:color-mix(in srgb,var(--gc,var(--accent)) 52%,#E7F1F9)}
+.night .gtag,.night .artist-head .genre b{color:var(--gc-text,var(--gc))!important}
+/* the two averages keep their score colour, lifted for the dark panel */
+.night .t-avgs b{color:color-mix(in srgb,var(--tc,var(--ink)) 55%,#E7F1F9)}
+/* Score hues are mixed for white text on a filled chip. The three places that
+   paint one as text on paper need the day-side equivalent of that night blend,
+   and the colour arrives inline, so it is darkened in place rather than
+   recomputed. */
+html:not(.night) .tally .t-avgs b{filter:brightness(.6) saturate(1.12)}
+html:not(.night) .detail .facts b{filter:brightness(.44) saturate(1.12)}
+html:not(.night) .agree b{filter:brightness(.6) saturate(1.12)}
+.night .marquee{background:#123246; color:#DCEBF7; text-shadow:0 0 14px rgba(121,190,234,.4)}
+.night .marquee.held{background:#0A2032}
+.night .player{background:#123246; color:#DCEBF7}
+.night .hero::after{background:linear-gradient(180deg,rgba(14,27,38,.3),rgba(14,27,38,.76))}
+.night .mini-head{background:rgba(14,27,38,.92)}
+.night .crumb-note{color:#0E1B26}
+.night .seg button.on,.night .pod-who .seg button.on,.night .row button.go,
+.night .view-tog button.on{color:#0E1B26}
+.night .modal{background:rgba(4,10,16,.72)}
+.night .stage{box-shadow:0 0 0 1px var(--line-2), 0 0 0 2000px rgba(4,10,16,.6)}
+.night .track,.night .rail,.night .fbar,.night .v3-heat b.none,
+.night .agree .rail{background:rgba(200,225,245,.12)}
+.night .track::after,.night .span::after{background:linear-gradient(180deg,
+  rgba(255,255,255,.22),rgba(255,255,255,.03) 48%,rgba(0,0,0,.16))}
+.night .gauge.solo .track{background:repeating-linear-gradient(90deg,
+  rgba(200,225,245,.3) 0 6px,transparent 6px 13px)}
+.night .cover,.night .pod-shot,.night .wall .w-shot,.night .v3-wallhero .w-shot,
+.night .m-shot,.night .v3-sleeve,.night .v3-lb-art,.night .benched{border-color:#E9F1F7}
+.night .v3-grain{mix-blend-mode:screen; opacity:.14}
+.night h1 em{--em1:#79BEEA; --em2:#B6DEF7; --em3:#D07FA4}
+.night .album:hover{background-color:rgba(200,225,245,.06)}
+/* ── bloom ────────────────────────────────────────────────────────
+   Two shadows per lit thing: a tight bright core and a wide soft halo, which
+   is what reads as a tube rather than a blurred rectangle. */
+/* dressAvatars() sets color:transparent to hide the initials behind a photo,
+   so currentColor is useless for the halo: pass() copies each pip's own score
+   colour into --pipc and every lit layer reads that instead. */
+.night .pip{box-shadow:0 0 0 2px var(--ground),0 0 0 4px var(--pipc,currentColor),
+  0 0 8px -1px var(--pipc,currentColor),
+  0 0 26px 1px color-mix(in srgb,var(--pipc,var(--accent)) 55%,transparent),
+  0 7px 15px rgba(0,0,0,.5)}
+/* the rail blooms in a gradient drawn between the two scores themselves:
+   pass() copies the pip colours and their positions onto the gauge */
+.gauge .scale::after{content:""; position:absolute; top:27px; height:5px;
+  left:var(--gl,0); width:var(--gw,0); border-radius:5px; pointer-events:none;
+  background:linear-gradient(90deg,var(--ga,var(--accent)),var(--gb,var(--accent)));
+  filter:blur(7px); opacity:0; transition:opacity .5s ease-out,
+    left 1.05s cubic-bezier(.34,1.5,.42,1), width 1.05s cubic-bezier(.34,1.5,.42,1)}
+.night .gauge .scale::after{opacity:.85}
+.night .gauge .track{box-shadow:0 0 8px -3px color-mix(in srgb,var(--sc,var(--accent)) 45%,transparent)}
+.night .span{box-shadow:0 0 8px -2px color-mix(in srgb,var(--sp,var(--accent)) 85%,transparent),
+  0 0 30px -4px color-mix(in srgb,var(--sp,var(--accent)) 55%,transparent)}
+.night .track::after,.night .span::after{background:linear-gradient(180deg,
+  rgba(255,255,255,.32),rgba(255,255,255,.05) 46%,rgba(0,0,0,.18))}
+.night .album:hover::before{box-shadow:0 0 10px var(--gc,var(--accent)),
+  0 0 26px color-mix(in srgb,var(--gc,var(--accent)) 45%,transparent)}
+.night .avg,.night .pod-sc,.night .w-sc,.night .take .hd .sc,.night .bar .n,
+.night .v3-heat b:not(.none){
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.4),
+    0 0 10px -2px color-mix(in srgb,var(--pipc,currentColor) 55%,transparent),
+    0 0 24px -6px color-mix(in srgb,var(--pipc,currentColor) 40%,transparent)}
+.night .mark:not(.no):not(.none),.night .benched{
+  box-shadow:0 0 0 1px rgba(255,255,255,.28),
+    0 0 9px -2px color-mix(in srgb,var(--pipc,var(--accent)) 55%,transparent),
+    0 0 20px -6px color-mix(in srgb,var(--pipc,var(--accent)) 40%,transparent)}
+.night .gtag,.night .v3-blind span,.night .pod-genres .gchip{
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--gc,var(--line-2)) 78%,transparent),
+    0 0 10px -3px color-mix(in srgb,var(--gc,var(--accent)) 60%,transparent),
+    0 0 24px -8px color-mix(in srgb,var(--gc,var(--accent)) 45%,transparent),
+    inset 0 0 14px -8px var(--gc,transparent)}
+.night .gtag,.night .pod-genres .gchip i,.night .pod-genres .gchip b{
+  text-shadow:0 0 9px color-mix(in srgb,var(--gc,var(--accent)) 55%,transparent)}
+.night .pod-genres .gchip{--gc-text:color-mix(in srgb,var(--gc,var(--accent)) 52%,#E7F1F9);
+  color:var(--gc-text)}
+.night .marquee{text-shadow:0 0 10px rgba(121,190,234,.55), 0 0 26px rgba(121,190,234,.3)}
+.night h1 em{filter:drop-shadow(0 0 14px rgba(121,190,234,.45))}
+.night h1 em,h1 em{will-change:filter}
+.night .pod.p1 .pod-shot{box-shadow:.3em .4em 1.1em rgba(0,0,0,.5),
+  0 0 18px -4px color-mix(in srgb,var(--gc,#79BEEA) 70%,transparent),
+  0 0 54px -6px color-mix(in srgb,var(--gc,#79BEEA) 45%,transparent)}
+.night .crown{filter:drop-shadow(0 4px 10px rgba(0,0,0,.5))
+  drop-shadow(0 0 8px rgba(245,220,130,.6)) drop-shadow(0 0 26px rgba(245,220,130,.35))}
+.night .scroll-line{box-shadow:0 0 8px rgba(121,190,234,.8), 0 0 24px rgba(121,190,234,.45)}
+.night .v3-spectrum .bandbar{box-shadow:inset 0 0 0 1px rgba(200,225,245,.28)}
+.night .spark .ln{filter:drop-shadow(0 0 4px var(--accent)) drop-shadow(0 0 12px var(--accent))}
+.night .v3-drift .ln{filter:drop-shadow(0 0 5px currentColor) drop-shadow(0 0 14px currentColor)}
+.night .crumb-note,.night .seg button.on,.night .view-tog button.on,
+.night .pod-who .seg button.on{box-shadow:0 0 12px -3px var(--accent), 0 0 28px -8px var(--accent)}
+
+/* One clock for the whole switch: every colour eases together, then the class
+   comes off so nothing else on the page is slowed. */
+html.theming,html.theming *,html.theming *::before,html.theming *::after{
+  transition-property:background-color,color,border-color,box-shadow,fill,stroke,opacity,filter,text-shadow,--em1,--em2,--em3!important;
+  transition-duration:.55s!important;
+  transition-timing-function:cubic-bezier(.4,0,.2,1)!important;
+  transition-delay:0s!important}
+.v3-grain{transition:opacity .55s ease}
+
+/* Neon striking up: a flash across the room plus a stutter on the lit parts. */
+.v3-flash{position:fixed; inset:0; z-index:97; pointer-events:none; opacity:0;
+  background:radial-gradient(120% 90% at 50% 0%,rgba(121,190,234,.5),transparent 62%)}
+html.flick .v3-flash{animation:v3flash 1.25s steps(1,end) both}
+@keyframes v3flash{
+  0%{opacity:0} 3%{opacity:.75} 6%{opacity:.05} 10%{opacity:.6} 14%{opacity:0}
+  19%{opacity:.5} 23%{opacity:.08} 30%{opacity:.35} 38%{opacity:.05}
+  52%{opacity:.18} 70%{opacity:.04} 100%{opacity:0}}
+html.flick .marquee,html.flick h1 em,html.flick .pip,html.flick .gtag,
+html.flick .avg,html.flick .pod-sc,html.flick .w-sc,html.flick .crumb-note,
+html.flick .v3-spectrum .bandbar,html.flick .crown,html.flick .span,
+html.flick .gauge .track,html.flick .spark,html.flick .scroll-line{
+  animation:v3flick 1.25s steps(1,end) both}
+@keyframes v3flick{
+  0%{opacity:.25} 3%{opacity:1} 6%{opacity:.3} 10%{opacity:1} 13%{opacity:.35}
+  18%{opacity:1} 22%{opacity:.5} 27%{opacity:1} 33%{opacity:.7}
+  40%{opacity:1} 46%{opacity:.85} 54%{opacity:1} 100%{opacity:1}}
+
+@media(prefers-reduced-motion:reduce){
+  h1 em{animation:none; color:var(--accent); -webkit-text-fill-color:currentColor}
+  .v3-lb-art,.v3-skel .s,.v3-skel .l,.v3-skel .g{animation:none}
+  html.flick .v3-flash,html.flick .marquee,html.flick h1 em,html.flick .pip,
+  html.flick .gtag,html.flick .avg,html.flick .pod-sc,html.flick .w-sc,
+  html.flick .crumb-note,html.flick .v3-spectrum .bandbar,html.flick .crown{animation:none}}
+</style>
+<script>
+/* ── v4 behaviour ───────────────────────────────────────────────────
+   Wraps render/paint rather than editing them. ROWS and friends are script
+   scoped, so they are read through the lexical global, not window. */
+(function(){
+var RM=matchMedia("(prefers-reduced-motion:reduce)").matches;
+function rowsData(){return typeof ROWS!=="undefined"?ROWS:[];}
+["v3-back","v3-back","v3-grain","v3-flash"].forEach(function(c,i){
+  var d=document.createElement("div");
+  d.className=c;
+  document.body.appendChild(d);
+});
+var backs=[].slice.call(document.querySelectorAll(".v3-back"));
+
+/* skeleton rows until the first render lands */
+(function(){
+  var out=document.getElementById("out");
+  if(!out||out.children.length)return;
+  var one='<div class="r"><div class="s"></div><div><div class="l"></div><div class="l two"></div></div><div class="g"></div></div>';
+  out.innerHTML='<div class="v3-skel">'+one+one+one+one+one+one+'</div>';
+})();
+
+/* ── page tint from the genres on screen ─────────────────────────── */
+var backCur=0,backKey="";
+function paintBackdrop(){
+  var out=document.getElementById("out");
+  if(!out)return;
+  var counts=new Map();
+  out.querySelectorAll(".album,.wall button,.pod").forEach(function(el){
+    var c=(el.style.getPropertyValue("--gc")||"").trim();
+    if(!c||c.indexOf("var")===0)return;
+    counts.set(c,(counts.get(c)||0)+1);
+  });
+  var top=Array.from(counts).sort(function(a,b){return b[1]-a[1];}).slice(0,3).map(function(x){return x[0];});
+  if(!top.length)return;
+  var key=top.join("|");
+  if(key===backKey)return;
+  backKey=key;
+  var spots=[["64% 48%","8% 0%",17],["58% 44%","94% 14%",14],["66% 52%","48% 60%",10]];
+  var img=top.map(function(c,i){
+    var s=spots[i];
+    return "radial-gradient("+s[0]+" at "+s[1]+", color-mix(in srgb,"+c+" "+s[2]+"%, transparent) 0%, transparent 64%)";
+  }).join(",");
+  var next=backs[backCur^1];
+  next.style.backgroundImage=img;
+  next.classList.add("on");
+  backs[backCur].classList.remove("on");
+  backCur=backCur^1;
+}
+
+/* ── podium scores climb ─────────────────────────────────────────── */
+function countTo(el,to,wait){
+  if(RM||isNaN(to))return;
+  var t0=performance.now()+(wait||0),ms=780;
+  var step=function(now){
+    var k=Math.min(1,Math.max(0,now-t0)/ms),e=1-Math.pow(1-k,3);
+    el.textContent=Math.round(to*e);
+    if(k<1)requestAnimationFrame(step);
+  };
+  el.textContent="0";requestAnimationFrame(step);
+  setTimeout(function(){el.textContent=to;},(wait||0)+ms+280);
+}
+function climb(){
+  document.querySelectorAll(".pod-sc").forEach(function(el,i){
+    if(el.__v4)return;el.__v4=1;
+    countTo(el,parseInt(el.textContent,10),380+i*90);
+  });
+}
+
+/* ── how close the two of you run ───────────────────────────────── */
+function agreeFor(name){
+  var gaps=[];
+  rowsData().forEach(function(d){
+    if(name&&d.artist!==name)return;
+    if(d.a===null||d.n===null||d.gap<0)return;
+    gaps.push(d.gap);
+  });
+  if(!gaps.length)return null;
+  var g=gaps.reduce(function(s,x){return s+x;},0)/gaps.length;
+  return {gap:g,n:gaps.length,pct:Math.max(4,Math.round(100-Math.min(100,g*2)))};
+}
+function agreeHTML(name){
+  var a=agreeFor(name);
+  if(!a)return"";
+  var col=gapHue(a.gap);
+  return '<div class="agree rise"><span class="lbl">in step'+
+    (a.n>1?" \u00b7 "+a.n+" albums":"")+'</span>'+
+    '<div class="rail"><i style="--w:'+a.pct+'%;background:'+col+'"></i></div>'+
+    '<b style="color:'+col+'">'+a.pct+'% \u00b7 '+a.gap.toFixed(1)+' pts apart</b></div>';
+}
+var _artistHead=window.artistHead;
+window.artistHead=function(name){
+  var html=_artistHead.apply(this,arguments);
+  var add=agreeHTML(name);
+  if(!add)return html;
+  return html.replace(/<\/(button|div)>\s*$/,add+"</$1>");
+};
+
+/* ── track by track, drift, decades, blind spots ────────────────── */
+function bothRated(d){return d.a!==null&&d.n!==null&&!d.aSkip&&!d.nSkip;}
+function splitOf(d){
+  var rs=songTable(d),shared=0,apart=0;
+  rs.forEach(function(r){
+    if(r.a==="y"&&r.n==="y")shared++;
+    else if((r.a==="y"&&r.n==="n")||(r.a==="n"&&r.n==="y"))apart++;
+  });
+  return {n:rs.length,shared:shared,apart:apart};
+}
+function agreeBlock(){
+  var m=new Map();
+  rowsData().forEach(function(d){
+    if(d.a===null||d.n===null||d.gap<0)return;
+    if(!m.has(d.artist))m.set(d.artist,[]);
+    m.get(d.artist).push(d.gap);
+  });
+  var list=Array.from(m).map(function(e){
+    var v=e[1],g=v.reduce(function(s,x){return s+x;},0)/v.length;
+    return {k:e[0],n:v.length,gap:g,pct:Math.max(4,Math.round(100-Math.min(100,g*2)))};
+  }).sort(function(a,b){return a.gap-b.gap;}).slice(0,6);
+  if(!list.length)return"";
+  var bars=list.map(function(x,i){
+    var col=gapHue(x.gap);
+    return '<div class="bar"><span class="lbl">'+x.k+'<small>'+x.n+'</small></span>'+
+      '<span class="n" style="background:'+col+'">'+x.pct+'%</span>'+
+      '<span class="rail"><i style="--w:'+x.pct+'%;background:'+col+';transition-delay:'+(i*0.09).toFixed(2)+'s"></i></span></div>';
+  }).join("");
+  return '<div class="band rise">In step</div><div class="grid2">'+
+    '<div class="stat-block rise"><h3><span>Closest agreement by artist</span><em>in step \u00b7 albums</em></h3>'+
+    bars+'</div></div>';
+}
+function tracksBlock(){
+  var list=rowsData().filter(function(d){return bothRated(d)&&songTable(d).length>2;})
+    .map(function(d){var s=splitOf(d);s.k=d.album;return s;})
+    .filter(function(s){return s.shared+s.apart>0;})
+    .sort(function(a,b){return (b.apart/b.n)-(a.apart/a.n);}).slice(0,6);
+  if(!list.length)return"";
+  var bars=list.map(function(x,i){
+    var sh=Math.round(x.shared/x.n*100),ap=Math.round(x.apart/x.n*100);
+    return '<div class="bar"><span class="lbl">'+x.k+'<small>'+x.n+'</small></span>'+
+      '<span class="n" style="background:'+(ap>sh?"#C2493C":"#3E9A63")+'">'+x.apart+'</span>'+
+      '<span class="rail v3-stack">'+
+        '<i style="--w:'+sh+'%;background:#3E9A63;transition-delay:'+(i*0.08).toFixed(2)+'s"></i>'+
+        '<i style="--w:'+ap+'%;background:#C2493C;transition-delay:'+(i*0.08+0.1).toFixed(2)+'s"></i>'+
+      '</span></div>';
+  }).join("");
+  return '<div class="band rise">Track by track</div><div class="grid2">'+
+    '<div class="stat-block rise"><h3><span>Most split records</span><em>tracks apart \u00b7 total</em></h3>'+
+    bars+'<div class="legend"><span><i style="background:#3E9A63"></i>both picked</span>'+
+    '<span><i style="background:#C2493C"></i>one picked, one didn\u2019t</span></div></div></div>';
+}
+function driftLine(pick,win){
+  var vals=[],out=[];
+  rowsData().forEach(function(d){
+    var v=pick(d);
+    if(v===null||isNaN(v))return;
+    vals.push(v);
+    var sl=vals.slice(Math.max(0,vals.length-win));
+    out.push(sl.reduce(function(s,x){return s+x;},0)/sl.length);
+  });
+  return out;
+}
+function driftChart(){
+  var A=driftLine(function(d){return d.a;},5),N=driftLine(function(d){return d.n;},5);
+  if(A.length<4&&N.length<4)return"";
+  var W=300,H=110,pad=6;
+  var path=function(list,col){
+    if(list.length<2)return"";
+    var pts=list.map(function(v,i){
+      var x=pad+(i/(list.length-1))*(W-pad*2);
+      var y=H-pad-(v/100)*(H-pad*2);
+      return x.toFixed(1)+","+y.toFixed(1);
+    });
+    return '<polyline class="ln" points="'+pts.join(" ")+'" stroke="'+col+'" style="color:'+col+'"/>';
+  };
+  var gl=[25,50,75].map(function(v){
+    var y=(H-pad-(v/100)*(H-pad*2)).toFixed(1);
+    return '<line class="gl" x1="'+pad+'" x2="'+(W-pad)+'" y1="'+y+'" y2="'+y+'"/>'+
+      '<text x="0" y="'+(Number(y)+2)+'">'+v+'</text>';
+  }).join("");
+  var dot=function(list,col){
+    if(!list.length)return"";
+    var v=list[list.length-1];
+    return '<circle cx="'+(W-pad)+'" cy="'+(H-pad-(v/100)*(H-pad*2)).toFixed(1)+'" r="2.6" fill="'+col+'"/>';
+  };
+  return '<div class="chart"><h3>Taste drift</h3>'+
+    '<p class="cap">Rolling average of the last five albums each of you rated, in the order they went into the sheet.</p>'+
+    '<svg class="v3-drift" viewBox="-8 -4 '+(W+14)+' '+(H+10)+'" role="img" aria-label="Rolling average over time">'+
+    gl+path(A,"#175A8C")+path(N,"#C2628F")+dot(A,"#175A8C")+dot(N,"#C2628F")+'</svg>'+
+    '<div class="legend"><span><i style="background:#175A8C"></i>anthony</span>'+
+    '<span><i style="background:#C2628F"></i>annette</span></div></div>';
+}
+function decadeChart(){
+  var m=new Map();
+  rowsData().forEach(function(d){
+    var y=parseInt(d.year,10);
+    if(isNaN(y))return;
+    var k=Math.floor(y/10)*10;
+    if(!m.has(k))m.set(k,{a:[],n:[]});
+    if(d.a!==null)m.get(k).a.push(d.a);
+    if(d.n!==null)m.get(k).n.push(d.n);
+  });
+  var keys=Array.from(m.keys()).sort(function(x,y){return x-y;});
+  if(keys.length<2)return"";
+  var cell=function(list){
+    if(!list.length)return'<b class="none">\u2013</b>';
+    var v=Math.round(list.reduce(function(s,x){return s+x;},0)/list.length);
+    return '<b style="background:'+ramp(v)+'" title="'+list.length+' album'+(list.length===1?"":"s")+'">'+v+'</b>';
+  };
+  var body=keys.map(function(k){
+    var g=m.get(k);
+    return '<span>'+k+'s</span>'+cell(g.a)+cell(g.n);
+  }).join("");
+  return '<div class="chart"><h3>By decade</h3>'+
+    '<p class="cap">Average score per era. Hover a cell for how many albums it rests on.</p>'+
+    '<div class="v3-heat"><span></span><span class="hd">anthony</span><span class="hd">annette</span>'+
+    body+'</div></div>';
+}
+function blindBlock(){
+  var m=new Map();
+  rowsData().forEach(function(d){
+    var g=(d.genre||"").trim();
+    if(!g)return;
+    if(!m.has(g))m.set(g,{a:0,n:0});
+    if(d.a!==null)m.get(g).a++;
+    if(d.n!==null)m.get(g).n++;
+  });
+  var out=[];
+  Array.from(m).forEach(function(e){
+    var g=e[0],v=e[1];
+    if(v.a>0&&v.n===0)out.push({who:"Annette",g:g,n:v.a});
+    else if(v.n>0&&v.a===0)out.push({who:"Anthony",g:g,n:v.n});
+  });
+  out.sort(function(a,b){return b.n-a.n;});
+  var chips=out.slice(0,8).map(function(x){
+    return '<span style="--gc:'+hueOf(x.g)+'">'+x.who+' hasn\u2019t rated <b>'+x.g+'</b> '+x.n+'</span>';
+  }).join("");
+  if(!chips)chips='<span class="clear">No blind spots \u2014 every genre here has a score from both of you.</span>';
+  return '<div class="band rise">Blind spots</div>'+
+    '<div class="stat-block rise"><h3><span>Genres only one of you has scored</span>'+
+    '<em>albums waiting</em></h3><div class="v3-blind">'+chips+'</div></div>';
+}
+var _stats=window.statsHTML;
+window.statsHTML=function(){
+  var html=_stats.apply(this,arguments);
+  if(!html)return html;
+  var add=agreeBlock()+tracksBlock();
+  var charts=driftChart()+decadeChart();
+  if(charts)add+='<div class="band rise">Over time</div><div class="chart-row">'+charts+'</div>';
+  add+=blindBlock();
+  return html.replace(/<\/section>\s*$/,add+"</section>");
+};
+
+/* ── gauge readout ──────────────────────────────────────────────── */
+document.addEventListener("mouseover",function(e){
+  var gw=e.target.closest&&e.target.closest(".gauge-wrap");
+  if(!gw||gw.__read)return;
+  gw.__read=1;
+  var g=gw.querySelector(".gauge");if(!g)return;
+  var pips=[].slice.call(g.querySelectorAll(".pip"));
+  if(!pips.length)return;
+  var bits=pips.map(function(p){return (p.title||"").replace(":","");});
+  var span=g.querySelector(".span");
+  if(span&&span.title)bits.push(span.title);
+  var el=document.createElement("div");
+  el.className="g-read";
+  el.textContent=bits.join("  \u00b7  ");
+  g.appendChild(el);
+},true);
+
+/* ── artwork lightbox ──────────────────────────────────────────── */
+var LB=document.createElement("div");
+LB.className="modal v3-lb";
+LB.innerHTML='<div class="v3-lb-in"><button class="modal-x" aria-label="Close">\u00d7</button>'+
+  '<div class="v3-lb-art"></div><div class="v3-lb-cap"><b></b><span></span></div></div>';
+document.body.appendChild(LB);
+function closeLB(){LB.classList.remove("on");}
+LB.addEventListener("click",function(e){if(e.target===LB||e.target.closest(".modal-x"))closeLB();});
+addEventListener("keydown",function(e){if(e.key==="Escape")closeLB();});
+function openLB(d,bg){
+  if(!d)return;
+  var art0=LB.querySelector(".v3-lb-art");
+  art0.classList.remove("posed","thrown","turning");
+  art0.style.transition="";
+  art0.style.transform="";
+  art0.style.backgroundImage=bg||"";
+  LB.querySelector(".v3-lb-cap b").textContent=d.album;
+  var bits=[d.artist];
+  if(d.year)bits.push(d.year);
+  if(d.genre)bits.push(d.genre);
+  if(d.a!==null)bits.push("AP "+d.a);
+  if(d.n!==null)bits.push("AA "+d.n);
+  LB.querySelector(".v3-lb-cap span").textContent=bits.join("  \u00b7  ");
+  LB.classList.add("on");
+}
+var LASTIDX=null;
+var _openAlbum=window.openAlbum;
+window.openAlbum=function(key){
+  LASTIDX=Number(key);
+  var r=_openAlbum.apply(this,arguments);
+  pipColours(document.getElementById("album-body"));
+  return r;
+};
+document.addEventListener("click",function(e){
+  var s=e.target.closest&&e.target.closest(".v3-sleeve,.m-shot");
+  if(!s)return;
+  e.stopPropagation();
+  var row=s.closest(".album");
+  var idx=row?Number(row.dataset.idx):LASTIDX;
+  openLB(rowsData()[idx],s.style.backgroundImage);
+},true);
+
+/* ── what an open panel gains ──────────────────────────────────── */
+function onOpen(row){
+  var d=rowsData()[Number(row.dataset.idx)];
+  var cover=row.querySelector(".cover"),takes=row.querySelector(".detail .takes");
+  if(!cover||!takes)return;
+  var shot=takes.querySelector(".v3-sleeve");
+  if(!shot){
+    shot=document.createElement("div");
+    shot.className="v3-sleeve";
+    shot.title="See the artwork";
+    takes.insertBefore(shot,takes.firstChild);
+  }
+  shot.style.backgroundImage=cover.style.backgroundImage||"";
+  shot.textContent=cover.style.backgroundImage?"":cover.textContent;
+  if(d&&bothRated(d)){
+    var s=splitOf(d);
+    if(s.n){
+      var el=takes.querySelector(".v3-tracks");
+      if(!el){el=document.createElement("div");el.className="v3-tracks";takes.appendChild(el);}
+      el.innerHTML='agreed on <b style="background:#3E9A63">'+s.shared+'</b> of '+s.n+' tracks'+
+        (s.apart?' \u00b7 split on <b style="background:#C2493C">'+s.apart+'</b>':"");
+    }
+  }
+  pipColours(row);   /* last, so chips built above are inked too */
+}
+new MutationObserver(function(ms){
+  ms.forEach(function(m){
+    var el=m.target;
+    if(el.classList&&el.classList.contains("album")&&el.classList.contains("open"))onOpen(el);
+  });
+}).observe(document.body,{subtree:true,attributes:true,attributeFilter:["class"]});
+
+/* ── per-render passes ─────────────────────────────────────────── */
+var spec=null;
+function paintSpectrum(){
+  var out=document.getElementById("out");
+  if(!out)return;
+  var counts=new Map();
+  out.querySelectorAll(".album,.wall button").forEach(function(el){
+    var c=(el.style.getPropertyValue("--gc")||"").trim();
+    if(!c||c.indexOf("var")===0)return;
+    var tag=el.querySelector(".gtag");
+    var key=c+"|"+(tag?tag.textContent.trim():"");
+    counts.set(key,(counts.get(key)||0)+1);
+  });
+  var list=Array.from(counts).map(function(e){
+    var p=e[0].split("|");
+    return {c:p[0],name:p[1],n:e[1]};
+  }).sort(function(a,b){return b.n-a.n;});
+  if(!spec){
+    spec=document.createElement("div");
+    spec.className="v3-spectrum";
+    spec.innerHTML='<div class="barwrap"><div class="bandglow"></div><div class="bandbar"></div></div><div class="keys"></div>';
+    out.parentNode.insertBefore(spec,out);
+  }
+  if(list.length<2){spec.hidden=true;return;}
+  spec.hidden=false;
+  spec.querySelector(".bandbar").innerHTML=list.map(function(x){
+    return '<i style="flex:'+x.n+' 1 0;background:'+x.c+'" title="'+(x.name||"")+" \u00b7 "+x.n+'"></i>';
+  }).join("");
+  /* the same proportions as hard stops, so the blur underneath matches the bar */
+  var total=list.reduce(function(t,x){return t+x.n;},0),acc=0;
+  spec.querySelector(".bandglow").style.backgroundImage="linear-gradient(90deg,"+
+    list.map(function(x){
+      var from=(acc/total*100).toFixed(2);acc+=x.n;
+      return x.c+" "+from+"% "+(acc/total*100).toFixed(2)+"%";
+    }).join(",")+")";
+  spec.querySelector(".keys").innerHTML=list.slice(0,5).map(function(x){
+    return '<span><em style="background:'+x.c+'"></em>'+(x.name||"other")+" "+x.n+"</span>";
+  }).join("");
+}
+var CHIPS=".pod-sc,.w-sc,.avg,.take .hd .sc:not(.off),.bar .n,.v3-heat b:not(.none),.v3-tracks b";
+function lumOf(c){
+  var m=(c||"").match(/[\d.]+/g);
+  if(!m||m.length<3)return null;
+  var v=m.slice(0,3).map(function(x){
+    x=parseFloat(x);
+    if(x<=1&&c.indexOf("color(")===0)x*=255;
+    x/=255;
+    return x<=0.03928?x/12.92:Math.pow((x+0.055)/1.055,2.4);
+  });
+  return 0.2126*v[0]+0.7152*v[1]+0.0722*v[2];
+}
+function pipColours(root){
+  (root||document).querySelectorAll(".pip,.mark,.benched").forEach(function(el){
+    if(el.style.getPropertyValue("--pipc"))return;
+    var c=el.style.backgroundColor||getComputedStyle(el).backgroundColor;
+    if(c&&c!=="rgba(0, 0, 0, 0)"&&c!=="transparent")el.style.setProperty("--pipc",c);
+  });
+  /* A score chip's ink is chosen from its own fill: the light end of the score
+     ramp cannot carry white text, and darkening the ramp would undo the
+     lighter green. The fill is also kept as --pipc so the night bloom still
+     glows in the score colour rather than in the ink. */
+  (root||document).querySelectorAll(CHIPS).forEach(function(el){
+    var c=getComputedStyle(el).backgroundColor;
+    if(!c||c==="rgba(0, 0, 0, 0)"||c==="transparent")return;
+    var l=lumOf(c);
+    if(l===null)return;
+    el.style.setProperty("--pipc",c);
+    /* whichever of the two inks actually reads better on this fill, rather
+       than a luminance guess: the mid ambers fail white and the deep reds
+       fail dark */
+    var onWhite=1.05/(l+0.05), onInk=(l+0.05)/0.062;
+    el.style.color=onInk>onWhite?"#08150F":"#FFFFFF";
+  });
+  /* the rail's bloom is a gradient drawn between the two scores: take the pip
+     colours and their positions straight off the gauge that owns them */
+  (root||document).querySelectorAll(".gauge").forEach(function(g){
+    var pips=[].slice.call(g.querySelectorAll(".pip"));
+    if(!pips.length)return;
+    var pos=pips.map(function(p){return parseFloat(p.style.getPropertyValue("--v"))||0;});
+    var cols=pips.map(function(p){return p.style.backgroundColor||getComputedStyle(p).backgroundColor;});
+    var lo=Math.min.apply(null,pos),hi=Math.max.apply(null,pos);
+    var a=cols[pos.indexOf(lo)]||cols[0],b=cols[pos.indexOf(hi)]||cols[0];
+    if(pips.length===1){lo=Math.max(0,pos[0]-9);hi=Math.min(100,pos[0]+9);}
+    g.style.setProperty("--gl",lo+"%");
+    g.style.setProperty("--gw",(hi-lo)+"%");
+    g.style.setProperty("--ga",a);
+    g.style.setProperty("--gb",b);
+  });
+}
+function halos(){
+  document.querySelectorAll(".artist-head").forEach(function(h){
+    if(h.style.getPropertyValue("--gc"))return;
+    var b=h.querySelector(".genre b");
+    if(b&&b.style.color)h.style.setProperty("--gc",b.style.color);
+  });
+}
+/* one digit, not two, on anything wearing a medal */
+function unpad(el){
+  if(!el)return;
+  var n=parseInt(el.textContent,10);
+  if(!isNaN(n))el.textContent=String(n);
+}
+function medals(){
+  var ranked=[].slice.call(document.querySelectorAll("#out .album.ranked"));
+  ranked.forEach(function(row,i){
+    if(i<3){row.dataset.medal=String(i+1);unpad(row.querySelector(".rankno"));}
+    else row.removeAttribute("data-medal");
+  });
+}
+/* captions become: medal, score, then the name on its own line, so long titles
+   wrap instead of being clipped and the medal is clear of the score */
+function caps(root){
+  (root||document).querySelectorAll(".w-cap").forEach(function(cap){
+    if(cap.__wrapped)return;
+    cap.__wrapped=1;
+    var text="";
+    [].slice.call(cap.childNodes).forEach(function(n){
+      if(n.nodeType===3){text+=n.textContent;n.parentNode.removeChild(n);}
+    });
+    text=text.trim();
+    if(!text)return;
+    var name=document.createElement("span");
+    name.className="w-name";
+    name.textContent=text;
+    cap.appendChild(name);
+  });
+}
+function wallHero(){
+  var wall=document.querySelector("#out .wall");
+  if(!wall)return;
+  if(document.querySelector("#out .v3-wallhero"))return;
+  var tiles=[].slice.call(wall.children);
+  tiles.forEach(function(b,i){
+    unpad(b.querySelector(".w-rk"));           /* #4, not #04 */
+    if(i<3)b.dataset.medal=String(i+1);
+  });
+  var lead=tiles[0];
+  if(!lead||lead.dataset.medal!=="1"||tiles.length<4)return;
+  var band=document.createElement("div");
+  band.className="v3-wallhero";
+  wall.parentNode.insertBefore(band,wall);
+  band.appendChild(lead);
+  var cap=lead.querySelector(".w-cap");
+  if(cap&&!cap.querySelector(".hero-note")){
+    var n=document.createElement("span");
+    n.className="hero-note";
+    n.textContent="top of the wall";
+    cap.appendChild(n);
+  }
+}
+/* ── artists, ranked the same way as albums ────────────────────────
+   Same podium, same tabs, same medals - the unit is a person rather than a
+   record, and the score is their average across everything that counts under
+   the current tab. */
+function artistTable(){
+  var who=podWho();
+  var q=$("q").value.trim().toLowerCase(),g=$("genre").value;
+  var m=new Map();
+  rowsData().forEach(function(d){
+    if(g&&d.genre!==g)return;
+    if(!matches(d,q))return;
+    var v=who==="a"?d.a:who==="n"?d.n:((d.a!==null&&d.n!==null)?d.avg:null);
+    if(v===null||isNaN(v))return;
+    if(!m.has(d.artist))m.set(d.artist,[]);
+    m.get(d.artist).push({v:v,d:d});
+  });
+  return Array.from(m).map(function(e){
+    var rows=e[1];
+    var info=(typeof ROSTER!=="undefined"&&ROSTER.get(e[0]))||{};
+    return {name:e[0],n:rows.length,
+      avg:rows.reduce(function(s,x){return s+x.v;},0)/rows.length,
+      genre:info.genre||rows[0].d.genre,
+      albums:rows.map(function(x){return x.d;})};
+  }).sort(function(x,y){return y.avg-x.avg||y.n-x.n;});
+}
+function artistsHTML(){
+  var who=podWho(),list=artistTable();
+  var tabs='<div class="pod-who"><div class="seg">'+POD_WHO.map(function(p){
+    return '<button data-podwho="'+p[0]+'"'+(p[0]===who?' class="on"':"")+'>'+p[1]+'</button>';
+  }).join("")+'</div></div>';
+  if(list.length<3){
+    return tabs+'<div class="podium-thin">'+(list.length
+      ? "Three rated artists fill the podium \u2014 there "+(list.length===1?"is":"are")+" "+
+        list.length+" so far under this tab."
+      : "Nothing rated under this tab yet.")+'</div>';
+  }
+  var top=list.slice(0,3),order=[top[1],top[0],top[2]];
+  var pod='<div class="podium">'+order.map(function(a){
+    var place=a===top[0]?1:(a===top[1]?2:3);
+    return '<button class="pod artistpod p'+place+'" data-artist="'+esc(a.name)+'"'+
+      ' title="'+esc(a.name)+'" style="--gc:'+hueOf(a.genre)+'">'+
+      (place===1?'<img class="crown" src="'+CROWN+'" alt="" aria-hidden="true">':"")+
+      '<span class="rank">'+(place===1?"":place)+'</span>'+
+      '<span class="pod-shot" data-art="'+esc(a.name)+'" data-kind="artist">'+esc(initials(a.name))+'</span>'+
+      '<span class="pod-cap"><b>'+esc(a.name)+'</b>'+a.n+' album'+(a.n===1?"":"s")+'</span>'+
+      '<span class="pod-sc" style="background:'+ramp(a.avg)+'">'+Math.round(a.avg)+'</span>'+
+    '</button>';
+  }).join("")+'</div>';
+  var rows=list.map(function(a,i){
+    return '<div class="a-rank"'+(i<3?' data-medal="'+(i+1)+'"':"")+'>'+
+      '<span class="rankno">'+(i+1)+'</span>'+
+      artistHead(a.name,a.genre,true,a.n+' album'+(a.n===1?"":"s"),a.avg,sparkline(a.albums))+
+    '</div>';
+  }).join("");
+  return tabs+pod+'<section class="artist">'+rows+'</section>';
+}
+function paintArtists(){
+  if(typeof VIEW==="undefined"||VIEW!=="artists")return false;
+  var out=document.getElementById("out");
+  var list=artistTable();
+  out.innerHTML=artistsHTML()+(typeof statsHTML==="function"?statsHTML():"");
+  $("count").textContent=list.length+" artist"+(list.length===1?"":"s");
+  out.querySelectorAll("[data-art]").forEach(loadImage);
+  if(typeof dressAvatars==="function")dressAvatars(out);
+  if(typeof reveal==="function")reveal(out);
+  return true;
+}
+
+function pass(){
+  paintBackdrop();climb();paintSpectrum();halos();caps();medals();wallHero();pipColours();
+  /* ask for the artwork of everything already on screen, rather than waiting
+     for the observer's next pass */
+  if(typeof sweep==="function")sweep();
+  earlyReveal();
+}
+/* The page's own observer arms 260px ahead of the viewport, which is why a
+   quick scroll met sleeves still mid-entrance. This one arms 900px ahead and
+   hands over to the page's showNow, so the animation itself is unchanged. */
+var eyeIO="IntersectionObserver" in window?new IntersectionObserver(function(es,o){
+  es.forEach(function(e){
+    if(!e.isIntersecting)return;
+    o.unobserve(e.target);
+    if(typeof showNow==="function")showNow(e.target);
+    else e.target.classList.add("in");
+  });
+},{rootMargin:"900px 0px 900px 0px",threshold:0}):null;
+function earlyReveal(){
+  if(!eyeIO)return;
+  document.querySelectorAll("#out .cover:not(.in),#out .rise:not(.in),#out .gauge:not(.in)")
+    .forEach(function(el){ if(!el.__eyed){el.__eyed=1;eyeIO.observe(el);} });
+  edgeReveal();
+}
+/* and a plain scroll pass, because an observer in a backgrounded frame can be
+   delayed long enough to be noticed */
+var edgeQueued=false;
+function edgeReveal(){
+  if(edgeQueued)return;
+  edgeQueued=true;
+  requestAnimationFrame(function(){
+    edgeQueued=false;
+    var edge=innerHeight+900;
+    document.querySelectorAll("#out .cover:not(.in),#out .rise:not(.in),#out .gauge:not(.in)")
+      .forEach(function(el){
+        var t=el.getBoundingClientRect().top;
+        if(t<edge&&t>-1200){ if(typeof showNow==="function")showNow(el); else el.classList.add("in"); }
+      });
+  });
+}
+addEventListener("scroll",edgeReveal,{passive:true});
+var _render=window.render;
+window.render=function(){
+  var r=_render.apply(this,arguments);
+  paintArtists();
+  pass();
+  return r;
+};
+addEventListener("load",pass);
+setTimeout(pass,1200);
+
+
+/* ── the magnified sleeve turns in your hand ───────────────────────
+   Hold and drag inside the lightbox and the artwork follows the pointer in 3D.
+   Let go with speed and it keeps going: the axis is perpendicular to the throw,
+   so a sideways flick spins about Y, an upward one flips about X, and a diagonal
+   does both. Angles are kept in JS rather than read back from a matrix, so a
+   throw always continues from exactly where the drag left off. */
+(function(){
+var RM2=matchMedia("(prefers-reduced-motion:reduce)").matches;
+var art=null,rx=0,ry=0,brx=0,bry=0,sx=0,sy=0,lx=0,ly=0,lt=0,vx=0,vy=0,drag=false,lastUp=0,backT=null;
+function paint(el,x,y,lift){
+  el.style.transform="rotateX("+x.toFixed(2)+"deg) rotateY("+y.toFixed(2)+"deg)"+
+    (lift?" translateZ(18px)":"");
+}
+function target(e){
+  var el=e.target.closest&&e.target.closest(".v3-lb-art");
+  return el;
+}
+document.addEventListener("pointerdown",function(e){
+  if(RM2||e.button)return;
+  var el=target(e);
+  if(!el)return;
+  el.getAnimations().forEach(function(a){a.cancel();});
+  clearTimeout(backT);
+  /* a return still in flight would otherwise ease every drag frame */
+  el.style.transition="none";
+  el.classList.remove("thrown");
+  el.classList.add("posed");
+  art=el;drag=false;
+  brx=rx;bry=ry;
+  sx=lx=e.clientX;sy=ly=e.clientY;lt=performance.now();vx=vy=0;
+  el.classList.add("turning");
+  try{el.setPointerCapture(e.pointerId);}catch(err){}
+  e.preventDefault();
+},true);
+document.addEventListener("pointermove",function(e){
+  if(!art)return;
+  var dx=e.clientX-sx,dy=e.clientY-sy;
+  if(Math.abs(dx)>3||Math.abs(dy)>3)drag=true;
+  var now=performance.now(),dt=Math.max(8,now-lt);
+  vx=(e.clientX-lx)/dt*16;vy=(e.clientY-ly)/dt*16;
+  lx=e.clientX;ly=e.clientY;lt=now;
+  rx=brx-dy*0.6;
+  ry=bry+dx*0.6;
+  paint(art,rx,ry,true);
+},true);
+function release(){
+  if(!art)return;
+  var el=art;art=null;lastUp=performance.now();
+  el.classList.remove("turning");
+  el.style.transition="";
+  var speed=Math.hypot(vx,vy);
+  if(speed>7){
+    /* throw direction decides which way it tumbles */
+    var turns=speed>22?2:1,spin=360*turns;
+    var horiz=Math.abs(vx)>=Math.abs(vy);
+    var tx=horiz?0:spin*(vy>0?1:-1);
+    var ty=horiz?spin*(vx>0?1:-1):0;
+    if(!horiz&&Math.abs(vx)>Math.abs(vy)*0.5)ty=spin*0.5*(vx>0?1:-1);
+    if(horiz&&Math.abs(vy)>Math.abs(vx)*0.5)tx=spin*0.5*(vy>0?1:-1);
+    var ex=rx+tx,ey=ry+ty;
+    var a=el.animate([
+      {transform:"rotateX("+rx.toFixed(2)+"deg) rotateY("+ry.toFixed(2)+"deg)"},
+      {transform:"rotateX("+ex.toFixed(2)+"deg) rotateY("+ey.toFixed(2)+"deg)"}
+    ],{duration:Math.max(700,1500-speed*14),easing:"cubic-bezier(.13,.62,.2,1)",fill:"forwards"});
+    /* it holds the angle it landed on for a beat, then turns itself back
+       slowly enough to watch */
+    a.onfinish=function(){
+      /* 396deg and 36deg look identical, but only one of them is a short way
+         home - normalise with transitions off so the swap is invisible */
+      rx=ex%360;ry=ey%360;
+      el.style.transition="none";
+      a.cancel();
+      paint(el,rx,ry,false);
+      void el.offsetWidth;
+      el.style.transition="";
+      el.classList.add("thrown");
+      clearTimeout(backT);
+      backT=setTimeout(function(){ comeBack(el); },1000);
+    };
+  }else{
+    rx=0;ry=0;
+    el.style.transition="transform .6s cubic-bezier(.2,1.25,.35,1)";
+    paint(el,0,0,false);
+    setTimeout(function(){el.style.transition="";},650);
+  }
+}
+function comeBack(el){
+  clearTimeout(backT);
+  if(!el||!el.isConnected)return;
+  rx=0;ry=0;
+  el.classList.remove("thrown");
+  el.style.transition="transform 1.15s cubic-bezier(.34,1.12,.32,1)";
+  paint(el,0,0,false);
+  setTimeout(function(){el.style.transition="";},1200);
+}
+document.addEventListener("pointerup",release,true);
+document.addEventListener("pointercancel",release,true);
+/* click a thrown sleeve and watch it turn back; a fresh lightbox starts flat */
+document.addEventListener("click",function(e){
+  if(e.target.closest&&e.target.closest(".v3-sleeve,.m-shot")){rx=0;ry=0;return;}
+  var el=e.target.closest&&e.target.closest(".v3-lb-art.thrown");
+  /* the click that ends the throw itself must not undo it */
+  if(!el||performance.now()-lastUp<260)return;
+  e.stopPropagation();
+  comeBack(el);
+},true);
+})();
+
+/* ── evening, with the tubes striking up ───────────────────────── */
+var night=store.get("aoty-night","0")==="1";
+var themeT=null,flickT=null;
+function applyNight(strike){
+  var root=document.documentElement;
+  root.classList.add("theming");
+  root.classList.toggle("night",night);
+  clearTimeout(themeT);
+  themeT=setTimeout(function(){root.classList.remove("theming");},600);
+  /* the tubes strike up only once the room has finished going dark */
+  clearTimeout(flickT);
+  root.classList.remove("flick");
+  if(strike&&night&&!RM){
+    flickT=setTimeout(function(){
+      root.classList.add("flick");
+      flickT=setTimeout(function(){root.classList.remove("flick");},1400);
+    },620);
+  }
+}
+if(night)applyNight(false);
+var who=document.querySelector(".who");
+if(who){
+  var btn=document.createElement("button");
+  btn.className="gear";
+  btn.id="v3-night";
+  btn.title="Evening theme";
+  btn.setAttribute("aria-label","Evening theme");
+  btn.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true">'+
+    '<mask id="v4moon"><rect width="24" height="24" fill="#fff"/>'+
+    '<circle class="bite" cx="12" cy="12" r="8.2"/></mask>'+
+    '<g class="rays"><line x1="12" y1="1.4" x2="12" y2="4"/>'+
+    '<line x1="12" y1="20" x2="12" y2="22.6"/><line x1="1.4" y1="12" x2="4" y2="12"/>'+
+    '<line x1="20" y1="12" x2="22.6" y2="12"/><line x1="4.5" y1="4.5" x2="6.3" y2="6.3"/>'+
+    '<line x1="17.7" y1="17.7" x2="19.5" y2="19.5"/><line x1="4.5" y1="19.5" x2="6.3" y2="17.7"/>'+
+    '<line x1="17.7" y1="6.3" x2="19.5" y2="4.5"/></g>'+
+    '<circle class="core" cx="12" cy="12" r="8.6" mask="url(#v4moon)"/></svg>';
+  btn.onclick=function(){
+    night=!night;
+    store.set("aoty-night",night?"1":"0");
+    applyNight(true);
+  };
+  who.insertBefore(btn,document.getElementById("gear"));
+}
+})();
 </script>
 </body>
 </html>
