@@ -412,6 +412,17 @@ button.artist-head:hover h2{color:var(--accent)}
 .mark.benched{filter:grayscale(1); opacity:.38; box-shadow:inset 0 0 0 1px var(--line-2)}
 .songlist li:hover .mark.benched{opacity:.55}
 .mark.none{background:none; box-shadow:none; position:relative}
+/* Your own marks are buttons. Nothing moves on hover - the row is dense and a
+   jumping target is worse than a still one - so the ring does the talking. */
+button.mark.mine{cursor:pointer; padding:0; transition:box-shadow .16s ease-out, opacity .16s}
+button.mark.mine:hover{box-shadow:0 0 0 2px var(--accent-soft)}
+button.mark.none.mine:hover::after{background:var(--accent)}
+button.mark.mine.busy{opacity:.45; cursor:default}
+.tl-head .wipe{font:inherit; font-size:9.5px; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--faint); border:1px solid var(--line-2); border-radius:20px;
+  padding:.12rem .5rem; flex:none}
+.tl-head .wipe:hover{color:var(--accent); border-color:var(--accent)}
+.tl-head .wipe.busy{opacity:.45}
 .mark.none::after{content:""; width:4px; height:4px; border-radius:50%; background:var(--line-2)}
 
 .queue{margin-top:3.5rem; padding-top:2rem; border-top:1px solid var(--line-2)}
@@ -776,9 +787,17 @@ footer button:hover{border-color:var(--accent)}
 const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSud4ctkVHpydEcLj-MLBRB0fQ1U6JC8mtyzPFeRqwDlFibf_J1kdBpyyXT-zOQ9wifaKtosl0pcqbT/pub?gid=739012602&single=true&output=csv";
 
 const INI = { anthony:"AP", annette:"AA" };
+
+/* The sheet is read through a published CSV, which is one-way. Marking a song
+   from here goes back through the Apps Script web app instead: Deploy > New
+   deployment > Web app in the script editor. MARK_KEY must match WEB_KEY in
+   AlbumsTools_2.gs, or every call is refused. Blank either one and the marks
+   simply stop being clickable - nothing else breaks. */
+const MARK_URL = "https://script.google.com/macros/s/AKfycbxvNggOJvLx8yY0JsKWdpX_g_XepHRNbZyVmBwssm-IYuuNH11iP5wGxuOX5tW3J-rz/exec";
+const MARK_KEY = "change-this-to-something-only-you-know";
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-17m";
+const BUILD = "2026-08-17n";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -867,8 +886,12 @@ function parseCSV(text){
   if(cell||row.length){row.push(cell);rows.push(row);}
   return rows;
 }
+/* Three states now: ~ disliked, + liked, bare name means nothing said.
+   Absence used to count as liked, which was fine by hand but would have given
+   every freshly fetched album a perfect score the moment ratings started
+   working themselves out from the marks. */
 function splitSongs(raw){
-  const order=[],liked=[],disliked=[],dis=new Set(),seen=new Set();
+  const order=[],liked=[],disliked=[],dis=new Set(),yes=new Set(),seen=new Set();
   const text=String(raw||"");
   // one track per line is the safe format, because plenty of titles contain
   // commas. So if there are line breaks, they alone are the separator.
@@ -877,14 +900,25 @@ function splitSongs(raw){
     : text.split(/[;,\u2022\u00b7]+/);
   parts.map(x=>x.trim()).filter(Boolean).forEach(t=>{
     const struck=/^~/.test(t);
-    const name=t.replace(/^~+\s*/,"").replace(/\s*~+$/,"").trim();
+    const plus=!struck&&/^\+/.test(t);
+    const name=t.replace(/^[~+]+\s*/,"").replace(/\s*~+$/,"").trim();
     if(!name)return;
     const k=name.toLowerCase();
     if(seen.has(k))return;
     seen.add(k); order.push(name);
-    if(struck){disliked.push(name);dis.add(k);} else liked.push(name);
+    if(struck){disliked.push(name);dis.add(k);}
+    else if(plus){liked.push(name);yes.add(k);}
   });
-  return{order,liked,disliked,dis,all:order};
+  return{order,liked,disliked,dis,yes,all:order};
+}
+
+/** liked out of everything judged, the same sum the script does. */
+function scoreOf(s){
+  if(!s)return null;
+  let y=0,n=0;
+  s.order.forEach(t=>{const k=t.toLowerCase();
+    if(s.dis.has(k))n++; else if(s.yes&&s.yes.has(k))y++;});
+  return (y+n)?Math.round(y/(y+n)*100):null;
 }
 
 const DEFAULT_COLS={photo:0,artist:1,genre:2,cover:3,album:4,year:5,
@@ -1390,6 +1424,94 @@ function preview(btn,alts,override){
 
 const esc=s=>(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
+/* ── marking songs ───────────────────────────────────────────────────
+   The reply comes back through the same jsonp helper the catalogues use, so
+   there is no CORS to fight. The sheet is the truth, but Google republishes
+   the CSV on its own schedule, so the page also updates itself from the
+   answer rather than sitting still for five minutes. */
+const NEXT_MARK={"y":"n","n":"","":"y"};      // liked, not for me, nothing said
+
+function markCall(params){
+  if(!MARK_URL||!MARK_KEY)return Promise.resolve({ok:false,error:"no endpoint set"});
+  const q=Object.keys(params).map(k=>k+"="+encodeURIComponent(params[k])).join("&");
+  return jsonp(MARK_URL+"?key="+encodeURIComponent(MARK_KEY)+"&"+q)
+    .then(r=>r||{ok:false,error:"the script did not answer"});
+}
+
+/** Puts the new state into the row we already hold, so the gauge, the score
+ *  and the facts strip move immediately. */
+function applyMark(d,who,song,verdict){
+  const s=who==="anthony"?d.aS:d.nS;
+  const k=String(song).toLowerCase();
+  s.dis.delete(k); if(s.yes)s.yes.delete(k);
+  if(verdict==="n")s.dis.add(k);
+  else if(verdict==="y"&&s.yes)s.yes.add(k);
+  s.liked=s.order.filter(t=>s.yes&&s.yes.has(t.toLowerCase()));
+  s.disliked=s.order.filter(t=>s.dis.has(t.toLowerCase()));
+  const sc=scoreOf(s);
+  if(who==="anthony")d.a=sc; else d.n=sc;
+}
+
+function markSong(btn){
+  const card=btn.closest(".album")||$("album-body");
+  const idx=card&&card.dataset?card.dataset.idx:null;
+  const d=ROWS[Number(idx!=null?idx:MODAL_IDX)];
+  if(!d){note("Lost track of which album that was \u2014 reload the page");return;}
+  const who=btn.dataset.mark, song=btn.dataset.song;
+  const next=NEXT_MARK[btn.dataset.now||""];
+  btn.classList.add("busy");
+  markCall({what:"mark",artist:d.artist,album:d.album,song:song,
+            who:who==="anthony"?"a":"n",
+            verdict:next==="y"?"yes":next==="n"?"no":"clear"}).then(r=>{
+    btn.classList.remove("busy");
+    if(!r.ok){note(r.error||"The sheet refused that");return;}
+    applyMark(d,who,song,next);
+    redrawOpen(d);
+  });
+}
+
+function wipeMine(btn){
+  const card=btn.closest(".album")||$("album-body");
+  const idx=card&&card.dataset?card.dataset.idx:null;
+  const d=ROWS[Number(idx!=null?idx:MODAL_IDX)];
+  if(!d)return;
+  const who=btn.dataset.wipe;
+  const s=who==="anthony"?d.aS:d.nS;
+  const mine=s.order.filter(t=>{const k=t.toLowerCase();
+    return s.dis.has(k)||(s.yes&&s.yes.has(k));});
+  if(!mine.length){note("You haven\u2019t marked anything on this one");return;}
+  if(!confirm("Clear your "+mine.length+" mark"+(mine.length===1?"":"s")+
+              " on "+d.album+"? Your rating goes back to nothing said."))return;
+  btn.classList.add("busy");
+  // one at a time, so a failure halfway leaves the sheet consistent with itself
+  mine.reduce((chain,song)=>chain.then(()=>
+    markCall({what:"mark",artist:d.artist,album:d.album,song:song,
+              who:who==="anthony"?"a":"n",verdict:"clear"})
+      .then(r=>{ if(r.ok)applyMark(d,who,song,""); })
+  ),Promise.resolve()).then(()=>{
+    btn.classList.remove("busy");
+    redrawOpen(d);
+  });
+}
+
+/** Repaints whichever view the album is showing without losing your place. */
+function redrawOpen(d){
+  const i=ROWS.indexOf(d);
+  if($("album-modal").classList.contains("on")){ openAlbum(i); return; }
+  const card=document.querySelector('.album[data-idx="'+i+'"]');
+  if(!card){render();return;}
+  const wasOpen=card.classList.contains("open");
+  const fresh=document.createElement("div");
+  fresh.innerHTML=albumHTML(d,card.querySelector(".album-title").textContent.indexOf(" \u2014 ")>-1);
+  const next=fresh.firstElementChild;
+  if(wasOpen){next.classList.add("open");next.setAttribute("aria-expanded","true");}
+  card.replaceWith(next);
+  next.querySelectorAll("[data-art]").forEach(loadImage);
+  dressAvatars(next);
+  next.querySelectorAll(".cover,.gauge,.rise").forEach(el=>el.classList.add("in"));
+  paintTally();
+}
+
 /* ── stats ───────────────────────────────────────────────────── */
 const mean=a=>a.length?a.reduce((s,x)=>s+x,0)/a.length:null;
 
@@ -1596,9 +1718,11 @@ function wallHTML(list){
     </button>`).join("")}</div>`;
 }
 
+let MODAL_IDX=-1;
 function openAlbum(key){
   const d=ROWS[Number(key)];
   if(!d)return;
+  MODAL_IDX=Number(key);
   clearTimeout(hoverTimer);
   if(HOVER_ROW)stopPreview();
   const who=whoBits(d);
@@ -2051,7 +2175,10 @@ function songTable(d){
   const first=d.nS.order.length>d.aS.order.length?["n","a"]:["a","n"];
   for(const who of first){
     const src=who==="a"?d.aS:d.nS;
-    src.order.forEach(t=>put(t,who,src.dis.has(t.toLowerCase())?"n":"y"));
+    src.order.forEach(t=>{
+      const k=t.toLowerCase();
+      put(t,who,src.dis.has(k)?"n":(src.yes&&src.yes.has(k))?"y":"");
+    });
   }
   return order.map(k=>seen.get(k));
 }
@@ -2070,10 +2197,20 @@ function take(name,who,v,text,skip){
 function benchMark(who){
   return`<span class="mark benched" data-who="${who}" title="${who[0].toUpperCase()+who.slice(1)} hasn\u2019t heard this album">${INI[who]}</span>`;
 }
-function verdict(v,who,letter){
-  if(v==="y")return`<span class="mark" data-who="${who}" title="liked it">${letter}</span>`;
-  if(v==="n")return`<span class="mark no" title="not for them">\u00d7</span>`;
-  return`<span class="mark none" title="didn't say"></span>`;
+/* Your own mark is a button; the other person's is just a picture of what
+   they thought. One tap cycles liked, not for me, nothing said. */
+function verdict(v,who,letter,song){
+  const me=store.get("aoty-me","")===who && !!MARK_URL && !!MARK_KEY;
+  const tag=me?"button":"span";
+  const hook=me?` data-mark="${who}" data-song="${esc(song||"")}" data-now="${v||""}"`:"";
+  const tip=me
+    ? (v==="y"?"You liked this \u2014 tap to change"
+      :v==="n"?"Not for you \u2014 tap to change"
+      :"Tap to say what you thought")
+    : (v==="y"?"liked it":v==="n"?"not for them":"didn't say");
+  const cls=(v==="y"?"mark":v==="n"?"mark no":"mark none")+(me?" mine":"");
+  const body=v==="y"?letter:v==="n"?"\u00d7":"";
+  return`<${tag} class="${cls}"${v==="y"?` data-who="${who}"`:""}${hook} title="${tip}">${body}</${tag}>`;
 }
 function detailHTML(d){
   const rows=songTable(d);
@@ -2095,13 +2232,16 @@ function detailHTML(d){
     `<div><span>${k}</span><b${c?` style="color:${c}"`:""}>${v}</b></div>`).join("")}</div>`:"";
   const tall=rows.length>10;
   const list=rows.length?`<div class="songlist">
-    <div class="tl-head"><span>Tracklist \u00b7 tap \u25b6 for a clip</span></div>
+    <div class="tl-head"><span>Tracklist \u00b7 tap \u25b6 for a clip</span>${
+      (store.get("aoty-me","")&&MARK_URL&&MARK_KEY)
+        ?`<button class="wipe" data-wipe="${store.get("aoty-me","")}"
+            title="Clear all your marks on this album and start again">reset mine</button>`:""}</div>
     <div class="tl-wrap${tall?" tall":""}"><ul>${rows.map((r,i)=>`<li style="animation-delay:${Math.min(i,14)*0.035}s"><span class="tl-name">${esc(r.label)}</span>
       <span class="rowend">
         <button class="play" data-artist="${esc(d.artist)}" data-album="${esc(d.album)}" data-song="${esc(r.label)}" title="Play a 30s clip" aria-label="Play a clip of ${esc(r.label)}">\u25b6</button>
         <span class="marks">${
-          d.aSkip?benchMark("anthony"):verdict(r.a,"anthony",INI.anthony)}${
-          d.nSkip?benchMark("annette"):verdict(r.n,"annette",INI.annette)}</span>
+          d.aSkip?benchMark("anthony"):verdict(r.a,"anthony",INI.anthony,r.label)}${
+          d.nSkip?benchMark("annette"):verdict(r.n,"annette",INI.annette,r.label)}</span>
       </span></li>`).join("")}</ul></div>
   </div>`:"";
   return`<div class="detail-wrap"><div class="detail-inner"><div class="detail"><div class="takes">${takes}${strip}</div>${list}</div></div></div>`;
@@ -2425,6 +2565,10 @@ document.addEventListener("click",e=>{
   const jumpFirst=e.target.closest("[data-artist]");
   const opener=jumpFirst?null:e.target.closest("[data-open]");
   if(opener){openAlbum(opener.dataset.open);return;}
+  const mk=e.target.closest("[data-mark]");
+  if(mk){e.stopPropagation(); if(!mk.classList.contains("busy"))markSong(mk); return;}
+  const wp=e.target.closest("[data-wipe]");
+  if(wp){e.stopPropagation(); if(!wp.classList.contains("busy"))wipeMine(wp); return;}
   const pb=e.target.closest(".play");
   if(pb){e.stopPropagation(); HOVER_ROW=null; if(!pb.classList.contains("dead"))preview(pb); return;}
   const jump=e.target.closest("[data-artist]");
@@ -3155,7 +3299,7 @@ header:has(.tally:last-child){padding-bottom:0}
   opacity:0; transform:translateY(10px); transition:opacity .3s ease-out,
     transform .4s cubic-bezier(.32,.72,.28,1)}
 /* the arrow keeps to the right, below the jumps and in from the edge */
-.v4-top{position:fixed; right:2.4rem; bottom:1.5rem; z-index:71;
+.v4-top{position:fixed; right:2.4rem; bottom:4.6rem; z-index:71;
   width:44px; height:44px; border-radius:50%; display:grid; place-items:center;
   font-size:15px; color:var(--dim); background:var(--raised-2);
   box-shadow:0 0 0 1px var(--line-2), 0 6px 18px rgba(15,37,54,.16);
@@ -3167,10 +3311,7 @@ header:has(.tally:last-child){padding-bottom:0}
   box-shadow:0 0 0 1px var(--accent-soft), 0 10px 22px rgba(15,37,54,.2)}
 .night .v4-top{box-shadow:0 0 0 1px var(--line-2), 0 6px 20px rgba(0,0,0,.45)}
 .night .v4-top:hover{box-shadow:0 0 0 1px var(--accent), 0 0 18px -6px var(--accent)}
-/* it shares the jump buttons' baseline, and steps up out of the way only
-   while the player is actually on screen */
-body:has(.player.on) .v4-top{bottom:5.6rem}
-@media(max-width:560px){.v4-top{right:1.1rem}}
+@media(max-width:560px){.v4-top{right:1.1rem; bottom:5.6rem}}
 .v4-rail.on{opacity:1; transform:none; pointer-events:auto}
 .v4-rail button{display:flex; align-items:center; gap:.5rem; border-radius:999px;
   background:var(--raised-2); color:var(--dim); padding:.5rem .9rem;
