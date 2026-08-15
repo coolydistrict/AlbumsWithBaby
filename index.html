@@ -418,6 +418,10 @@ button.mark.mine{cursor:pointer; padding:0; transition:box-shadow .16s ease-out,
 button.mark.mine:hover{box-shadow:0 0 0 2px var(--accent-soft)}
 button.mark.none.mine:hover::after{background:var(--accent)}
 button.mark.mine.busy{opacity:.45; cursor:default}
+/* your slot, nothing said yet: your face, waiting to be tapped */
+.mark.blank{background:var(--raised-2) center/cover; color:var(--faint);
+  opacity:.4; box-shadow:inset 0 0 0 1px var(--line-2)}
+button.mark.blank:hover{opacity:.75}
 .tl-head .wipe{font:inherit; font-size:9.5px; letter-spacing:.12em; text-transform:uppercase;
   color:var(--faint); border:1px solid var(--line-2); border-radius:20px;
   padding:.12rem .5rem; flex:none}
@@ -797,7 +801,7 @@ const MARK_URL = "https://script.google.com/macros/s/AKfycbxvNggOJvLx8yY0JsKWdpX
 const MARK_KEY = "puppy";
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-17s";
+const BUILD = "2026-08-17t";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -912,6 +916,14 @@ function splitSongs(raw){
     if(struck){disliked.push(name);dis.add(k);}
     else if(plus){liked.push(name);yes.add(k);}
   });
+  /* A cell with dislikes but no likes was written under the old convention,
+     where anything unmarked meant liked. Read it that way rather than showing
+     a whole album as unrated - the sheet is already telling us what they
+     thought. The moment one explicit like appears, the cell is read literally. */
+  if(dis.size&&!yes.size){
+    order.forEach(t=>{const k=t.toLowerCase();
+      if(!dis.has(k)){yes.add(k);liked.push(t);}});
+  }
   return{order,liked,disliked,dis,yes,all:order};
 }
 
@@ -1434,7 +1446,34 @@ const esc=s=>(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"
    there is no CORS to fight. The sheet is the truth, but Google republishes
    the CSV on its own schedule, so the page also updates itself from the
    answer rather than sitting still for five minutes. */
-const NEXT_MARK={"y":"n","n":"","":"y"};      // liked, not for me, nothing said
+/* One tap flips between liked and not for me. Getting back to "haven't said"
+   is what the reset control is for - three states on a single tap meant
+   overshooting constantly. */
+const NEXT_MARK={"y":"n","n":"y","":"y"};
+
+/* The sheet is read again every fifteen seconds, and Google serves that copy
+   from a cache that can be minutes behind. Without this, a mark you just made
+   would vanish on the next poll and reappear once the cache caught up - which
+   is exactly what it did. Anything marked in the last few minutes is put back
+   on top of whatever the sheet says. */
+const RECENT=new Map();
+const RECENT_FOR=4*60*1000;
+
+function editKey(d,who,song){
+  return [d.artist,d.album,who,song].join("\u0000").toLowerCase();
+}
+function rememberEdit(d,who,song,v){
+  RECENT.set(editKey(d,who,song),{v:v,at:Date.now(),
+    artist:d.artist,album:d.album,who:who,song:song});
+}
+function replayEdits(){
+  const now=Date.now();
+  [...RECENT.entries()].forEach(([k,e])=>{
+    if(now-e.at>RECENT_FOR){RECENT.delete(k);return;}
+    const d=ROWS.find(x=>x.artist===e.artist&&x.album===e.album);
+    if(d)applyMark(d,e.who,e.song,e.v);
+  });
+}
 
 function markCall(params){
   if(!MARK_URL||!MARK_KEY)return Promise.resolve({ok:false,error:"no endpoint set"});
@@ -1471,14 +1510,16 @@ function markSong(btn){
   const next=NEXT_MARK[was];
 
   applyMark(d,who,song,next);
-  redrawOpen(d);
+  rememberEdit(d,who,song,next);
+  redrawOpen(d,who,song);
 
   markCall({what:"mark",artist:d.artist,album:d.album,song:song,
             who:who==="anthony"?"a":"n",
             verdict:next==="y"?"yes":next==="n"?"no":"clear"}).then(r=>{
     if(r.ok)return;
     applyMark(d,who,song,was);        // put it back exactly as it was
-    redrawOpen(d);
+    rememberEdit(d,who,song,was);
+    redrawOpen(d,who,song);
     note(r.error||"The sheet refused that");
   });
 }
@@ -1497,7 +1538,7 @@ function wipeMine(btn){
               " on "+d.album+"? Your rating goes back to nothing said."))return;
   // clear them on screen at once, then tell the sheet one at a time so a
   // failure halfway leaves it consistent with itself
-  mine.forEach(song=>applyMark(d,who,song,""));
+  mine.forEach(song=>{applyMark(d,who,song,"");rememberEdit(d,who,song,"");});
   redrawOpen(d);
   let failed=0;
   mine.reduce((chain,song)=>chain.then(()=>
@@ -1509,22 +1550,65 @@ function wipeMine(btn){
   });
 }
 
-/** Repaints whichever view the album is showing without losing your place. */
-function redrawOpen(d){
-  const i=ROWS.indexOf(d);
-  if($("album-modal").classList.contains("on")){ openAlbum(i); return; }
-  const card=document.querySelector('.album[data-idx="'+i+'"]');
-  if(!card){render();return;}
-  const wasOpen=card.classList.contains("open");
-  const fresh=document.createElement("div");
-  fresh.innerHTML=albumHTML(d,card.querySelector(".album-title").textContent.indexOf(" \u2014 ")>-1);
-  const next=fresh.firstElementChild;
-  if(wasOpen){next.classList.add("open");next.setAttribute("aria-expanded","true");}
-  card.replaceWith(next);
-  next.querySelectorAll("[data-art]").forEach(loadImage);
-  dressAvatars(next);
-  next.querySelectorAll(".cover,.gauge,.rise").forEach(el=>el.classList.add("in"));
+/* Updates only the pieces that changed. Rebuilding the whole row threw away
+   the element under your finger, replayed every animation and bounced the page
+   back up the list on every single tap. */
+function refreshMark(root,d,who,song){
+  const s=who==="anthony"?d.aS:d.nS;
+  const k=String(song).toLowerCase();
+  const v=s.dis.has(k)?"n":(s.yes&&s.yes.has(k))?"y":"";
+  const btn=[...root.querySelectorAll("[data-mark]")]
+    .find(b=>b.dataset.mark===who&&b.dataset.song===song);
+  if(!btn)return;
+  btn.dataset.now=v;
+  btn.className="mark "+(v==="y"?"":v==="n"?"no ":"blank ")+"mine";
+  btn.textContent=v==="n"?"\u00d7":INI[who];
+  btn.setAttribute("data-who",who);
+  btn.title=v==="y"?"You liked this \u2014 tap to change"
+          :v==="n"?"Not for you \u2014 tap to change"
+          :"Tap to say what you thought";
+  dressAvatars(btn.parentNode);
+}
+
+function refreshScore(root,d){
+  const g=root.querySelector(".gauge-wrap");
+  if(g){
+    const box=document.createElement("div");
+    box.innerHTML=gauge(d);
+    if(box.firstElementChild){
+      g.replaceWith(box.firstElementChild);
+      const fresh=root.querySelector(".gauge-wrap");
+      dressAvatars(fresh);
+      fresh.querySelectorAll(".gauge").forEach(el=>el.classList.add("in"));
+    }
+  }
+  const sub=root.querySelector(".album-sub");
+  if(sub){
+    const who=whoBits(d);
+    const keep=sub.querySelector(".gtag");
+    sub.innerHTML=(d.year?`<span class="yr">${esc(d.year)}</span>`:"")+who.join("  ");
+    if(keep)sub.appendChild(keep);
+    dressAvatars(sub);
+  }
+  const facts=root.querySelector(".facts");
+  if(facts){
+    const box=document.createElement("div");
+    box.innerHTML=detailHTML(d);
+    const made=box.querySelector(".facts");
+    if(made)facts.innerHTML=made.innerHTML;
+  }
   paintTally();
+}
+
+/** One song changed: touch that mark and the numbers, nothing else. */
+function redrawOpen(d,who,song){
+  const i=ROWS.indexOf(d);
+  const inModal=$("album-modal").classList.contains("on");
+  const root=inModal?$("album-body"):document.querySelector('.album[data-idx="'+i+'"]');
+  if(!root)return;
+  if(who&&song)refreshMark(root,d,who,song);
+  else root.querySelectorAll("[data-mark]").forEach(b=>refreshMark(root,d,b.dataset.mark,b.dataset.song));
+  refreshScore(root,d);
 }
 
 /* ── stats ───────────────────────────────────────────────────── */
@@ -2223,9 +2307,13 @@ function verdict(v,who,letter,song){
       :v==="n"?"Not for you \u2014 tap to change"
       :"Tap to say what you thought")
     : (v==="y"?"liked it":v==="n"?"not for them":"didn't say");
-  const cls=(v==="y"?"mark":v==="n"?"mark no":"mark none")+(me?" mine":"");
-  const body=v==="y"?letter:v==="n"?"\u00d7":"";
-  return`<${tag} class="${cls}"${v==="y"?` data-who="${who}"`:""}${hook} title="${tip}">${body}</${tag}>`;
+  /* Whose slot this is has to be readable at a glance, so an unmarked slot
+     still shows the face - dimmed, waiting. Only the other person's unmarked
+     slot stays a bare dot, because there is nothing there to act on. */
+  const cls=(v==="y"?"mark":v==="n"?"mark no":me?"mark blank":"mark none")+(me?" mine":"");
+  const body=v==="y"?letter:v==="n"?"\u00d7":me?letter:"";
+  const face=(v==="y"||(me&&v!=="n"))?` data-who="${who}"`:"";
+  return`<${tag} class="${cls}"${face}${hook} title="${tip}">${body}</${tag}>`;
 }
 function detailHTML(d){
   const rows=songTable(d);
@@ -2918,6 +3006,7 @@ function applyCSV(text,header){
     sel.innerHTML='<option value="">All genres</option>'+want.map(g=>`<option>${esc(g)}</option>`).join("");
     sel.value=want.indexOf(had)>-1?had:"";
   }
+  replayEdits();          // the sheet's copy may be minutes behind your taps
   paintTally();
   buildMarquee();
 }
