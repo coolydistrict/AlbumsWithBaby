@@ -801,7 +801,7 @@ const MARK_URL = "https://script.google.com/macros/s/AKfycbxvNggOJvLx8yY0JsKWdpX
 const MARK_KEY = "puppy";
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-17u";
+const BUILD = "2026-08-17w";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -1568,11 +1568,22 @@ function refreshMark(root,d,who,song){
   btn.dataset.now=v;
   btn.className="mark "+(v==="y"?"":v==="n"?"no ":"blank ")+"mine";
   btn.textContent=v==="n"?"\u00d7":INI[who];
-  btn.setAttribute("data-who",who);
   btn.title=v==="y"?"You liked this \u2014 tap to change"
           :v==="n"?"Not for you \u2014 tap to change"
           :"Tap to say what you thought";
-  dressAvatars(btn.parentNode);
+  /* A dislike is a cross, and a face painted over it hides it completely -
+     dressAvatars sets the picture as the background and the text transparent.
+     So the face comes off, and every trace of it with it. */
+  if(v==="n"){
+    btn.removeAttribute("data-who");
+    btn.style.backgroundImage="";
+    btn.style.backgroundSize="";
+    btn.style.backgroundPosition="";
+    btn.style.color="";
+  }else{
+    btn.setAttribute("data-who",who);
+    dressAvatars(btn.parentNode);
+  }
 }
 
 function refreshScore(root,d){
@@ -1588,29 +1599,38 @@ function refreshScore(root,d){
     }
   }
   const sub=root.querySelector(".album-sub");
-  if(sub){
-    const who=whoBits(d);
-    const keep=sub.querySelector(".gtag");
-    sub.innerHTML=(d.year?`<span class="yr">${esc(d.year)}</span>`:"")+who.join("  ");
-    if(keep)sub.appendChild(keep);
-    dressAvatars(sub);
-  }
-  const facts=root.querySelector(".facts");
-  if(facts){
+  if(sub){ sub.innerHTML=subInner(d); dressAvatars(sub); }
+  /* The panel holds each person's own score beside their name, and the facts
+     strip under it. Both live inside .takes, and only the facts were being
+     rebuilt - so the number next to Anthony or Annette sat there unchanged. */
+  const takes=root.querySelector(".takes");
+  if(takes){
     const box=document.createElement("div");
     box.innerHTML=detailHTML(d);
-    const made=box.querySelector(".facts");
-    if(made)facts.innerHTML=made.innerHTML;
+    const made=box.querySelector(".takes");
+    if(made){ takes.innerHTML=made.innerHTML; dressAvatars(takes); }
+  }
+  /* the modal titles the record rather than listing it, so it has its own line */
+  const msub=root.querySelector(".m-sub");
+  if(msub){
+    const who=whoBits(d);
+    msub.innerHTML=`<button data-artist="${esc(d.artist)}">${esc(d.artist)}</button>`+
+      (d.year?" \u00b7 "+esc(d.year):"")+" \u00b7 "+who.join("  ");
   }
   /* the artist's own average sits above the block and was going stale */
+  /* The artist's average appears twice: as the badge beside the name, and
+     again as "avg NN" on the genre line of an artist's own page. */
+  const mine=ROWS.filter(x=>x.artist===d.artist&&!isNaN(x.avg));
+  const av=mine.length?mean(mine.map(x=>x.avg)):null;
   const sec=root.closest?root.closest("section.artist"):null;
-  const badge=sec&&sec.querySelector(".artist-head .avg");
+  const scope=sec||document;
+  const badge=scope.querySelector(".artist-head .avg");
   if(badge){
-    const mine=ROWS.filter(x=>x.artist===d.artist&&!isNaN(x.avg));
-    const av=mine.length?mean(mine.map(x=>x.avg)):null;
-    if(av===null){badge.remove();}
+    if(av===null)badge.remove();
     else{badge.textContent=Math.round(av); badge.style.background=ramp(av);}
   }
+  const line=scope.querySelector(".artist-head .a-avg");
+  if(line&&av!==null)line.textContent=Math.round(av);
   paintTally();
 }
 
@@ -2375,14 +2395,21 @@ function detailHTML(d){
   </div>`:"";
   return`<div class="detail-wrap"><div class="detail-inner"><div class="detail"><div class="takes">${takes}${strip}</div>${list}</div></div></div>`;
 }
+/* The line under an album title, built in one place so the first render and
+   every refresh after it cannot drift apart. */
+function subInner(d){
+  return (d.year?`<span class="yr">${esc(d.year)}</span>`:"")+
+    whoBits(d).join("  ")+
+    (d.genre?`<span class="gtag" style="--gc:${hueOf(d.genre)}">${esc(d.genre)}</span>`:"");
+}
+
 function albumHTML(d,withArtist,rank){
   const who=whoBits(d);
   return`<article class="album${rank?" ranked":""}" tabindex="0" role="button" aria-expanded="false"
     data-idx="${ROWS.indexOf(d)}" style="--gc:${hueOf(d.genre)};--sc:${isNaN(d.avg)?"transparent":ramp(d.avg)}">${rank?`<span class="rankno">${String(rank).padStart(2,"0")}</span>`:""}
     <div class="cover" data-cover="${esc(d.cover)}" data-art="${esc(d.artist+" "+d.album)}">${esc(initials(d.album))}</div>
     <div class="rise"><div class="album-title">${withArtist?esc(d.artist)+" — ":""}${esc(d.album)}</div>
-      <div class="album-sub">${d.year?`<span class="yr">${esc(d.year)}</span>`:""}${who.join("  ")}${
-        d.genre?`<span class="gtag" style="--gc:${hueOf(d.genre)}">${esc(d.genre)}</span>`:""}</div></div>
+      <div class="album-sub">${subInner(d)}</div></div>
     ${gauge(d)}
     ${detailHTML(d)}
   </article>`;
@@ -2476,7 +2503,7 @@ function renderArtist(name){
 
   const avg=mine.length?Math.round(mean(mine.map(d=>d.avg))):null;
   const extra=mine.length
-    ? `${mine.length} album${mine.length>1?"s":""}<span class="sep">·</span>avg ${avg}`
+    ? `${mine.length} album${mine.length>1?"s":""}<span class="sep">·</span>avg <b class="a-avg">${avg}</b>`
     : "nothing rated yet";
   const filtered=mine.length&&shown.length!==mine.length;
   $("count").textContent=mine.length
