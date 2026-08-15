@@ -801,7 +801,7 @@ const MARK_URL = "https://script.google.com/macros/s/AKfycbxvNggOJvLx8yY0JsKWdpX
 const MARK_KEY = "puppy";
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-17t";
+const BUILD = "2026-08-17u";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -996,14 +996,18 @@ function shape(raw,cols){
     const rawN=String(r[K.nRate]==null?"":r[K.nRate]).trim();
     const skipA=/^[-\u2013\u2014]$/.test(rawA), skipN=/^[-\u2013\u2014]$/.test(rawN);
     const A=parseInt(rawA,10),N=parseInt(rawN,10);
-    if(isNaN(A)&&isNaN(N)&&!skipA&&!skipN){
-      /* an album in the sheet that nobody has scored is not nothing: it is
-         something waiting to be heard, so it goes to the queue */
+    const noScore=isNaN(A)&&isNaN(N)&&!skipA&&!skipN;
+    /* An album nobody has scored is still a record with a tracklist, and it
+       belongs on its artist's page where it can be opened and played and
+       marked. It used to be held out of the list entirely and only appear as a
+       tile in Still to hear, which meant there was no way in to it. */
+    if(noScore){
       unrated.push({artist,genre,album,year:tidyNum(r[K.year]).trim(),
-        cover:(/^https?:\/\//i.test(String(r[K.cover]||"").trim())?String(r[K.cover]).trim():"")});
-      continue;
+        cover:(/^https?:\/\//i.test(String(r[K.cover]||"").trim())?String(r[K.cover]).trim():""),
+        idx:out.length});
+    }else{
+      rated.add(artist);
     }
-    rated.add(artist);
     // one of you rated it and the other left everything empty - that is a solo
     // listen, whether or not a dash was typed
     const aS_=splitSongs(r[K.aSongs]), nS_=splitSongs(r[K.nSongs]);
@@ -1027,7 +1031,8 @@ function shape(raw,cols){
   const queue=[];
   roster.forEach((v,artist)=>{ if(!rated.has(artist)) queue.push({artist,genre:v.genre}); });
   /* and albums with no score by an artist you have already rated are their own
-     list - a gap in a record you know, not a stranger */
+     list - a gap in a record you know, not a stranger. They carry the index of
+     their row so the tile can open the record itself. */
   const albumq=unrated.filter(x=>rated.has(x.artist));
   /* the rest belong to artists you have not started on: they are represented
      by that artist's tile, but the count is worth saying out loud */
@@ -1597,6 +1602,15 @@ function refreshScore(root,d){
     const made=box.querySelector(".facts");
     if(made)facts.innerHTML=made.innerHTML;
   }
+  /* the artist's own average sits above the block and was going stale */
+  const sec=root.closest?root.closest("section.artist"):null;
+  const badge=sec&&sec.querySelector(".artist-head .avg");
+  if(badge){
+    const mine=ROWS.filter(x=>x.artist===d.artist&&!isNaN(x.avg));
+    const av=mine.length?mean(mine.map(x=>x.avg)):null;
+    if(av===null){badge.remove();}
+    else{badge.textContent=Math.round(av); badge.style.background=ramp(av);}
+  }
   paintTally();
 }
 
@@ -1818,6 +1832,18 @@ function wallHTML(list){
 }
 
 let MODAL_IDX=-1;
+/** Opens one record on the artist page just navigated to, and scrolls to it. */
+function openInList(i){
+  const card=document.querySelector('.album[data-idx="'+i+'"]');
+  if(!card)return;
+  card.classList.add("open");
+  card.setAttribute("aria-expanded","true");
+  card.querySelectorAll(".cover,.gauge,.rise").forEach(el=>el.classList.add("in"));
+  if(card.scrollIntoView)
+    requestAnimationFrame(()=>card.scrollIntoView({behavior:"smooth",block:"center"}));
+}
+
+let MODAL_IDX_UNUSED=0;
 function openAlbum(key){
   const d=ROWS[Number(key)];
   if(!d)return;
@@ -2421,7 +2447,8 @@ function albumQueueHTML(q,g){
   return`<section class="queue albumq">
     <div class="queue-head rise"><h2>Still to hear</h2><span>${list.length}</span></div>
     <p class="rise">Records by artists you have already rated, sitting in the sheet without a score.</p>
-    <div class="shelf">${list.map(x=>`<button data-artist="${esc(x.artist)}" title="${esc(x.artist)} \u2014 ${esc(x.album)}"><figure>
+    <div class="shelf">${list.map(x=>`<button data-artist="${esc(x.artist)}"${
+      x.idx!=null?` data-goalbum="${x.idx}"`:""} title="${esc(x.artist)} \u2014 ${esc(x.album)}"><figure>
       <div class="thumb sleeve" data-cover="${esc(x.cover||"")}" data-art="${esc(x.artist+" "+x.album)}">${esc(initials(x.album))}</div>
       <figcaption class="rise"><em>${esc(x.artist)}</em>${esc(x.album)}</figcaption><span class="g rise" style="color:${hueOf(x.genre)}">${esc(x.year||x.genre||"")}</span>
     </figure></button>`).join("")}</div></section>`;
@@ -2675,7 +2702,12 @@ document.addEventListener("click",e=>{
   const pb=e.target.closest(".play");
   if(pb){e.stopPropagation(); HOVER_ROW=null; if(!pb.classList.contains("dead"))preview(pb); return;}
   const jump=e.target.closest("[data-artist]");
-  if(jump){closeAlbum();goArtist(jump.dataset.artist);return;}
+  if(jump){
+    closeAlbum();
+    goArtist(jump.dataset.artist);
+    if(jump.dataset.goalbum!=null)openInList(Number(jump.dataset.goalbum));
+    return;
+  }
   if(e.target.closest(".detail-wrap"))return;
 
   const card=e.target.closest(".album");
