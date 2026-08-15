@@ -407,11 +407,23 @@ button.artist-head:hover h2{color:var(--accent)}
 .mark{width:26px; height:26px; border-radius:50%; display:grid; place-items:center;
   font-family:"JetBrains Mono",monospace; font-size:9px; font-weight:600; color:#FFF;
   background:var(--accent); background-size:cover; background-position:center}
-.mark.no{background:none; color:var(--faint); font-size:12px;
-  box-shadow:inset 0 0 0 1px var(--line-2)}
+/* Not for them: their own face, in colour but dimmed. A grey cross read as an
+   error state and told you nothing about whose opinion it was. Opacity alone
+   put it within a hair of an untapped slot, so a slash carries the meaning and
+   the dimming is only tone. */
+.mark.no{opacity:.55; box-shadow:inset 0 0 0 1px var(--line-2); position:relative; overflow:hidden}
+.mark.no::after{content:""; position:absolute; left:-4px; right:-4px; top:50%; height:1.5px;
+  background:var(--ink,#10263A); opacity:.75; transform:rotate(-38deg)}
+.songlist li:hover .mark.no{opacity:.72}
 .mark.benched{filter:grayscale(1); opacity:.38; box-shadow:inset 0 0 0 1px var(--line-2)}
 .songlist li:hover .mark.benched{opacity:.55}
 .mark.none{background:none; box-shadow:none; position:relative}
+/* they have not rated this album at all: face greyed out, the same language as
+   a benched mark, so absence never reads as an opinion */
+.mark.none.unrated{background:var(--raised-2) center/cover; filter:grayscale(1); opacity:.35;
+  box-shadow:inset 0 0 0 1px var(--line-2)}
+.mark.none.unrated::after{display:none}
+.songlist li:hover .mark.none.unrated{opacity:.5}
 /* Your own marks are buttons. Nothing moves on hover - the row is dense and a
    jumping target is worse than a still one - so the ring does the talking. */
 button.mark.mine{cursor:pointer; padding:0; transition:box-shadow .16s ease-out, opacity .16s}
@@ -420,8 +432,9 @@ button.mark.none.mine:hover::after{background:var(--accent)}
 button.mark.mine.busy{opacity:.45; cursor:default}
 /* your slot, nothing said yet: your face, waiting to be tapped */
 .mark.blank{background:var(--raised-2) center/cover; color:var(--faint);
-  opacity:.4; box-shadow:inset 0 0 0 1px var(--line-2)}
-button.mark.blank:hover{opacity:.75}
+  opacity:.3; box-shadow:inset 0 0 0 1px var(--line-2);
+  outline:1px dashed color-mix(in srgb,var(--faint) 55%,transparent); outline-offset:-1px}
+button.mark.blank:hover{opacity:.62}
 .tl-head .wipe{font:inherit; font-size:9.5px; letter-spacing:.12em; text-transform:uppercase;
   color:var(--faint); border:1px solid var(--line-2); border-radius:20px;
   padding:.12rem .5rem; flex:none}
@@ -1650,33 +1663,25 @@ function refreshMark(root,d,who,song){
   if(!btn)return;
   btn.dataset.now=v;
   btn.className="mark "+(v==="y"?"":v==="n"?"no ":"blank ")+"mine";
-  btn.textContent=v==="n"?"\u00d7":INI[who];
+  btn.textContent=INI[who];
   btn.title=v==="y"?"You liked this \u2014 tap to change"
           :v==="n"?"Not for you \u2014 tap to change"
           :"Tap to say what you thought";
-  /* A dislike is a cross, and a face painted over it hides it completely -
-     dressAvatars sets the picture as the background and the text transparent.
-     So the face comes off, and every trace of it with it. */
-  if(v==="n"){
-    btn.removeAttribute("data-who");
-    btn.style.backgroundImage="";
-    btn.style.backgroundSize="";
-    btn.style.backgroundPosition="";
-    btn.style.color="";
-  }else{
-    btn.setAttribute("data-who",who);
-    dressAvatars(btn.parentNode);
-  }
+  /* Every state wears the face now - liked is full strength, not for me is the
+     same face dimmed - so the picture stays put and only the class changes. */
+  btn.setAttribute("data-who",who);
+  dressAvatars(btn.parentNode);
 }
 
 function refreshScore(root,d){
+  const panel=!!root.querySelector(".m-sub");
   let g=root.querySelector(".gauge-wrap");
   if(!g){
     /* An album with no scores has no gauge to replace. Once it earns one, it
        has to be put somewhere: after the title block on a row, after the
        subtitle in the panel. */
     const box=document.createElement("div");
-    box.innerHTML=gauge(d);
+    box.innerHTML=gauge(d,panel);
     const made=box.firstElementChild;
     const host=root.querySelector(".m-sub");
     if(made){
@@ -1691,7 +1696,7 @@ function refreshScore(root,d){
   }
   else if(g){
     const box=document.createElement("div");
-    box.innerHTML=gauge(d);
+    box.innerHTML=gauge(d,panel);
     if(box.firstElementChild){
       g.replaceWith(box.firstElementChild);
       const fresh=root.querySelector(".gauge-wrap");
@@ -2014,7 +2019,7 @@ function openAlbum(key){
       <div><div class="m-title">${esc(d.album)}</div>
         <div class="m-sub"><button data-artist="${esc(d.artist)}">${esc(d.artist)}</button>${
           d.year?" \u00b7 "+esc(d.year):""} \u00b7 ${who.join("  ")}</div>
-        ${gauge(d)}</div></div>
+        ${gauge(d,true)}</div></div>
     <div class="m-body">${detailHTML(d).replace('<div class="detail-wrap"><div class="detail-inner">','').replace(/<\/div><\/div>$/,"")}</div>`;
   $("album-modal").classList.add("on");
   const body=$("album-body");
@@ -2428,11 +2433,14 @@ function whoBits(d){
   if(d.n!==null)out.push(INI.annette+" "+d.n); else if(d.nSkip)out.push(INI.annette+" \u2013");
   return out;
 }
-function gauge(d){
+function gauge(d,panel){
   const aV=d.a, nV=d.n, aB=d.aSkip, nB=d.nSkip;
   const vals=[aV,nV].filter(v=>v!==null);
   const benched=[["anthony",aB],["annette",nB]].filter(x=>x[1]).map(x=>x[0]);
-  if(!vals.length&&!benched.length)return"";
+  /* A row with no scores simply has no gauge. The panel is the one place with
+     room to say why the gauge is missing, so it says it. */
+  if(!vals.length&&!benched.length)
+    return panel?`<div class="gauge-wrap"><span class="none-yet">Neither of you has rated this yet</span></div>`:"";
   const solo=benched.length>0;
   const bench=benched.map(who=>
     `<span class="benched" data-who="${who}" title="${who[0].toUpperCase()+who.slice(1)} hasn\u2019t heard this">${INI[who]}</span>`).join("");
@@ -2483,7 +2491,7 @@ function benchMark(who){
 }
 /* Your own mark is a button; the other person's is just a picture of what
    they thought. One tap cycles liked, not for me, nothing said. */
-function verdict(v,who,letter,song){
+function verdict(v,who,letter,song,none){
   const me=store.get("aoty-me","")===who && !!MARK_URL && !!MARK_KEY;
   const tag=me?"button":"span";
   const hook=me?` data-mark="${who}" data-song="${esc(song||"")}" data-now="${v||""}"`:"";
@@ -2491,13 +2499,17 @@ function verdict(v,who,letter,song){
     ? (v==="y"?"You liked this \u2014 tap to change"
       :v==="n"?"Not for you \u2014 tap to change"
       :"Tap to say what you thought")
-    : (v==="y"?"liked it":v==="n"?"not for them":"didn't say");
+    : (v==="y"?"liked it":v==="n"?"not for them"
+      :none?"hasn\u2019t marked anything on this album":"didn't say");
   /* Whose slot this is has to be readable at a glance, so an unmarked slot
      still shows the face - dimmed, waiting. Only the other person's unmarked
      slot stays a bare dot, because there is nothing there to act on. */
-  const cls=(v==="y"?"mark":v==="n"?"mark no":me?"mark blank":"mark none")+(me?" mine":"");
-  const body=v==="y"?letter:v==="n"?"\u00d7":me?letter:"";
-  const face=(v==="y"||(me&&v!=="n"))?` data-who="${who}"`:"";
+  /* Nothing said is nothing said, whether the whole album is untouched or just
+     this track: the face, greyed out. The old bare dot was a fourth vocabulary
+     for the same absence. */
+  const cls=(v==="y"?"mark":v==="n"?"mark no":me?"mark blank":"mark none unrated")+(me?" mine":"");
+  const body=letter;
+  const face=` data-who="${who}"`;
   return`<${tag} class="${cls}"${face}${hook} title="${tip}">${body}</${tag}>`;
 }
 function detailHTML(d){
@@ -2507,6 +2519,13 @@ function detailHTML(d){
   const takes=take("Anthony","anthony",d.a,d.aText,d.aSkip)+
               take("Annette","annette",d.n,d.nText,d.nSkip);
   const both=d.a!==null&&d.n!==null;
+  /* A column is absent when there is not a single mark in it - a dot per track
+     said "rated the album, said nothing here", which is wrong for a record
+     nobody has been through. A typed score with no marks behind it counts as
+     absent too: the score still shows on the gauge, but the tracklist has
+     nothing of theirs to report. */
+  const none=x=>!x.dis.size&&!(x.yes&&x.yes.size);
+  const aNone=!d.aSkip&&none(d.aS), nNone=!d.nSkip&&none(d.nS);
   const liked=rows.filter(r=>r.a==="y"||r.n==="y").length;
   const shared=rows.filter(r=>r.a==="y"&&r.n==="y").length;
   const facts=[
@@ -2528,8 +2547,8 @@ function detailHTML(d){
       <span class="rowend">
         <button class="play" data-artist="${esc(d.artist)}" data-album="${esc(d.album)}" data-song="${esc(r.label)}" title="Play a 30s clip" aria-label="Play a clip of ${esc(r.label)}">\u25b6</button>
         <span class="marks">${
-          d.aSkip?benchMark("anthony"):verdict(r.a,"anthony",INI.anthony,r.label)}${
-          d.nSkip?benchMark("annette"):verdict(r.n,"annette",INI.annette,r.label)}</span>
+          d.aSkip?benchMark("anthony"):verdict(r.a,"anthony",INI.anthony,r.label,aNone)}${
+          d.nSkip?benchMark("annette"):verdict(r.n,"annette",INI.annette,r.label,nNone)}</span>
       </span></li>`).join("")}</ul></div>
   </div>`:"";
   return`<div class="detail-wrap"><div class="detail-inner"><div class="detail"><div class="takes">${takes}${strip}</div>${list}</div></div></div>`;
@@ -3634,20 +3653,22 @@ header:has(.tally:last-child){padding-bottom:0}
   flex-direction:column; align-items:flex-start; gap:.5rem; pointer-events:none;
   opacity:0; transform:translateY(10px); transition:opacity .3s ease-out,
     transform .4s cubic-bezier(.32,.72,.28,1)}
-/* the arrow keeps to the right, below the jumps and in from the edge */
-.v4-top{position:fixed; right:2.4rem; bottom:4.6rem; z-index:71;
+/* the arrow keeps to the right, on the same baseline as the jumps. --lift is
+   how far the player pushes it up; it rides on the same transform as the
+   show/hide so the two motions are one movement. */
+.v4-top{position:fixed; right:1.1rem; bottom:1.5rem; z-index:71; --lift:0px;
   width:44px; height:44px; border-radius:50%; display:grid; place-items:center;
   font-size:15px; color:var(--dim); background:var(--raised-2);
   box-shadow:0 0 0 1px var(--line-2), 0 6px 18px rgba(15,37,54,.16);
   opacity:0; transform:translateY(10px); pointer-events:none;
   transition:opacity .3s ease-out, transform .4s cubic-bezier(.32,.72,.28,1),
     color .2s ease-out, box-shadow .25s ease-out}
-.v4-top.on{opacity:1; transform:none; pointer-events:auto}
-.v4-top:hover{color:var(--accent); transform:translateY(-2px);
+.v4-top.on{opacity:1; transform:translateY(calc(-1 * var(--lift))); pointer-events:auto}
+.v4-top:hover{color:var(--accent); transform:translateY(calc(-2px - var(--lift)));
   box-shadow:0 0 0 1px var(--accent-soft), 0 10px 22px rgba(15,37,54,.2)}
 .night .v4-top{box-shadow:0 0 0 1px var(--line-2), 0 6px 20px rgba(0,0,0,.45)}
 .night .v4-top:hover{box-shadow:0 0 0 1px var(--accent), 0 0 18px -6px var(--accent)}
-@media(max-width:560px){.v4-top{right:1.1rem; bottom:5.6rem}}
+@media(max-width:560px){.v4-top{right:1.1rem; bottom:1.5rem}}
 .v4-rail.on{opacity:1; transform:none; pointer-events:auto}
 .v4-rail button{display:flex; align-items:center; gap:.5rem; border-radius:999px;
   background:var(--raised-2); color:var(--dim); padding:.5rem .9rem;
@@ -4646,6 +4667,19 @@ rail.querySelectorAll(".jump").forEach(function(b){
     setTimeout(function(){wake(el);},900);
   };
 });
+/* The player slides in over the same corner. Measuring it means the arrow
+   clears a one-line player and a wrapped mobile one alike. */
+function syncLift(){
+  var p=document.querySelector(".player.on");
+  var h=p?p.getBoundingClientRect().height:0;
+  up.style.setProperty("--lift",h?(h+12)+"px":"0px");
+}
+var pl=document.querySelector(".player");
+if(pl&&window.MutationObserver){
+  new MutationObserver(syncLift).observe(pl,{attributes:true,attributeFilter:["class"]});
+  addEventListener("resize",syncLift,{passive:true});
+  syncLift();
+}
 function syncRail(){
   var bar=document.querySelector(".controls");
   var past=bar?bar.getBoundingClientRect().bottom<0:scrollY>240;
