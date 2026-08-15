@@ -1544,6 +1544,7 @@ function outboxSave(list){
   try{ store.set(OUTBOX_KEY,JSON.stringify(list.slice(-300))); }catch(err){}
 }
 function rememberEdit(d,who,song,v){
+  if(v)dropClear(d,who);          // rating again cancels an earlier reset
   const e={artist:d.artist,album:d.album,who:who,song:song,v:v,at:Date.now(),sent:false};
   const list=outboxLoad().filter(x=>editKey(x)!==editKey(e));
   list.push(e);
@@ -1578,6 +1579,14 @@ function rememberClear(d,who){
   const list=clearsLoad().filter(x=>!(x.artist===e.artist&&x.album===e.album&&x.who===e.who));
   list.push(e); clearsSave(list);
 }
+/* A clear only holds while you have said nothing. The moment you mark a track
+   again it is void - otherwise every refresh wiped the new rating straight back
+   to nothing and it looked as though that person could not rate at all. */
+function dropClear(d,who){
+  const list=clearsLoad();
+  const keep=list.filter(x=>!(x.artist===d.artist&&x.album===d.album&&x.who===who));
+  if(keep.length!==list.length)clearsSave(keep);
+}
 function applyClears(){
   const list=clearsLoad(),keep=[];
   list.forEach(e=>{
@@ -1585,6 +1594,7 @@ function applyClears(){
     if(!d){ keep.push(e); return; }                  // not loaded yet
     const base=e.who==="anthony"?d.a0:d.n0;
     if(base!==e.base)return;                         // the sheet has moved on
+    if(!noMarks(e.who==="anthony"?d.aS:d.nS))return;  // rated again since: void
     if(e.who==="anthony")d.a=null; else d.n=null;
     keep.push(e);
   });
