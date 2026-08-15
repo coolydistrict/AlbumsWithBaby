@@ -801,7 +801,7 @@ const MARK_URL = "https://script.google.com/macros/s/AKfycbxvNggOJvLx8yY0JsKWdpX
 const MARK_KEY = "puppy";
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-17y";
+const BUILD = "2026-08-18a";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -1226,6 +1226,20 @@ function kill(a){
   try{a.pause();a.currentTime=0;a.volume=0;}catch(e){}
 }
 
+/** Puts the playing marks back on a page that has just been rebuilt, without
+ *  touching the audio itself. */
+function restorePlaying(key){
+  const cut=String(key).indexOf("|");
+  if(cut<0)return;
+  const artist=key.slice(0,cut), song=key.slice(cut+1);
+  const btn=[...document.querySelectorAll(".play")].find(b=>
+    b.dataset.artist===artist&&b.dataset.song===song);
+  if(!btn)return;
+  btn.classList.add("on"); btn.textContent="\u25a0";
+  const row=btn.closest(".album");
+  if(row)row.classList.add("playing");
+}
+
 function markPlaying(row){
   document.querySelectorAll(".album.playing").forEach(a=>a.classList.remove("playing"));
   if(row)row.classList.add("playing");
@@ -1587,8 +1601,26 @@ function refreshMark(root,d,who,song){
 }
 
 function refreshScore(root,d){
-  const g=root.querySelector(".gauge-wrap");
-  if(g){
+  let g=root.querySelector(".gauge-wrap");
+  if(!g){
+    /* An album with no scores has no gauge to replace. Once it earns one, it
+       has to be put somewhere: after the title block on a row, after the
+       subtitle in the panel. */
+    const box=document.createElement("div");
+    box.innerHTML=gauge(d);
+    const made=box.firstElementChild;
+    const host=root.querySelector(".m-sub");
+    if(made){
+      if(host)host.parentNode.appendChild(made);
+      else{
+        const rise=root.querySelector(":scope > .rise");
+        if(rise&&rise.parentNode)rise.parentNode.insertBefore(made,rise.nextSibling);
+      }
+      g=root.querySelector(".gauge-wrap");
+      if(g){dressAvatars(g);g.querySelectorAll(".gauge").forEach(el=>el.classList.add("in"));}
+    }
+  }
+  else if(g){
     const box=document.createElement("div");
     box.innerHTML=gauge(d);
     if(box.firstElementChild){
@@ -1621,14 +1653,23 @@ function refreshScore(root,d){
   /* The artist's average appears twice: as the badge beside the name, and
      again as "avg NN" on the genre line of an artist's own page. */
   const av=artistAvg(d.artist);
-  const sec=root.closest?root.closest("section.artist"):null;
-  const scope=sec||document;
-  const badge=scope.querySelector(".artist-head .avg");
+  /* From the modal there is no enclosing section, and taking the first one on
+     the page wrote this album's average onto whichever artist happened to be
+     at the top. Find the block that actually belongs to this artist. */
+  let sec=root.closest?root.closest("section.artist"):null;
+  if(!sec){
+    sec=[...document.querySelectorAll("section.artist")].find(x=>{
+      const h=x.querySelector(".artist-head h2");
+      return h&&h.textContent===d.artist;
+    })||null;
+  }
+  const scope=sec;
+  const badge=scope&&scope.querySelector(".artist-head .avg");
   if(badge){
     if(av===null)badge.remove();
     else{badge.textContent=Math.round(av); badge.style.background=ramp(av);}
   }
-  const line=scope.querySelector(".artist-head .a-avg");
+  const line=scope&&scope.querySelector(".artist-head .a-avg");
   if(line&&av!==null)line.textContent=Math.round(av);
   paintTally();
 }
@@ -1863,6 +1904,35 @@ function openInList(i){
 }
 
 let MODAL_IDX_UNUSED=0;
+/* Add ?debug to the site address to switch this on. It watches the big cover
+   at the top of an open panel and reports, with a stack trace, anything that
+   clears it or takes it out of the page - so whatever is doing it names
+   itself instead of me guessing. Off by default and costs nothing. */
+const DEBUG=/[?&]debug\b/.test(location.search);
+function watchCover(el){
+  if(!DEBUG||!el||!window.MutationObserver)return;
+  console.info("[cover] watching",el.dataset.art,"image:",el.style.backgroundImage||"(none)");
+  new MutationObserver(list=>{
+    list.forEach(m=>{
+      if(m.type==="attributes"){
+        const now=el.style.backgroundImage;
+        if(!now)console.warn("[cover] image cleared \u2014",el.dataset.art,
+          "\n"+(new Error("cleared here").stack||""));
+      }
+    });
+  }).observe(el,{attributes:true,attributeFilter:["style","class"]});
+  const parent=el.parentNode;
+  if(parent)new MutationObserver(list=>{
+    list.forEach(m=>{
+      [...m.removedNodes].forEach(node=>{
+        if(node===el||(node.contains&&node.contains(el)))
+          console.warn("[cover] element removed from the page \u2014",
+            "\n"+(new Error("removed here").stack||""));
+      });
+    });
+  }).observe(parent,{childList:true,subtree:true});
+}
+
 function openAlbum(key){
   const d=ROWS[Number(key)];
   if(!d)return;
@@ -1881,6 +1951,7 @@ function openAlbum(key){
   const body=$("album-body");
   body.style.setProperty("--gc",hueOf(d.genre));   // no row above it to inherit from
   body.querySelectorAll("[data-art]").forEach(loadImage);
+  watchCover(body.querySelector(".m-shot"));
   dressAvatars(body);
   // nothing here scrolls into view, so reveal it directly
   requestAnimationFrame(()=>body.querySelectorAll(".gauge,.rise").forEach(el=>el.classList.add("in")));
@@ -2563,8 +2634,14 @@ function dropHeroWatch(){
   if(heroWatch){heroWatch.disconnect();heroWatch=null;}
   $("mini").classList.remove("on");
 }
-function render(){
-  stopPreview();
+/* keepAudio: a refresh triggered by the sheet changing, rather than by you
+   doing something. Rating a song changes the sheet, so the poll fires moments
+   later and used to cut off whatever clip was playing. The audio element
+   survives a redraw perfectly well - only the markings on the page need
+   putting back. */
+function render(keepAudio){
+  const playing=keepAudio?NOWPLAYING:"";
+  if(!keepAudio)stopPreview();
   dropHeroWatch();      // an observer left watching a removed hero kept firing
   if(FOCUS){renderArtist(FOCUS);return;}
   const q=$("q").value.trim().toLowerCase();
@@ -2614,6 +2691,7 @@ function render(){
   }
 
   out.innerHTML=html+queueHTML(q,g)+albumQueueHTML(q,g)+statsHTML();
+  if(playing)restorePlaying(playing);
   out.querySelectorAll("[data-art]").forEach(loadImage);
   dressAvatars(out);
   reveal(out);
@@ -3097,7 +3175,7 @@ function poll(){
         .map(a=>a.querySelector(".album-title").textContent);
       const y=scrollY;
       applyCSV(t);
-      render();
+      render(true);            // the sheet changed, you did not - keep the music
       document.querySelectorAll(".album").forEach(a=>{
         if(openKeys.indexOf(a.querySelector(".album-title").textContent)>-1){
           a.classList.add("open"); a.setAttribute("aria-expanded","true");
