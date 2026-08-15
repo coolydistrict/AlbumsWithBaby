@@ -403,6 +403,8 @@ button.artist-head:hover h2{color:var(--accent)}
 @media(prefers-reduced-motion:reduce){.songlist li{opacity:1; transform:none; animation:none}}
 .songlist li:last-child{border-bottom:0}
 .tl-name{min-width:0; overflow-wrap:anywhere}
+.tl-empty{font-family:"JetBrains Mono",monospace; font-size:11.5px; color:var(--faint);
+  padding:.9rem 0}
 .marks{display:flex; gap:.3rem; flex:none}
 .mark{width:26px; height:26px; border-radius:50%; display:grid; place-items:center;
   font-family:"JetBrains Mono",monospace; font-size:9px; font-weight:600; color:#FFF;
@@ -435,6 +437,8 @@ button.artist-head:hover h2{color:var(--accent)}
   .mark.anim-no,.mark.anim-no::after,.mark.anim-yes,.mark.anim-off{animation:none}}
 .mark.benched{filter:grayscale(1); opacity:.38; box-shadow:inset 0 0 0 1px var(--line-2)}
 .songlist li:hover .mark.benched{opacity:.55}
+/* your own sat-out slot is still a button, so it answers the pointer */
+button.mark.benched.mine:hover{opacity:.85; filter:grayscale(.25)}
 .mark.none{background:none; box-shadow:none; position:relative}
 /* they have not rated this album at all: face greyed out, the same language as
    a benched mark, so absence never reads as an opinion */
@@ -1531,7 +1535,7 @@ const NEXT_MARK={"y":"n","n":"y","":"y"};
    it, and stays there until the sheet itself comes back agreeing. Anything
    that never reached the script is sent again on the next load. */
 const OUTBOX_KEY="aoty-outbox";
-const OUTBOX_FOR=30*60*1000;          // give up on an unconfirmed mark after this
+const OUTBOX_FOR=30*24*60*60*1000;    // an unconfirmed mark is kept, and kept trying
 
 function editKey(e){
   return [e.artist,e.album,e.who,e.song].join("\u0000").toLowerCase();
@@ -1568,6 +1572,27 @@ function sheetSays(d,who,song){
    hand and no mark of ours can rub it out. So the reset is remembered here and
    re-applied to every fresh copy of the sheet, until the sheet's own number
    changes - at which point somebody has rated it again and we step aside. */
+/* The sheet's own column still says "-", and it is typed by hand, so the same
+   trick the reset uses keeps you in the record until the sheet catches up. */
+const SKIP_KEY="aoty-unskipped";
+function unskipLoad(){
+  try{ const v=JSON.parse(store.get(SKIP_KEY,"[]")); return Array.isArray(v)?v:[]; }
+  catch(err){ return []; }
+}
+function rememberUnskip(d,who){
+  const list=unskipLoad();
+  if(list.some(x=>x.artist===d.artist&&x.album===d.album&&x.who===who))return;
+  list.push({artist:d.artist,album:d.album,who:who});
+  try{ store.set(SKIP_KEY,JSON.stringify(list.slice(-300))); }catch(err){}
+}
+function applyUnskips(){
+  unskipLoad().forEach(e=>{
+    const d=ROWS.find(x=>x.artist===e.artist&&x.album===e.album);
+    if(!d)return;
+    if(e.who==="anthony")d.aSkip=false; else d.nSkip=false;
+  });
+}
+
 const CLEAR_KEY="aoty-cleared";
 function clearsLoad(){
   try{ const v=JSON.parse(store.get(CLEAR_KEY,"[]")); return Array.isArray(v)?v:[]; }
@@ -1638,7 +1663,8 @@ function flushOutbox(){
 }
 
 function markCall(params){
-  if(!MARK_URL||!MARK_KEY)return Promise.resolve({ok:false,error:"no endpoint set"});
+  if(!MARK_URL||!MARK_KEY)
+    return Promise.resolve({ok:false,noReply:true,error:"no endpoint set"});
   const q=Object.keys(params).map(k=>k+"="+encodeURIComponent(params[k])).join("&");
   return jsonp(MARK_URL+"?key="+encodeURIComponent(MARK_KEY)+"&"+q)
     /* noReply is not the same as a refusal. Nothing coming back means the
@@ -1656,6 +1682,17 @@ function applyMark(d,who,song,verdict){
   s.dis.delete(k); if(s.yes)s.yes.delete(k);
   if(verdict==="n")s.dis.add(k);
   else if(verdict==="y"&&s.yes)s.yes.add(k);
+  /* The score is worked out from that person's own list of songs, and a song
+     they had never mentioned was not on it - so marking a track on an album
+     their column was empty on moved nothing at all, and no rating could ever
+     appear. Marking it puts it on their list, which is what the sheet does too. */
+  if(verdict&&s.order.indexOf(song)<0&&!s.order.some(t=>t.toLowerCase()===k))
+    s.order.push(song);
+  if(!verdict){
+    const gone=s.order.findIndex(t=>t.toLowerCase()===k);
+    if(gone>-1&&!s.dis.has(k)&&!(s.yes&&s.yes.has(k)))s.order.splice(gone,1);
+  }
+  s.all=s.order;
   s.liked=s.order.filter(t=>s.yes&&s.yes.has(t.toLowerCase()));
   s.disliked=s.order.filter(t=>s.dis.has(t.toLowerCase()));
   const sc=scoreOf(s);
@@ -1676,13 +1713,21 @@ function markSong(btn){
   const next=NEXT_MARK[was];
   const sNow=who==="anthony"?d.aS:d.nS;
   const wasEmpty=noMarks(sNow);            // this is the first mark on the record
+  /* Marking a track on an album you had put down as not listened is you saying
+     you have heard it now, so the sat-out flag comes off. */
+  const unSkip=who==="anthony"?d.aSkip:d.nSkip;
+  if(unSkip){ if(who==="anthony")d.aSkip=false; else d.nSkip=false; }
 
   applyMark(d,who,song,next);
   rememberEdit(d,who,song,next);
   /* the first mark turns the rest of the album into passes, and the last one
      leaving turns it all back to grey - both are whole-column moves */
-  if(wasEmpty||noMarks(sNow))redrawColumn(d,who,song);
+  if(wasEmpty||noMarks(sNow)||unSkip)redrawColumn(d,who,song);
   else redrawOpen(d,who,song);
+  if(unSkip){
+    rememberUnskip(d,who);
+    refreshScore(root0(d),d);
+  }
 
   markCall({what:"mark",artist:d.artist,album:d.album,song:song,
             who:who==="anthony"?"a":"n",
@@ -1693,11 +1738,10 @@ function markSong(btn){
       note("Saved here \u2014 the sheet has not confirmed it yet");
       return;
     }
-    applyMark(d,who,song,was);        // put it back exactly as it was
-    rememberEdit(d,who,song,was);
-    markSent(d,who,song,true);        // the revert is the truth now
-    redrawOpen(d,who,song);
-    note(r.error||"The sheet refused that");
+    /* It used to snap back when the sheet said no, which looked exactly like
+       not being able to rate at all. What you tapped stands; it stays in the
+       queue and goes again, and the sheet's complaint is just said out loud. */
+    note("Saved here \u2014 the sheet said: "+(r.error||"no")); 
   });
 }
 
@@ -1710,7 +1754,7 @@ function wipeMine(btn){
   const s=who==="anthony"?d.aS:d.nS;
   const mine=s.order.filter(t=>{const k=t.toLowerCase();
     return s.dis.has(k)||(s.yes&&s.yes.has(k));});
-  const scored=(who==="anthony"?d.a:d.n)!==null;
+  const scored=(who==="anthony"?d.a:d.n)!==null||(who==="anthony"?d.aSkip:d.nSkip);
   /* A rating typed straight into the sheet has no marks behind it, and the
      reset used to refuse to touch it - so the score sat there for good. */
   if(!mine.length&&!scored){note("You haven\u2019t rated this one");return;}
@@ -1871,6 +1915,12 @@ function syncAverages(d){
 }
 
 /** One song changed: touch that mark and the numbers, nothing else. */
+/** The open panel or row for this album, whichever is on screen. */
+function root0(d){
+  const i=ROWS.indexOf(d);
+  return $("album-modal").classList.contains("on")
+    ? $("album-body") : document.querySelector('.album[data-idx="'+i+'"]');
+}
 function redrawOpen(d,who,song,force){
   const i=ROWS.indexOf(d);
   const inModal=$("album-modal").classList.contains("on");
@@ -2117,6 +2167,7 @@ function openInList(i){
   card.classList.add("open");
   card.setAttribute("aria-expanded","true");
   card.querySelectorAll(".cover,.gauge,.rise").forEach(el=>el.classList.add("in"));
+  if(ROWS[i])fillTracks(ROWS[i],card);
   if(card.scrollIntoView)
     requestAnimationFrame(()=>card.scrollIntoView({behavior:"smooth",block:"center"}));
 }
@@ -2173,6 +2224,7 @@ function openAlbum(key){
   dressAvatars(body);
   // nothing here scrolls into view, so reveal it directly
   requestAnimationFrame(()=>body.querySelectorAll(".gauge,.rise").forEach(el=>el.classList.add("in")));
+  fillTracks(d,body);
 }
 function closeAlbum(){ $("album-modal").classList.remove("on"); stopPreview(); }
 
@@ -2616,6 +2668,8 @@ function songTable(d){
       put(t,who,src.dis.has(k)?"n":(src.yes&&src.yes.has(k))?"y":"");
     });
   }
+  /* songs found on the record itself, only where neither of you listed any */
+  (d.tl||[]).forEach(t=>{ if(t&&!seen.has(t.toLowerCase()))put(t,"a",""); });
   return order.map(k=>seen.get(k));
 }
 
@@ -2635,8 +2689,12 @@ function benchMark(who){
 }
 /* Your own mark is a button; the other person's is just a picture of what
    they thought. One tap cycles liked, not for me, nothing said. */
-function verdict(v,who,letter,song,none){
-  const me=store.get("aoty-me","")===who && !!MARK_URL && !!MARK_KEY;
+/** Is this whose page it is? */
+function mineIs(who){ return store.get("aoty-me","")===who; }
+function verdict(v,who,letter,song,none,skip){
+  /* Whoever is selected can like and dislike, always. The sheet is where it
+     goes afterwards, not permission to do it. */
+  const me=store.get("aoty-me","")===who;
   const tag=me?"button":"span";
   const now=v==="i"?"":v;   // a pass was never typed, so one tap still likes it
   const hook=me?` data-mark="${who}" data-song="${esc(song||"")}" data-now="${now||""}"`:"";
@@ -2644,6 +2702,7 @@ function verdict(v,who,letter,song,none){
     ? (v==="y"?"You liked this \u2014 tap to change"
       :v==="n"?"Not for you \u2014 tap to change"
       :v==="i"?"A pass for now \u2014 tap if you liked it"
+      :skip?"You put this down as not listened \u2014 tap to start rating it"
       :"Tap to say what you thought")
     : (v==="y"?"liked it":v==="n"?"not for them"
       :v==="i"?"a pass"
@@ -2654,8 +2713,10 @@ function verdict(v,who,letter,song,none){
   /* Nothing said is nothing said, whether the whole album is untouched or just
      this track: the face, greyed out. The old bare dot was a fourth vocabulary
      for the same absence. */
+  /* Sat out and it is yours: it keeps the benched look, but it is a button -
+     the first tap is how you say you have heard it after all. */
   const cls=(v==="y"?"mark":v==="n"?"mark no":v==="i"?"mark no implied"
-    :me?"mark blank":"mark none unrated")+(me?" mine":"");
+    :me?(skip?"mark benched":"mark blank"):"mark none unrated")+(me?" mine":"");
   const body=letter;
   const face=` data-who="${who}"`;
   return`<${tag} class="${cls}"${face}${hook} title="${tip}">${body}</${tag}>`;
@@ -2686,17 +2747,28 @@ function detailHTML(d){
   const strip=facts.length?`<div class="facts">${facts.map(([k,v,c])=>
     `<div><span>${k}</span><b${c?` style="color:${c}"`:""}>${v}</b></div>`).join("")}</div>`:"";
   const tall=rows.length>10;
+  const canMark=!!store.get("aoty-me","");
+  /* No songs from either of you and none found yet: the shell still appears, so
+     there is something to fill in and something to look at meanwhile. */
+  if(!rows.length&&canMark&&!d.tl)
+    return`<div class="detail-wrap"><div class="detail-inner"><div class="detail">
+      <div class="detail-main">${takes}${strip}</div>
+      <div class="songlist"><div class="tl-head"><span>Tracklist</span></div>
+      <p class="tl-empty">Looking up the tracklist\u2026</p></div>
+    </div></div></div>`;
   const list=rows.length?`<div class="songlist">
     <div class="tl-head"><span>Tracklist \u00b7 tap \u25b6 for a clip</span>${
-      (store.get("aoty-me","")&&MARK_URL&&MARK_KEY)
+      store.get("aoty-me","")
         ?`<button class="wipe" data-wipe="${store.get("aoty-me","")}"
             title="Clear all your marks on this album and start again">reset mine</button>`:""}</div>
     <div class="tl-wrap${tall?" tall":""}"><ul>${rows.map((r,i)=>`<li style="animation-delay:${Math.min(i,14)*0.035}s"><span class="tl-name">${esc(r.label)}</span>
       <span class="rowend">
         <button class="play" data-artist="${esc(d.artist)}" data-album="${esc(d.album)}" data-song="${esc(r.label)}" title="Play a 30s clip" aria-label="Play a clip of ${esc(r.label)}">\u25b6</button>
         <span class="marks">${
-          d.aSkip?benchMark("anthony"):verdict(r.a||(aOn?"i":""),"anthony",INI.anthony,r.label,aNone)}${
-          d.nSkip?benchMark("annette"):verdict(r.n||(nOn?"i":""),"annette",INI.annette,r.label,nNone)}</span>
+          (d.aSkip&&!mineIs("anthony"))?benchMark("anthony")
+            :verdict(r.a||(aOn?"i":""),"anthony",INI.anthony,r.label,aNone,d.aSkip)}${
+          (d.nSkip&&!mineIs("annette"))?benchMark("annette")
+            :verdict(r.n||(nOn?"i":""),"annette",INI.annette,r.label,nNone,d.nSkip)}</span>
       </span></li>`).join("")}</ul></div>
   </div>`:"";
   return`<div class="detail-wrap"><div class="detail-inner"><div class="detail"><div class="takes">${takes}${strip}</div>${list}</div></div></div>`;
@@ -3069,7 +3141,11 @@ document.addEventListener("click",e=>{
   if(card){
     const opening=card.classList.toggle("open");
     card.setAttribute("aria-expanded",opening);
-    if(opening){ clearTimeout(hoverTimer); if(HOVER_ROW)stopPreview(); }
+    if(opening){
+      clearTimeout(hoverTimer); if(HOVER_ROW)stopPreview();
+      const d=ROWS[Number(card.dataset.idx)];
+      if(d)fillTracks(d,card);
+    }
   }
 });
 document.addEventListener("keydown",e=>{
@@ -3147,6 +3223,56 @@ function popularFirst(d,done){
       done(hits[0].title);
     })
     .catch(()=>done(null));
+}
+
+/* An album nobody has typed songs into had an empty tracklist, and an empty
+   tracklist has nothing to tap - which is why a fresh record could not be rated
+   at all. So the record itself is fetched and its songs stand in until the
+   sheet has its own. */
+const TL=new Map();                       // "artist|album" -> [titles] or null
+function fetchTracks(d){
+  const key=d.artist+"|"+d.album;
+  if(TL.has(key))return Promise.resolve(TL.get(key));
+  const wa=normT(d.artist), wl=normT(d.album);
+  if(!wa||!wl)return Promise.resolve(null);
+  const q='artist:"'+d.artist.replace(/"/g,"")+'" album:"'+d.album.replace(/"/g,"")+'"';
+  return dzFetch("https://api.deezer.com/search/album?output=jsonp&limit=5&q="+encodeURIComponent(q))
+    .then(r=>{
+      const got=dzRead(r);
+      if(got.blocked)return null;          // not cached: worth another try later
+      const hit=(got.data||[]).filter(al=>al&&al.id&&
+        normT(al.artist&&al.artist.name)===wa)[0]||(got.data||[])[0];
+      if(!hit)  { TL.set(key,null); return null; }
+      return dzFetch("https://api.deezer.com/album/"+hit.id+"?output=jsonp").then(a=>{
+        const list=(a&&a.tracks&&a.tracks.data||[]).map(t=>t&&t.title).filter(Boolean);
+        const out=list.length?[...new Set(list)]:null;
+        TL.set(key,out);
+        return out;
+      });
+    })
+    .catch(()=>null);
+}
+/** Fills in the tracklist of an open panel that has none of its own. */
+function fillTracks(d,root){
+  if(!root||d.tl||d.tlPending)return;
+  if(d.aS.order.length||d.nS.order.length)return;   // the sheet has its own
+  d.tlPending=true;
+  fetchTracks(d).then(list=>{
+    d.tlPending=false;
+    d.tl=list||[];
+    const box=root.querySelector(".songlist");
+    if(!box)return;
+    const fresh=document.createElement("div");
+    fresh.innerHTML=detailHTML(d);
+    const made=fresh.querySelector(".songlist");
+    if(made){
+      box.replaceWith(made);
+      dressAvatars(made);
+    }else{
+      const note=box.querySelector(".tl-empty");
+      if(note)note.textContent="Couldn\u2019t find this album\u2019s tracklist";
+    }
+  });
 }
 
 function hoverPlay(row){
@@ -3329,7 +3455,7 @@ function boot(rows,sample,header){
   $("foot").textContent=(sample?"Sample data":(LIVE?"Live \u00b7 sheet "+LIVE_SHEET_ID.slice(0,6):"Published CSV \u00b7 up to 5 min behind"))
   +" \u00b7 build "+BUILD+(MSGSTAT==="off"?"":" \u00b7 "+MSGSTAT);
 
-  replayEdits(); applyClears();          // marks made before a refresh are still yours
+  replayEdits(); applyUnskips(); applyClears();          // marks made before a refresh are still yours
   flushOutbox();          // and any that never reached the script go again
   paintProfiles();
   wireFilters();
@@ -3399,7 +3525,7 @@ function applyCSV(text,header){
     sel.innerHTML='<option value="">All genres</option>'+want.map(g=>`<option>${esc(g)}</option>`).join("");
     sel.value=want.indexOf(had)>-1?had:"";
   }
-  replayEdits(); applyClears();          // the sheet's copy may be minutes behind your taps
+  replayEdits(); applyUnskips(); applyClears();          // the sheet's copy may be minutes behind your taps
   flushOutbox();          // and anything that never got there is sent again
   paintTally();
   buildMarquee();
