@@ -402,9 +402,33 @@ button.artist-head:hover h2{color:var(--accent)}
 @keyframes tlin{to{opacity:1; transform:none}}
 @media(prefers-reduced-motion:reduce){.songlist li{opacity:1; transform:none; animation:none}}
 .songlist li:last-child{border-bottom:0}
-.tl-name{min-width:0; overflow-wrap:anywhere}
+.tl-name{min-width:0; overflow-wrap:anywhere; flex:1 1 auto}
+/* Favourite: the button sits in a gutter on the left, but the mark it makes sits
+   beside the title like an exponent - so a favourited row reads as a title with
+   a small figure after it rather than a title with a widget in front of it. */
+.fav-btn{flex:none; width:20px; height:20px; margin-right:-.55rem; display:grid; place-items:center;
+  background:none; border:0; padding:0; cursor:pointer; font-size:12px; line-height:1;
+  color:var(--line-2); opacity:.5;
+  transition:opacity .16s ease-out, color .16s ease-out, transform .16s ease-out}
+.songlist li:hover .fav-btn{opacity:.78}
+.fav-btn:hover{transform:scale(1.2); color:var(--fv)}
+.fav-btn.on{opacity:1; color:var(--fv)}
+.fav-btn[data-fav="anthony"]{--fv:#D9A21A}
+.fav-btn[data-fav="annette"]{--fv:#DE6396}
+.tl-name .fs{display:inline-block; font-style:normal; font-size:.64em; line-height:1;
+  vertical-align:super; margin-left:.24em; letter-spacing:.03em}
+.tl-name .fs.a{color:#C0890B}
+.tl-name .fs.n{color:#CE4F84}
+.tl-name .fs.pop{animation:fspop .44s cubic-bezier(.3,1.4,.4,1) both}
+@keyframes fspop{from{opacity:0; transform:translateY(3px) scale(.5)}}
+@media(prefers-reduced-motion:reduce){.tl-name .fs.pop{animation:none}}
+.night .fav-btn{color:rgba(200,225,245,.3)}
+.night .fav-btn:hover,.night .fav-btn.on{color:var(--fv)}
+.night .tl-name .fs.a{color:#F2C64B}
+.night .tl-name .fs.n{color:#F27FAF}
 .tl-empty{font-family:"JetBrains Mono",monospace; font-size:11.5px; color:var(--faint);
   padding:.9rem 0}
+.wipes{display:flex; gap:.6rem; flex:none}
 .marks{display:flex; gap:.3rem; flex:none}
 .mark{width:26px; height:26px; border-radius:50%; display:grid; place-items:center;
   font-family:"JetBrains Mono",monospace; font-size:9px; font-weight:600; color:#FFF;
@@ -940,30 +964,67 @@ function splitSongs(raw){
   const parts=/[\n\r]/.test(text)
     ? text.split(/[\n\r]+/)
     : text.split(/[;,\u2022\u00b7]+/);
+  let fav="";
   parts.map(x=>x.trim()).filter(Boolean).forEach(t=>{
     const struck=/^~/.test(t);
     const plus=!struck&&/^[*+]/.test(t);
+    /* Doubled marker means favourite - one song, and liked by definition. The
+       sheet only carries it if the script writes it; until then favourites live
+       on the device that set them. */
+    const best=!struck&&/^([*+])\1/.test(t);
     const name=t.replace(/^[~*+]+\s*/,"").replace(/\s*~+$/,"").trim();
     if(!name)return;
     const k=name.toLowerCase();
     if(seen.has(k))return;
     seen.add(k); order.push(name);
+    if(best)fav=name;
     if(struck){disliked.push(name);dis.add(k);}
     else if(plus){liked.push(name);yes.add(k);}
   });
   /* A cell with dislikes but no likes was written under the old convention,
      where anything unmarked meant liked. Read it that way rather than showing
      a whole album as unrated - the sheet is already telling us what they
-     thought. The moment one explicit like appears, the cell is read literally. */
-  if(dis.size&&!yes.size){
+     thought. The moment one explicit like appears, the cell is read literally.
+     Two or more, though: a single dislike is far more likely to be somebody
+     halfway through marking a record than a whole album they loved but one
+     track, and reading it the old way sent the rating up to the nineties on
+     one refresh and back down on the next. */
+  if(dis.size>1&&!yes.size){
     order.forEach(t=>{const k=t.toLowerCase();
       if(!dis.has(k)){yes.add(k);liked.push(t);}});
   }
-  return{order,liked,disliked,dis,yes,all:order};
+  return{order,liked,disliked,dis,yes,all:order,fav};
 }
 
 /** Nothing marked at all - the one case that reads as "not rated yet". */
 function noMarks(s){ return !s||(!s.dis.size&&!(s.yes&&s.yes.size)); }
+
+/* ── favourite song ───────────────────────────────────────────────
+   One song per album per person. The tap lands locally first so it is instant
+   and survives a refresh, and it is sent to the sheet behind - so whichever of
+   the two of you set it, both of you end up seeing it. */
+const FAV_STORE="aoty-fav";
+function favAll(){ try{return JSON.parse(store.get(FAV_STORE,"{}"))||{};}catch(e){return{};} }
+function favKey(d,who){ return (d.artist+"\u0000"+d.album+"\u0000"+who).toLowerCase(); }
+/** What this person has starred here. A key that exists wins over the sheet,
+ *  including when it is empty - that is how unstarring holds through a reload. */
+function favOf(d,who){
+  const m=favAll(),k=favKey(d,who);
+  if(k in m)return m[k]||"";
+  const s=who==="anthony"?d.aS:d.nS;
+  return (s&&s.fav)||"";
+}
+function setFav(d,who,song){
+  const m=favAll(); m[favKey(d,who)]=song||"";
+  store.set(FAV_STORE,JSON.stringify(m));
+}
+function favStarsHTML(d,song){
+  const k=String(song).toLowerCase();
+  return [["anthony","a","Anthony"],["annette","n","Annette"]].map(([who,cls,name])=>
+    favOf(d,who).toLowerCase()===k
+      ? `<i class="fs ${cls}" title="${name}\u2019s favourite on this record">\u2605</i>` : ""
+  ).join("");
+}
 /** What a single track should show. Once someone has marked anything on the
  *  album, an unmarked track is a pass rather than a silence - which is what
  *  the score has always counted it as. */
@@ -977,12 +1038,25 @@ function markState(s,song){
 /** Liked out of the whole tracklist, the same sum the script does.
     Null until something is marked, so an untouched album keeps its typed
     rating instead of reading as zero. */
-function scoreOf(s){
-  if(!s||!s.order.length)return null;
+function scoreOf(s,total){
+  if(!s)return null;
   let y=0,n=0;
   s.order.forEach(t=>{const k=t.toLowerCase();
     if(s.dis.has(k))n++; else if(s.yes&&s.yes.has(k))y++;});
-  return (y+n)?Math.round(y/s.order.length*100):null;
+  if(!(y+n))return null;
+  /* Out of the whole tracklist, which is what the script writing the sheet
+     divides by. Dividing by only the songs one of you had listed gave a
+     different number from the sheet's, so every refresh swapped one for the
+     other and the rating appeared to change on its own. */
+  const denom=Math.max(total||0,s.order.length);
+  return denom?Math.round(y/denom*100):null;
+}
+/** How long the record is, as far as anything here knows. */
+function trackTotal(d){
+  const seen=new Set();
+  [d.aS&&d.aS.order,d.nS&&d.nS.order,d.tl].forEach(list=>
+    (list||[]).forEach(t=>{ if(t)seen.add(String(t).toLowerCase()); }));
+  return seen.size;
 }
 
 const DEFAULT_COLS={photo:0,artist:1,genre:2,cover:3,album:4,year:5,
@@ -1618,7 +1692,11 @@ function applyClears(){
     const d=ROWS.find(x=>x.artist===e.artist&&x.album===e.album);
     if(!d){ keep.push(e); return; }                  // not loaded yet
     const base=e.who==="anthony"?d.a0:d.n0;
-    if(base!==e.base)return;                         // the sheet has moved on
+    /* The script recalculates the rating from the marks, so clearing them all
+       can leave a 0 in the column rather than an empty cell. A 0 arriving is
+       the reset landing, not somebody rating it - so the clear holds. Only a
+       real number typed in means the album has been rated again. */
+    if(base!==e.base&&base!==0&&base!==null)return;
     if(!noMarks(e.who==="anthony"?d.aS:d.nS))return;  // rated again since: void
     if(e.who==="anthony")d.a=null; else d.n=null;
     keep.push(e);
@@ -1695,7 +1773,7 @@ function applyMark(d,who,song,verdict){
   s.all=s.order;
   s.liked=s.order.filter(t=>s.yes&&s.yes.has(t.toLowerCase()));
   s.disliked=s.order.filter(t=>s.dis.has(t.toLowerCase()));
-  const sc=scoreOf(s);
+  const sc=scoreOf(s,trackTotal(d));
   if(who==="anthony")d.a=sc; else d.n=sc;
 }
 
@@ -1703,6 +1781,37 @@ function applyMark(d,who,song,verdict){
    Waiting for Google to answer first put a second or more between the tap and
    anything moving, which read as nothing having happened at all. If the sheet
    does refuse it, the mark goes back to where it was and says why. */
+/* One star at a time: tapping another song moves it, tapping the same one takes
+   it off. Nothing waits on Google - the star is on the moment you tap. */
+function favSong(btn){
+  const card=btn.closest(".album")||$("album-body");
+  const idx=card&&card.dataset?card.dataset.idx:null;
+  const d=ROWS[Number(idx!=null?idx:MODAL_IDX)];
+  if(!d){note("Lost track of which album that was \u2014 reload the page");return;}
+  const who=btn.dataset.fav,song=btn.dataset.song;
+  const next=favOf(d,who).toLowerCase()===String(song).toLowerCase()?"":song;
+  setFav(d,who,next);
+  paintFavs(d,card);
+  markCall({what:"fav",artist:d.artist,album:d.album,song:next,
+            who:who==="anthony"?"a":"n"}).then(()=>{},()=>{});
+}
+/** Redraws only the stars, so the row does not flash and the marks keep state. */
+function paintFavs(d,root){
+  (root||document).querySelectorAll(".songlist li").forEach(li=>{
+    const box=li.querySelector("[data-favstar]");
+    if(box){
+      const html=favStarsHTML(d,box.dataset.favstar);
+      if(box.innerHTML!==html){
+        box.innerHTML=html;
+        box.querySelectorAll(".fs").forEach(s=>s.classList.add("pop"));
+      }
+    }
+    const b=li.querySelector("[data-fav]");
+    if(b)b.classList.toggle("on",
+      favOf(d,b.dataset.fav).toLowerCase()===String(b.dataset.song).toLowerCase());
+  });
+}
+
 function markSong(btn){
   const card=btn.closest(".album")||$("album-body");
   const idx=card&&card.dataset?card.dataset.idx:null;
@@ -1726,13 +1835,25 @@ function markSong(btn){
   else redrawOpen(d,who,song);
   if(unSkip){
     rememberUnskip(d,who);
-    refreshScore(root0(d),d);
+    const r0=root0(d);
+    if(r0)try{ refreshScore(r0,d); }catch(err){}
   }
 
   markCall({what:"mark",artist:d.artist,album:d.album,song:song,
             who:who==="anthony"?"a":"n",
             verdict:next==="y"?"yes":next==="n"?"no":"clear"}).then(r=>{
-    if(r.ok){ markSent(d,who,song,true); return; }
+    if(r.ok){
+      markSent(d,who,song,true);
+      /* The script sends back the rating it just wrote. Taking it means the
+         page and the sheet cannot drift apart while the CSV catches up. */
+      if(typeof r.score==="number"&&!isNaN(r.score)){
+        if(who==="anthony")d.a=r.score; else d.n=r.score;
+        const r0=root0(d);
+        if(r0)try{ refreshScore(r0,d); }catch(err){}
+        else try{ syncAverages(d); }catch(err){}
+      }
+      return;
+    }
     if(r.noReply){
       // it stays on screen and in the outbox, and goes again on the next load
       note("Saved here \u2014 the sheet has not confirmed it yet");
@@ -1758,24 +1879,32 @@ function wipeMine(btn){
   /* A rating typed straight into the sheet has no marks behind it, and the
      reset used to refuse to touch it - so the score sat there for good. */
   if(!mine.length&&!scored){note("You haven\u2019t rated this one");return;}
+  const name=who[0].toUpperCase()+who.slice(1);
   if(!confirm((mine.length
-        ?"Clear your "+mine.length+" mark"+(mine.length===1?"":"s")
-        :"Clear your rating")+
-              " on "+d.album+"? Your rating goes back to nothing said."))return;
+        ?"Clear "+name+"\u2019s "+mine.length+" mark"+(mine.length===1?"":"s")
+        :"Clear "+name+"\u2019s rating")+
+              " on "+d.album+"? It goes back to nothing said."))return;
+  /* the songs to tell the sheet about: the marks if there are any, otherwise
+     the whole record, so the script recounts a typed rating down to nothing */
+  const send=mine.length?mine:songTable(d).map(r=>r.label);
   // clear them on screen at once, then tell the sheet one at a time so a
   // failure halfway leaves it consistent with itself
   mine.forEach(song=>{applyMark(d,who,song,"");rememberEdit(d,who,song,"");});
   /* and the score with them, for good: nothing in the sheet will clear it */
   if(who==="anthony")d.a=null; else d.n=null;
   rememberClear(d,who);
+  /* the star is part of the rating, so it goes too */
+  setFav(d,who,""); paintFavs(d,card);
   redrawOpen(d,null,null,"off");
+  if(who==="anthony")d.aSkip=false; else d.nSkip=false;
   let failed=0;
-  mine.reduce((chain,song)=>chain.then(()=>
+  send.reduce((chain,song)=>chain.then(()=>
     markCall({what:"mark",artist:d.artist,album:d.album,song:song,
               who:who==="anthony"?"a":"n",verdict:"clear"})
       .then(r=>{ if(r.ok)markSent(d,who,song,true); else failed++; })
   ),Promise.resolve()).then(()=>{
-    if(failed)note(failed+" of "+mine.length+" did not save \u2014 reload to see the sheet");
+    if(failed)note(failed+" of "+send.length+" did not save \u2014 reload to see the sheet");
+    else note(name+"\u2019s rating cleared on the sheet too");
   });
 }
 
@@ -2756,12 +2885,15 @@ function detailHTML(d){
       <div class="songlist"><div class="tl-head"><span>Tracklist</span></div>
       <p class="tl-empty">Looking up the tracklist\u2026</p></div>
     </div></div></div>`;
+  const me_=store.get("aoty-me","");
   const list=rows.length?`<div class="songlist">
     <div class="tl-head"><span>Tracklist \u00b7 tap \u25b6 for a clip</span>${
       store.get("aoty-me","")
         ?`<button class="wipe" data-wipe="${store.get("aoty-me","")}"
-            title="Clear all your marks on this album and start again">reset mine</button>`:""}</div>
-    <div class="tl-wrap${tall?" tall":""}"><ul>${rows.map((r,i)=>`<li style="animation-delay:${Math.min(i,14)*0.035}s"><span class="tl-name">${esc(r.label)}</span>
+            title="Clear your rating of this album and start again">reset mine</button>`:""}</div>
+    <div class="tl-wrap${tall?" tall":""}"><ul>${rows.map((r,i)=>`<li style="animation-delay:${Math.min(i,14)*0.035}s">${
+      me_?`<button class="fav-btn${favOf(d,me_).toLowerCase()===r.label.toLowerCase()?" on":""}" data-fav="${me_}" data-song="${esc(r.label)}" title="Mark this as your favourite here" aria-label="Favourite ${esc(r.label)}">\u2605</button>`:""
+      }<span class="tl-name">${esc(r.label)}<span data-favstar="${esc(r.label)}">${favStarsHTML(d,r.label)}</span></span>
       <span class="rowend">
         <button class="play" data-artist="${esc(d.artist)}" data-album="${esc(d.album)}" data-song="${esc(r.label)}" title="Play a 30s clip" aria-label="Play a clip of ${esc(r.label)}">\u25b6</button>
         <span class="marks">${
@@ -3124,6 +3256,8 @@ document.addEventListener("click",e=>{
   if(opener){openAlbum(opener.dataset.open);return;}
   const mk=e.target.closest("[data-mark]");
   if(mk){e.stopPropagation(); if(!mk.classList.contains("busy"))markSong(mk); return;}
+  const fv=e.target.closest("[data-fav]");
+  if(fv){e.stopPropagation(); favSong(fv); return;}
   const wp=e.target.closest("[data-wipe]");
   if(wp){e.stopPropagation(); if(!wp.classList.contains("busy"))wipeMine(wp); return;}
   const pb=e.target.closest(".play");
