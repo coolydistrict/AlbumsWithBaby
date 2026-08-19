@@ -405,6 +405,7 @@ button.artist-head:hover h2{color:var(--accent)}
 .tl-name{min-width:0; overflow-wrap:anywhere}
 .tl-empty{font-family:"JetBrains Mono",monospace; font-size:11.5px; color:var(--faint);
   padding:.9rem 0}
+.wipes{display:flex; gap:.6rem; flex:none}
 .marks{display:flex; gap:.3rem; flex:none}
 .mark{width:26px; height:26px; border-radius:50%; display:grid; place-items:center;
   font-family:"JetBrains Mono",monospace; font-size:9px; font-weight:600; color:#FFF;
@@ -836,7 +837,7 @@ const MARK_URL = "https://script.google.com/macros/s/AKfycbxvNggOJvLx8yY0JsKWdpX
 const MARK_KEY = "puppy";
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-18f";
+const BUILD = "2026-08-18e";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -954,8 +955,12 @@ function splitSongs(raw){
   /* A cell with dislikes but no likes was written under the old convention,
      where anything unmarked meant liked. Read it that way rather than showing
      a whole album as unrated - the sheet is already telling us what they
-     thought. The moment one explicit like appears, the cell is read literally. */
-  if(dis.size&&!yes.size){
+     thought. The moment one explicit like appears, the cell is read literally.
+     Two or more, though: a single dislike is far more likely to be somebody
+     halfway through marking a record than a whole album they loved but one
+     track, and reading it the old way sent the rating up to the nineties on
+     one refresh and back down on the next. */
+  if(dis.size>1&&!yes.size){
     order.forEach(t=>{const k=t.toLowerCase();
       if(!dis.has(k)){yes.add(k);liked.push(t);}});
   }
@@ -977,12 +982,25 @@ function markState(s,song){
 /** Liked out of the whole tracklist, the same sum the script does.
     Null until something is marked, so an untouched album keeps its typed
     rating instead of reading as zero. */
-function scoreOf(s){
-  if(!s||!s.order.length)return null;
+function scoreOf(s,total){
+  if(!s)return null;
   let y=0,n=0;
   s.order.forEach(t=>{const k=t.toLowerCase();
     if(s.dis.has(k))n++; else if(s.yes&&s.yes.has(k))y++;});
-  return (y+n)?Math.round(y/s.order.length*100):null;
+  if(!(y+n))return null;
+  /* Out of the whole tracklist, which is what the script writing the sheet
+     divides by. Dividing by only the songs one of you had listed gave a
+     different number from the sheet's, so every refresh swapped one for the
+     other and the rating appeared to change on its own. */
+  const denom=Math.max(total||0,s.order.length);
+  return denom?Math.round(y/denom*100):null;
+}
+/** How long the record is, as far as anything here knows. */
+function trackTotal(d){
+  const seen=new Set();
+  [d.aS&&d.aS.order,d.nS&&d.nS.order,d.tl].forEach(list=>
+    (list||[]).forEach(t=>{ if(t)seen.add(String(t).toLowerCase()); }));
+  return seen.size;
 }
 
 const DEFAULT_COLS={photo:0,artist:1,genre:2,cover:3,album:4,year:5,
@@ -1149,12 +1167,61 @@ function forgetMisses(){
   [...CLIP.keys()].forEach(k=>{ if(!CLIP.get(k))CLIP.delete(k); });
 }
 
-const artistShot=name=>dzFetch("https://api.deezer.com/search/artist?limit=1&output=jsonp&q="+encodeURIComponent(name))
-  .then(d=>{const h=d&&d.data&&d.data[0];
+/* Both of these used to ask for one result and take it, which is how a row
+   ends up wearing a tribute album's cover, or a compilation's, or the wrong
+   band's entirely. Ask for a shortlist and choose from it instead - the same
+   thing the sheet's own lookup does. */
+function pickArtist(list,name){
+  const want=normT(name);
+  let best=null,bs=-1;
+  (list||[]).forEach(a=>{
+    const got=normT(a.name||"");
+    if(!got)return;
+    let s=got===want?100:(got.indexOf(want)===0||want.indexOf(got)===0)?40
+      :got.indexOf(want)>-1?10:0;
+    if(!s)return;
+    s+=Math.min(a.nb_fan||0,5000000)/1000000;   // among equals, the better known
+    if(s>bs){bs=s;best=a;}
+  });
+  return best;
+}
+const artistShot=name=>dzFetch("https://api.deezer.com/search/artist?limit=25&output=jsonp&q="+encodeURIComponent(name))
+  .then(d=>{const h=pickArtist(d&&d.data,name);
     return h&&h.picture_big&&h.picture_big.indexOf("/artist//")<0?h.picture_big:null;});
-const albumShot=term=>jsonp("https://itunes.apple.com/search?entity=album&limit=1&term="+encodeURIComponent(term))
-  .then(d=>{const h=d&&d.results&&d.results[0];
-    return h&&h.artworkUrl100?h.artworkUrl100.replace("100x100","400x400"):null;});
+
+/* The search term is "Artist Album" run together, so the artist is found
+   inside it and whatever is left should be the record. A result whose artist
+   does not appear in the term at all is somebody else and is dropped outright. */
+function pickAlbumArt(results,term){
+  const want=normT(term);
+  let best=null,bs=0;
+  (results||[]).forEach(r=>{
+    if(!r||!r.artworkUrl100)return;
+    const a=normT(r.artistName||""),c=normT(r.collectionName||"");
+    if(!a||want.indexOf(a)<0)return;             // not this artist
+    const rest=want.replace(a,"").trim();        // what ought to be the album
+    let s=0;
+    if(c===rest)s=6;
+    else if(rest&&(rest.indexOf(c)===0||c.indexOf(rest)===0))s=4;
+    else if(rest&&c.indexOf(rest)>-1)s=2;
+    else return;                                 // not this record
+    /* These have to read the raw title. normT strips anything in brackets,
+       which is exactly where an edition hides - by the time it reaches c,
+       "In Rainbows (Deluxe Edition)" is indistinguishable from "In Rainbows". */
+    const raw=String(r.collectionName||"").toLowerCase();
+    const asked=String(term||"").toLowerCase();
+    if(/\b(live|in concert|unplugged|greatest hits|best of|karaoke|tribute|remix|remixes|instrumental)\b/.test(raw))s-=3;
+    const ED=/\b(deluxe|expanded|anniversary|remaster|remastered|edition|version|reissue)\b/;
+    if(ED.test(raw)&&!ED.test(asked))s-=2;
+    s+=Math.min(r.trackCount||0,30)/100;         // the fuller release breaks ties
+    if(s>bs){bs=s;best=r;}
+  });
+  return bs>0?best:null;
+}
+const albumShot=term=>jsonp("https://itunes.apple.com/search?entity=album&limit=25&term="+encodeURIComponent(term))
+  .then(d=>{const h=pickAlbumArt(d&&d.results,term);
+    // 600 rather than 400: the podium and the wall show these large
+    return h&&h.artworkUrl100?h.artworkUrl100.replace("100x100","600x600"):null;});
 
 const tryUrl=url=>new Promise(res=>{
   if(!url)return res(null);
@@ -1324,19 +1391,8 @@ function titleForms(song){
 
 /* iTunes ranks by popularity, so the first result for "TWICE CANDY" can easily
    be FANCY. Score the results and only play one that is actually the song. */
-/* normT strips brackets, so "Song (Live)" and "Song" come out identical and
-   score the same - and the tie was settled by whichever iTunes happened to
-   return first. That is why a live take or a sped-up edit kept playing instead
-   of the record. The marker is read from the raw title, before normalising. */
-const OTHER_TAKE=/\b(live|in concert|unplugged|acoustic|remix|remixes|remixed|instrumental|karaoke|a ?cappella|cover|covers|tribute|made famous|sped up|slowed|reverb|demo|rehearsal|edit|mix|re-?recorded|taylors version)\b/i;
-const takeMark=t=>{
-  const m=String(t||"").match(/[([][^)\]]*[)\]]|\s[-\u2013\u2014]\s.*$/g)||[];
-  return m.some(x=>OTHER_TAKE.test(x));
-};
-
 function pickTrack(results,song,artist,album){
   const forms=titleForms(song), wa=normT(artist), wl=normT(album);
-  const wantOther=takeMark(song);        // asked for the live one? then keep it
   let best=null,bs=0;
   (results||[]).forEach(r=>{
     if(!r.previewUrl)return;
@@ -1349,12 +1405,7 @@ function pickTrack(results,song,artist,album){
     if(ra===wa)s+=3;
     else if(wa&&(ra.indexOf(wa)>-1||wa.indexOf(ra)>-1))s+=1;
     else return;                                   // somebody else's song entirely
-    const ca=normT(r.collectionName);
-    // the record itself, or an edition of it - "Currents" matches "Currents (Deluxe)"
-    if(wl&&ca===wl)s+=3;
-    else if(wl&&ca&&(ca.indexOf(wl)===0||wl.indexOf(ca)===0))s+=2;
-    // a different take of the same song, when the plain one was asked for
-    if(!wantOther&&takeMark(r.trackName))s-=5;
+    if(wl&&normT(r.collectionName)===wl)s+=2;
     if(s>bs){bs=s;best=r;}
   });
   return bs>0?best:null;
@@ -1634,7 +1685,11 @@ function applyClears(){
     const d=ROWS.find(x=>x.artist===e.artist&&x.album===e.album);
     if(!d){ keep.push(e); return; }                  // not loaded yet
     const base=e.who==="anthony"?d.a0:d.n0;
-    if(base!==e.base)return;                         // the sheet has moved on
+    /* The script recalculates the rating from the marks, so clearing them all
+       can leave a 0 in the column rather than an empty cell. A 0 arriving is
+       the reset landing, not somebody rating it - so the clear holds. Only a
+       real number typed in means the album has been rated again. */
+    if(base!==e.base&&base!==0&&base!==null)return;
     if(!noMarks(e.who==="anthony"?d.aS:d.nS))return;  // rated again since: void
     if(e.who==="anthony")d.a=null; else d.n=null;
     keep.push(e);
@@ -1711,7 +1766,7 @@ function applyMark(d,who,song,verdict){
   s.all=s.order;
   s.liked=s.order.filter(t=>s.yes&&s.yes.has(t.toLowerCase()));
   s.disliked=s.order.filter(t=>s.dis.has(t.toLowerCase()));
-  const sc=scoreOf(s);
+  const sc=scoreOf(s,trackTotal(d));
   if(who==="anthony")d.a=sc; else d.n=sc;
 }
 
@@ -1742,13 +1797,25 @@ function markSong(btn){
   else redrawOpen(d,who,song);
   if(unSkip){
     rememberUnskip(d,who);
-    refreshScore(root0(d),d);
+    const r0=root0(d);
+    if(r0)try{ refreshScore(r0,d); }catch(err){}
   }
 
   markCall({what:"mark",artist:d.artist,album:d.album,song:song,
             who:who==="anthony"?"a":"n",
             verdict:next==="y"?"yes":next==="n"?"no":"clear"}).then(r=>{
-    if(r.ok){ markSent(d,who,song,true); return; }
+    if(r.ok){
+      markSent(d,who,song,true);
+      /* The script sends back the rating it just wrote. Taking it means the
+         page and the sheet cannot drift apart while the CSV catches up. */
+      if(typeof r.score==="number"&&!isNaN(r.score)){
+        if(who==="anthony")d.a=r.score; else d.n=r.score;
+        const r0=root0(d);
+        if(r0)try{ refreshScore(r0,d); }catch(err){}
+        else try{ syncAverages(d); }catch(err){}
+      }
+      return;
+    }
     if(r.noReply){
       // it stays on screen and in the outbox, and goes again on the next load
       note("Saved here \u2014 the sheet has not confirmed it yet");
@@ -1774,10 +1841,14 @@ function wipeMine(btn){
   /* A rating typed straight into the sheet has no marks behind it, and the
      reset used to refuse to touch it - so the score sat there for good. */
   if(!mine.length&&!scored){note("You haven\u2019t rated this one");return;}
+  const name=who[0].toUpperCase()+who.slice(1);
   if(!confirm((mine.length
-        ?"Clear your "+mine.length+" mark"+(mine.length===1?"":"s")
-        :"Clear your rating")+
-              " on "+d.album+"? Your rating goes back to nothing said."))return;
+        ?"Clear "+name+"\u2019s "+mine.length+" mark"+(mine.length===1?"":"s")
+        :"Clear "+name+"\u2019s rating")+
+              " on "+d.album+"? It goes back to nothing said."))return;
+  /* the songs to tell the sheet about: the marks if there are any, otherwise
+     the whole record, so the script recounts a typed rating down to nothing */
+  const send=mine.length?mine:songTable(d).map(r=>r.label);
   // clear them on screen at once, then tell the sheet one at a time so a
   // failure halfway leaves it consistent with itself
   mine.forEach(song=>{applyMark(d,who,song,"");rememberEdit(d,who,song,"");});
@@ -1785,13 +1856,15 @@ function wipeMine(btn){
   if(who==="anthony")d.a=null; else d.n=null;
   rememberClear(d,who);
   redrawOpen(d,null,null,"off");
+  if(who==="anthony")d.aSkip=false; else d.nSkip=false;
   let failed=0;
-  mine.reduce((chain,song)=>chain.then(()=>
+  send.reduce((chain,song)=>chain.then(()=>
     markCall({what:"mark",artist:d.artist,album:d.album,song:song,
               who:who==="anthony"?"a":"n",verdict:"clear"})
       .then(r=>{ if(r.ok)markSent(d,who,song,true); else failed++; })
   ),Promise.resolve()).then(()=>{
-    if(failed)note(failed+" of "+mine.length+" did not save \u2014 reload to see the sheet");
+    if(failed)note(failed+" of "+send.length+" did not save \u2014 reload to see the sheet");
+    else note(name+"\u2019s rating cleared on the sheet too");
   });
 }
 
@@ -2016,7 +2089,7 @@ function scatterHTML(){
         <line x1="50" y1="0" x2="50" y2="100" stroke="var(--line)" stroke-width=".4"/>
         <line x1="0" y1="50" x2="100" y2="50" stroke="var(--line)" stroke-width=".4"/>
       </svg>
-      ${pts.map(d=>`<div class="dot" data-artist="${esc(d.artist)}" data-cover="${esc(d.cover)}" data-art="${esc(d.artist+" "+d.album)}"
+      ${pts.map(d=>`<div class="dot" data-artist="${esc(d.artist)}" data-art="${esc(d.artist+" "+d.album)}"
         style="left:${d.a}%;bottom:${d.n}%" title="${esc(d.album)} — ${INI.anthony} ${d.a}, ${INI.annette} ${d.n}">${esc(initials(d.album))}</div>`).join("")}
       <span class="ax x">${INI.anthony} \u2192</span><span class="ax y">${INI.annette} \u2192</span>
     </div></div></div>`;
@@ -2776,7 +2849,7 @@ function detailHTML(d){
     <div class="tl-head"><span>Tracklist \u00b7 tap \u25b6 for a clip</span>${
       store.get("aoty-me","")
         ?`<button class="wipe" data-wipe="${store.get("aoty-me","")}"
-            title="Clear all your marks on this album and start again">reset mine</button>`:""}</div>
+            title="Clear your rating of this album and start again">reset mine</button>`:""}</div>
     <div class="tl-wrap${tall?" tall":""}"><ul>${rows.map((r,i)=>`<li style="animation-delay:${Math.min(i,14)*0.035}s"><span class="tl-name">${esc(r.label)}</span>
       <span class="rowend">
         <button class="play" data-artist="${esc(d.artist)}" data-album="${esc(d.album)}" data-song="${esc(r.label)}" title="Play a 30s clip" aria-label="Play a clip of ${esc(r.label)}">\u25b6</button>
@@ -3468,7 +3541,9 @@ function boot(rows,sample,header){
   $("notice").innerHTML=sample
     ?`<strong>You're looking at made-up data.</strong> These ratings are placeholders so you can see the layout — none of them are yours.`
     :`Reading live from your sheet. Add a row there, refresh here.`;
-  $("foot").textContent=(sample?"Sample data":(LIVE?"Live \u00b7 sheet "+LIVE_SHEET_ID.slice(0,6):"Published CSV \u00b7 up to 5 min behind"))
+  $("foot").textContent=(sample?"Sample data":(LIVE
+      ?"Live \u00b7 "+(LIVEVIA==="script"?"via script":"sheet "+LIVE_SHEET_ID.slice(0,6))
+      :"Published CSV \u00b7 up to 5 min behind"))
   +" \u00b7 build "+BUILD+(MSGSTAT==="off"?"":" \u00b7 "+MSGSTAT);
 
   replayEdits(); applyUnskips(); applyClears();          // marks made before a refresh are still yours
@@ -3507,43 +3582,43 @@ function looksRight(text,tab){
 }
 
 /* Live endpoint first, published CSV as the safety net. */
-/* Three ways to read the sheet, and only one of them is live.
-
-   The published CSV is Google's cached copy and runs minutes behind, so a mark
-   made on one phone kept arriving on the other as the OLD value - and kept
-   arriving that way on every refresh until the cache turned over. gviz is live
-   but sends no CORS headers, so a browser on another domain cannot read it and
-   the fetch fails straight into the cached copy.
-
-   The web app returns the real cell values as JSONP, which a browser will
-   always accept, and it is the same endpoint the marks already travel through.
-   It is asked first now; the other two remain as fallbacks. */
+/* Three ways in, best first.
+   1. The web app. It reads the sheet itself, so there is no cache in the way,
+      and it answers as JSONP - which is the only reason it works at all, since
+      a browser on another site cannot fetch Google's own endpoints directly.
+   2. gviz. Live, but blocked cross-origin from a site like this, so it almost
+      never succeeds. Kept in case it ever does.
+   3. The published copy. Always works and is always behind - Google refreshes
+      it on its own schedule, which is where the five minutes came from. */
+let LIVEVIA="";
 function fetchSheet(tab,published){
   const tryFetch=url=>fetch(url).then(r=>r.ok?r.text():Promise.reject(r.status));
   const fallback=()=>{
     if(!published)return Promise.reject("no fallback");
     return tryFetch(published+(published.includes("?")?"&":"?")+"cb="+Date.now())
-      .then(t=>{LIVE=false;return t;});
+      .then(t=>{LIVE=false;LIVEVIA="published";return t;});
   };
   const viaGviz=()=>{
     if(!LIVE_SHEET_ID)return fallback();
     return tryFetch(gviz(tab))
       .then(t=>{
         if(!looksRight(t,tab))throw new Error("not shared");
-        LIVE=true; return t;
+        LIVE=true; LIVEVIA="gviz"; return t;
       })
       .catch(fallback);
   };
-  if(!MARK_URL||!MARK_KEY)return viaGviz();
-  return jsonp(MARK_URL+"?key="+encodeURIComponent(MARK_KEY)+
-               "&what=csv&tab="+encodeURIComponent(tab))
-    .then(r=>{
-      // jsonp resolves null on error or timeout rather than rejecting
-      if(!r||!r.ok||typeof r.csv!=="string")throw new Error("endpoint gave nothing");
-      if(!looksRight(r.csv,tab))throw new Error("wrong tab came back");
-      LIVE=true; return r.csv;
-    })
-    .catch(viaGviz);
+  const viaApp=()=>{
+    if(!MARK_URL||!MARK_KEY)return viaGviz();
+    return jsonp(MARK_URL+"?key="+encodeURIComponent(MARK_KEY)+
+                 "&what=csv&tab="+encodeURIComponent(tab))
+      .then(r=>{
+        if(!r||!r.ok||typeof r.csv!=="string"||!looksRight(r.csv,tab))
+          throw new Error("the script did not return that tab");
+        LIVE=true; LIVEVIA="script"; return r.csv;
+      })
+      .catch(viaGviz);
+  };
+  return viaApp();
 }
 
 function applyCSV(text,header){
@@ -4756,10 +4831,6 @@ function artistsHTML(){
 }
 function paintArtists(){
   if(typeof VIEW==="undefined"||VIEW!=="artists")return false;
-  /* Clicking a name on the artist podium sets FOCUS and render() draws that
-     artist's page - and then this used to paint straight over it, which is why
-     the click appeared to do nothing at all. */
-  if(typeof FOCUS!=="undefined"&&FOCUS)return false;
   var out=document.getElementById("out");
   var list=artistTable();
   out.innerHTML=artistsHTML()+(typeof statsHTML==="function"?statsHTML():"");
