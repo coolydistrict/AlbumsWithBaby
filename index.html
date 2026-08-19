@@ -836,7 +836,7 @@ const MARK_URL = "https://script.google.com/macros/s/AKfycbxvNggOJvLx8yY0JsKWdpX
 const MARK_KEY = "puppy";
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-18c";
+const BUILD = "2026-08-18f";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -1324,8 +1324,19 @@ function titleForms(song){
 
 /* iTunes ranks by popularity, so the first result for "TWICE CANDY" can easily
    be FANCY. Score the results and only play one that is actually the song. */
+/* normT strips brackets, so "Song (Live)" and "Song" come out identical and
+   score the same - and the tie was settled by whichever iTunes happened to
+   return first. That is why a live take or a sped-up edit kept playing instead
+   of the record. The marker is read from the raw title, before normalising. */
+const OTHER_TAKE=/\b(live|in concert|unplugged|acoustic|remix|remixes|remixed|instrumental|karaoke|a ?cappella|cover|covers|tribute|made famous|sped up|slowed|reverb|demo|rehearsal|edit|mix|re-?recorded|taylors version)\b/i;
+const takeMark=t=>{
+  const m=String(t||"").match(/[([][^)\]]*[)\]]|\s[-\u2013\u2014]\s.*$/g)||[];
+  return m.some(x=>OTHER_TAKE.test(x));
+};
+
 function pickTrack(results,song,artist,album){
   const forms=titleForms(song), wa=normT(artist), wl=normT(album);
+  const wantOther=takeMark(song);        // asked for the live one? then keep it
   let best=null,bs=0;
   (results||[]).forEach(r=>{
     if(!r.previewUrl)return;
@@ -1338,7 +1349,12 @@ function pickTrack(results,song,artist,album){
     if(ra===wa)s+=3;
     else if(wa&&(ra.indexOf(wa)>-1||wa.indexOf(ra)>-1))s+=1;
     else return;                                   // somebody else's song entirely
-    if(wl&&normT(r.collectionName)===wl)s+=2;
+    const ca=normT(r.collectionName);
+    // the record itself, or an edition of it - "Currents" matches "Currents (Deluxe)"
+    if(wl&&ca===wl)s+=3;
+    else if(wl&&ca&&(ca.indexOf(wl)===0||wl.indexOf(ca)===0))s+=2;
+    // a different take of the same song, when the plain one was asked for
+    if(!wantOther&&takeMark(r.trackName))s-=5;
     if(s>bs){bs=s;best=r;}
   });
   return bs>0?best:null;
@@ -2000,7 +2016,7 @@ function scatterHTML(){
         <line x1="50" y1="0" x2="50" y2="100" stroke="var(--line)" stroke-width=".4"/>
         <line x1="0" y1="50" x2="100" y2="50" stroke="var(--line)" stroke-width=".4"/>
       </svg>
-      ${pts.map(d=>`<div class="dot" data-artist="${esc(d.artist)}" data-art="${esc(d.artist+" "+d.album)}"
+      ${pts.map(d=>`<div class="dot" data-artist="${esc(d.artist)}" data-cover="${esc(d.cover)}" data-art="${esc(d.artist+" "+d.album)}"
         style="left:${d.a}%;bottom:${d.n}%" title="${esc(d.album)} — ${INI.anthony} ${d.a}, ${INI.annette} ${d.n}">${esc(initials(d.album))}</div>`).join("")}
       <span class="ax x">${INI.anthony} \u2192</span><span class="ax y">${INI.annette} \u2192</span>
     </div></div></div>`;
@@ -3491,6 +3507,17 @@ function looksRight(text,tab){
 }
 
 /* Live endpoint first, published CSV as the safety net. */
+/* Three ways to read the sheet, and only one of them is live.
+
+   The published CSV is Google's cached copy and runs minutes behind, so a mark
+   made on one phone kept arriving on the other as the OLD value - and kept
+   arriving that way on every refresh until the cache turned over. gviz is live
+   but sends no CORS headers, so a browser on another domain cannot read it and
+   the fetch fails straight into the cached copy.
+
+   The web app returns the real cell values as JSONP, which a browser will
+   always accept, and it is the same endpoint the marks already travel through.
+   It is asked first now; the other two remain as fallbacks. */
 function fetchSheet(tab,published){
   const tryFetch=url=>fetch(url).then(r=>r.ok?r.text():Promise.reject(r.status));
   const fallback=()=>{
@@ -3498,13 +3525,25 @@ function fetchSheet(tab,published){
     return tryFetch(published+(published.includes("?")?"&":"?")+"cb="+Date.now())
       .then(t=>{LIVE=false;return t;});
   };
-  if(!LIVE_SHEET_ID)return fallback();
-  return tryFetch(gviz(tab))
-    .then(t=>{
-      if(!looksRight(t,tab))throw new Error("not shared");
-      LIVE=true; return t;
+  const viaGviz=()=>{
+    if(!LIVE_SHEET_ID)return fallback();
+    return tryFetch(gviz(tab))
+      .then(t=>{
+        if(!looksRight(t,tab))throw new Error("not shared");
+        LIVE=true; return t;
+      })
+      .catch(fallback);
+  };
+  if(!MARK_URL||!MARK_KEY)return viaGviz();
+  return jsonp(MARK_URL+"?key="+encodeURIComponent(MARK_KEY)+
+               "&what=csv&tab="+encodeURIComponent(tab))
+    .then(r=>{
+      // jsonp resolves null on error or timeout rather than rejecting
+      if(!r||!r.ok||typeof r.csv!=="string")throw new Error("endpoint gave nothing");
+      if(!looksRight(r.csv,tab))throw new Error("wrong tab came back");
+      LIVE=true; return r.csv;
     })
-    .catch(fallback);
+    .catch(viaGviz);
 }
 
 function applyCSV(text,header){
@@ -4717,6 +4756,10 @@ function artistsHTML(){
 }
 function paintArtists(){
   if(typeof VIEW==="undefined"||VIEW!=="artists")return false;
+  /* Clicking a name on the artist podium sets FOCUS and render() draws that
+     artist's page - and then this used to paint straight over it, which is why
+     the click appeared to do nothing at all. */
+  if(typeof FOCUS!=="undefined"&&FOCUS)return false;
   var out=document.getElementById("out");
   var list=artistTable();
   out.innerHTML=artistsHTML()+(typeof statsHTML==="function"?statsHTML():"");
