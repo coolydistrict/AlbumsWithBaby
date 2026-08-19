@@ -837,7 +837,7 @@ const MARK_URL = "https://script.google.com/macros/s/AKfycbxvNggOJvLx8yY0JsKWdpX
 const MARK_KEY = "puppy";
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-18e";
+const BUILD = "2026-08-18f";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -1218,6 +1218,24 @@ function pickAlbumArt(results,term){
   });
   return bs>0?best:null;
 }
+/* Spotify's sleeve, through the script, because the page has no business
+   holding the credentials. The search term is "Artist Album" joined together,
+   and the row it came from is already in memory - so the two halves are read
+   back off that rather than guessed at by splitting the string. */
+function splitTerm(term){
+  const d=ROWS.find(x=>(x.artist+" "+x.album)===term);
+  return d?{artist:d.artist,album:d.album}:null;
+}
+function spotifyShot(term){
+  if(!MARK_URL||!MARK_KEY)return Promise.resolve(null);
+  const p=splitTerm(term);
+  if(!p||!p.album)return Promise.resolve(null);
+  return jsonp(MARK_URL+"?key="+encodeURIComponent(MARK_KEY)+"&what=art"+
+    "&artist="+encodeURIComponent(p.artist)+"&album="+encodeURIComponent(p.album))
+    .then(r=>(r&&r.ok&&r.url)?r.url:null)
+    .catch(()=>null);
+}
+
 const albumShot=term=>jsonp("https://itunes.apple.com/search?entity=album&limit=25&term="+encodeURIComponent(term))
   .then(d=>{const h=pickAlbumArt(d&&d.results,term);
     // 600 rather than 400: the podium and the wall show these large
@@ -1267,6 +1285,8 @@ function loadImage(el){
   if(el.dataset.busy)return;
   el.dataset.busy="1";
   firstUrl(manual)
+    // a link in the sheet always wins; after that Spotify, then the rest
+    .then(u=>u||(kind==="artist"?null:spotifyShot(term).then(tryUrl)))
     .then(u=>u||(kind==="artist"?artistShot(term):albumShot(term)).then(tryUrl))
     .then(u=>u||(kind==="artist"?albumShot(term).then(tryUrl):null))
     .then(u=>{
