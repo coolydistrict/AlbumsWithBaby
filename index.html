@@ -837,7 +837,7 @@ const MARK_URL = "https://script.google.com/macros/s/AKfycbxvNggOJvLx8yY0JsKWdpX
 const MARK_KEY = "puppy";
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-18f";
+const BUILD = "2026-08-18g";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -1961,7 +1961,7 @@ function refreshScore(root,d){
   const takes=root.querySelector(".takes");
   if(takes){
     const box=document.createElement("div");
-    box.innerHTML=detailHTML(d);
+    box.innerHTML=panelHTML(d);
     const made=box.querySelector(".takes");
     if(made){ takes.innerHTML=made.innerHTML; dressAvatars(takes); }
   }
@@ -2273,6 +2273,7 @@ let MODAL_IDX=-1;
 function openInList(i){
   const card=document.querySelector('.album[data-idx="'+i+'"]');
   if(!card)return;
+  ensurePanel(card);
   card.classList.add("open");
   card.setAttribute("aria-expanded","true");
   card.querySelectorAll(".cover,.gauge,.rise").forEach(el=>el.classList.add("in"));
@@ -2324,7 +2325,7 @@ function openAlbum(key){
         <div class="m-sub"><button data-artist="${esc(d.artist)}">${esc(d.artist)}</button>${
           d.year?" \u00b7 "+esc(d.year):""} \u00b7 ${who.join("  ")}</div>
         ${gauge(d,true)}</div></div>
-    <div class="m-body">${detailHTML(d).replace('<div class="detail-wrap"><div class="detail-inner">','').replace(/<\/div><\/div>$/,"")}</div>`;
+    <div class="m-body">${panelHTML(d)}</div>`;
   $("album-modal").classList.add("on");
   const body=$("album-body");
   body.style.setProperty("--gc",hueOf(d.genre));   // no row above it to inherit from
@@ -2830,7 +2831,7 @@ function verdict(v,who,letter,song,none,skip){
   const face=` data-who="${who}"`;
   return`<${tag} class="${cls}"${face}${hook} title="${tip}">${body}</${tag}>`;
 }
-function detailHTML(d){
+function panelHTML(d){
   const rows=songTable(d);
   /* Both takes, always. Which podium is selected has nothing to do with what
      an album panel says. */
@@ -2860,7 +2861,7 @@ function detailHTML(d){
   /* No songs from either of you and none found yet: the shell still appears, so
      there is something to fill in and something to look at meanwhile. */
   if(!rows.length&&canMark&&!d.tl)
-    return`<div class="detail-wrap"><div class="detail-inner"><div class="detail">
+    return`<div class="detail">
       <div class="detail-main">${takes}${strip}</div>
       <div class="songlist"><div class="tl-head"><span>Tracklist</span></div>
       <p class="tl-empty">Looking up the tracklist\u2026</p></div>
@@ -2880,7 +2881,30 @@ function detailHTML(d){
             :verdict(r.n||(nOn?"i":""),"annette",INI.annette,r.label,nNone,d.nSkip)}</span>
       </span></li>`).join("")}</ul></div>
   </div>`:"";
-  return`<div class="detail-wrap"><div class="detail-inner"><div class="detail"><div class="takes">${takes}${strip}</div>${list}</div></div></div>`;
+  return`<div class="detail"><div class="takes">${takes}${strip}</div>${list}</div>`;
+}
+
+/* An album row used to carry its whole panel whether or not anyone had opened
+   it - tracklist, play buttons, both sets of marks, all of it. On a sheet of
+   four hundred albums that is nine tenths of the page: three megabytes of
+   markup and five thousand play buttons, rebuilt on every render and every
+   poll, for panels nobody was looking at.
+   The row now carries an empty shell and the panel is built the moment it is
+   opened. Nothing about it looks or behaves differently once open. */
+function detailHTML(d){
+  return `<div class="detail-wrap"><div class="detail-inner"></div></div>`;
+}
+
+/** Fills a row's panel if it has not been filled yet. */
+function ensurePanel(card){
+  if(!card)return;
+  const inner=card.querySelector(".detail-inner");
+  if(!inner||inner.firstElementChild)return;      // already built
+  const d=ROWS[Number(card.dataset.idx)];
+  if(!d)return;
+  inner.innerHTML=panelHTML(d);
+  dressAvatars(inner);
+  inner.querySelectorAll(".rise").forEach(el=>el.classList.add("in"));
 }
 /* The line under an album title, built in one place so the first render and
    every refresh after it cannot drift apart. */
@@ -3248,6 +3272,7 @@ document.addEventListener("click",e=>{
 
   const card=e.target.closest(".album");
   if(card){
+    ensurePanel(card);                 // built on the way open, not before
     const opening=card.classList.toggle("open");
     card.setAttribute("aria-expanded",opening);
     if(opening){
@@ -3677,6 +3702,7 @@ function poll(){
       render(true);            // the sheet changed, you did not - keep the music
       document.querySelectorAll(".album").forEach(a=>{
         if(openKeys.indexOf(a.querySelector(".album-title").textContent)>-1){
+          ensurePanel(a);
           a.classList.add("open"); a.setAttribute("aria-expanded","true");
         }
       });
