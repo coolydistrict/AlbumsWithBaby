@@ -722,8 +722,15 @@ footer button:hover{border-color:var(--accent)}
 </style>
 <style>
 .review-section{margin:1.8rem 0 2.6rem;padding:clamp(1rem,3vw,2rem);border:1px solid var(--line-2);border-radius:18px;background:var(--raised)}
+.review-section[hidden]{display:none}
+.artist-review-control{display:flex;margin-top:.85rem}
+.artist-review-control button{display:inline-flex;align-items:center;gap:.45rem;border:1px solid var(--line-2);border-radius:24px;padding:.45rem .9rem;background:var(--raised);color:var(--ink);font:inherit;font-size:12px;font-weight:600;cursor:pointer;transition:background .2s,border-color .2s}
+.artist-review-control button:hover,.artist-review-control button[aria-expanded="true"]{background:var(--raised-2);border-color:var(--accent)}
+.artist-review-control svg{width:15px;height:15px;flex:none}
+.artist-review-control button:focus-visible{outline:2px solid var(--ink);outline-offset:4px}
+#hero{scroll-margin-top:60px;overflow:clip}
 .review-section h2{font-family:"Bricolage Grotesque",sans-serif;font-size:1.65rem;letter-spacing:-.03em}
-.review-intro,.review-status{font-size:12px;color:var(--dim)}
+.review-status{font-size:12px;color:var(--dim)}
 .review-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;margin-top:1.2rem}
 .review-card{min-width:0;padding:1.2rem;background:var(--raised-2);border:1px solid var(--line);border-radius:12px}
 .review-card .hd{display:flex;gap:.6rem;align-items:center;margin-bottom:.8rem}
@@ -858,7 +865,7 @@ const MARK_URL = "https://script.google.com/macros/s/AKfycbxvNggOJvLx8yY0JsKWdpX
 const MARK_KEY = "puppy";
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-09-21-writing";
+const BUILD = "2026-09-21-review-button";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -3088,7 +3095,7 @@ function renderArtist(name){
   dressAvatars($("out"));
   reveal($("out"));
   $("back").onclick=()=>goArtist(null);
-  scrollTo({top:0,behavior:"smooth"});
+  requestAnimationFrame(()=>hero?.scrollIntoView({block:"start",behavior:"instant"}));
 }
 
 let heroWatch=null;
@@ -5209,7 +5216,7 @@ if(who){
 /* Shared saves activate only after this service confirms the writing protocol. */
 const REVIEW_API_URL = MARK_URL;
 const ReviewJournal = (() => {
-  const memory = new Map(), shared = new Map(), busy = new Set();
+  const memory = new Map(), shared = new Map(), busy = new Set(), openReviews = new Set(), editing = new Set();
   let connected=false, generation=0, reading=false, fieldId=0;
   const key = r => JSON.stringify([r.kind,r.artist,r.album||"",r.who]);
   const storageKey = r => "aoty-writing-v1:"+key(r);
@@ -5233,35 +5240,63 @@ const ReviewJournal = (() => {
     const editable=mineIs(r.who), local=editable?draft(r):null;
     const value=local||saved(r), id="writing-"+(++fieldId);
     const isBusy=busy.has(key(r));
+    const completed=r.kind==="artist"&&!!(value.text||value.title)&&(!local||local.completed);
+    const showEditor=editable&&(!completed||editing.has(key(r)));
     return `<article class="review-card" data-writing="${esc(JSON.stringify(r))}">
       <div class="hd"><span class="mark" data-who="${r.who}">${INI[r.who]}</span><b>${names[r.who]}</b></div>
-      ${editable?`${r.kind==="artist"?`<label for="${id}-title">Review title</label><input id="${id}-title" data-writing-title maxlength="120" value="${esc(value.title||"")}" placeholder="Your overall impression">`:""}
+      ${showEditor?`${r.kind==="artist"?`<label for="${id}-title">Review title</label><input id="${id}-title" data-writing-title maxlength="120" value="${esc(value.title||"")}" placeholder="Your overall impression">`:""}
       <label for="${id}-body">${r.kind==="artist"?"Your full review":"Your album comment"}</label>
       <textarea id="${id}-body" data-writing-body maxlength="12000" placeholder="${r.kind==="artist"?"Their sound, your favorite era, the albums that stayed with you…":"What did you think of this record?"}">${esc(value.text||"")}</textarea>
       <div class="review-actions"><button type="button" data-writing-save ${isBusy?"disabled":""}>${isBusy?"Saving…":connected?"Save to sheet":"Save draft"}</button>
       <span class="review-status" role="status">${local?"Draft in this browser":""}</span></div>
       <small data-writing-connection>${connected?"Your saved writing is shared with both profiles.":"Drafts stay in this browser. Shared saving is waiting for the updated Google script."}</small>`
-      :`${value.title?`<h3>${esc(value.title)}</h3>`:""}<p class="review-copy">${esc(value.text||"No thoughts written yet.")}</p>`}
+      :`${value.title?`<h3>${esc(value.title)}</h3>`:""}<p class="review-copy">${esc(value.text||"No thoughts written yet.")}</p>${editable?`<div class="review-actions"><button type="button" data-writing-edit>Edit</button><span class="review-status" role="status">${local?"Draft saved in this browser":"Saved to sheet"}</span></div>`:""}`}
     </article>`;
   }
   function cards(kind,artist,album){return ["anthony","annette"].map(who=>card({kind,artist,album:album||"",who})).join("");}
-  function artist(name){return `<section class="review-section" aria-label="Artist reviews"><p class="eyebrow">Beyond the numbers</p><h2>Our thoughts on ${esc(name)}</h2><p class="review-intro">Two perspectives on the artist as a whole.${store.get("aoty-me","")?"":" Choose your profile in Settings to write yours."}</p><div class="review-grid">${cards("artist",name,"")}</div></section>`;}
+  function artist(name){
+    const open=openReviews.has(name);
+    return `<section id="artist-review-panel" class="review-section" aria-label="Artist reviews" ${open?"":"hidden"}><h2>Our thoughts on ${esc(name)}</h2><div class="review-grid">${cards("artist",name,"")}</div></section>`;
+  }
+  function artistButton(name){const open=openReviews.has(name);return `<div class="artist-review-control"><button type="button" data-review-toggle="${esc(name)}" aria-expanded="${open}" aria-controls="artist-review-panel"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 4h16v12H9l-5 4V4Z"/><path d="M8 8h8M8 12h5"/></svg><span>${open?"Close review":"Review"}</span></button></div>`;}
   function album(d){return `<div class="album-comments">${cards("album",d.artist,d.album)}</div>`;}
   function readCard(el){
     return {...JSON.parse(el.dataset.writing),title:el.querySelector("[data-writing-title]")?.value||"",text:el.querySelector("[data-writing-body]").value};
   }
   function status(el,text){el.querySelector(".review-status").textContent=text;}
+  function redraw(el,r){el.outerHTML=card(r);dressAvatars();}
   document.addEventListener("input",e=>{
     const el=e.target.closest("[data-writing]");if(!el)return;
     status(el,keep(readCard(el))?"Draft saved in this browser":"Browser storage unavailable—keep this page open");
   });
   document.addEventListener("click",async e=>{
+    const toggle=e.target.closest("[data-review-toggle]");
+    if(toggle){
+      const name=toggle.dataset.reviewToggle, panel=document.getElementById("artist-review-panel");
+      const open=toggle.getAttribute("aria-expanded")!=="true";
+      if(open)openReviews.add(name);else openReviews.delete(name);
+      toggle.setAttribute("aria-expanded",String(open));
+      toggle.querySelector("span").textContent=open?"Close review":"Review";
+      panel.hidden=!open;
+      return;
+    }
+    const edit=e.target.closest("[data-writing-edit]");
+    if(edit){
+      const el=edit.closest("[data-writing]"),r=JSON.parse(el.dataset.writing);
+      if(!mineIs(r.who))return;
+      editing.add(key(r));redraw(el,r);
+      return;
+    }
     const button=e.target.closest("[data-writing-save]");if(!button)return;
     const el=button.closest("[data-writing]"), r=readCard(el), k=key(r);
     if(!mineIs(r.who)||busy.has(k))return;
     const persisted=keep(r);
-    if(!connected||usingSample){status(el,persisted?"Draft saved in this browser":"Could not save draft—browser storage is full or unavailable");return;}
-    busy.add(k);button.disabled=true;status(el,"Saving to sheet…");
+    if(!connected||usingSample){
+      if(persisted&&r.kind==="artist"&&keep({...r,completed:true})){editing.delete(k);redraw(el,r);}
+      else status(el,persisted?"Draft saved in this browser":"Could not save draft—browser storage is full or unavailable");
+      return;
+    }
+    busy.add(k);button.disabled=true;status(el,"Saving to sheet…");let completedSave=false;
     try{
       const response=await fetch(REVIEW_API_URL,{method:"POST",body:new URLSearchParams({what:"saveWriting",key:MARK_KEY,...r}),signal:AbortSignal.timeout(20000)});
       const result=await response.json();
@@ -5272,8 +5307,9 @@ const ReviewJournal = (() => {
       const current=draft(r);
       if(current&&current.text===r.text&&current.title===r.title){memory.delete(k);try{localStorage.removeItem(storageKey(r));}catch(e){}}
       status(el,draft(r)?"Saved to sheet; newer draft not sent yet":"Saved to sheet");
+      if(r.kind==="artist"&&!draft(r)){editing.delete(k);completedSave=true;}
     }catch(error){status(el,"Save not confirmed. Your draft is kept here; try again.");}
-    finally{busy.delete(k);button.disabled=false;}
+    finally{busy.delete(k);button.disabled=false;if(completedSave)redraw(el,r);}
   });
   async function refresh(){
     if(!REVIEW_API_URL||document.hidden||reading)return;
@@ -5288,18 +5324,19 @@ const ReviewJournal = (() => {
         const button=el.querySelector('[data-writing-save]');
         if(button&&!busy.has(key(r)))button.textContent='Save to sheet';
         const hint=el.querySelector('[data-writing-connection]');if(hint)hint.textContent='Your saved writing is shared with both profiles.';
-        if(draft(r)||busy.has(key(r))||el.contains(document.activeElement))return;
+        if(draft(r)||busy.has(key(r))||editing.has(key(r))||el.contains(document.activeElement))return;
         el.outerHTML=card(r);
       });dressAvatars();
     }catch(e){} // Existing sheet text and drafts remain visible if the service is offline.
     finally{reading=false;}
   }
   setInterval(refresh,15000);refresh();
-  return {artist,album};
+  return {artist,artistButton,album};
 })();
 const baseArtistReviewRender=window.renderArtist;
 window.renderArtist=function(name){
   baseArtistReviewRender(name);
+  document.querySelector("#hero .artist-head > .rise")?.insertAdjacentHTML("beforeend",ReviewJournal.artistButton(name));
   document.getElementById("hero")?.insertAdjacentHTML("afterend",ReviewJournal.artist(name));
   dressAvatars(document.getElementById("out"));
 };
