@@ -720,6 +720,27 @@ footer button:hover{border-color:var(--accent)}
   .album,.gear{transition:none!important}
   .cover,.shelf .thumb{opacity:1!important; transform:none!important; transition:none!important}}
 </style>
+<style>
+.review-section{margin:1.8rem 0 2.6rem;padding:clamp(1rem,3vw,2rem);border:1px solid var(--line-2);border-radius:18px;background:var(--raised)}
+.review-section h2{font-family:"Bricolage Grotesque",sans-serif;font-size:1.65rem;letter-spacing:-.03em}
+.review-intro,.review-status{font-size:12px;color:var(--dim)}
+.review-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem;margin-top:1.2rem}
+.review-card{min-width:0;padding:1.2rem;background:var(--raised-2);border:1px solid var(--line);border-radius:12px}
+.review-card .hd{display:flex;gap:.6rem;align-items:center;margin-bottom:.8rem}
+.review-card h3{font-size:1.05rem;margin-bottom:.6rem}
+.review-copy{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.75;margin-bottom:1rem}
+.review-card label{display:block;margin:.8rem 0 .3rem;font-size:12px;font-weight:600}
+.review-card input,.review-card textarea{width:100%;font:inherit;color:var(--ink);background:var(--ground);border:1px solid var(--line-2);border-radius:8px;padding:.7rem}
+.review-card textarea{min-height:135px;resize:vertical;line-height:1.65}
+.review-section textarea{min-height:220px}
+.review-actions{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;margin-top:.65rem}
+.review-actions button{padding:.4rem .85rem;background:var(--accent);color:var(--raised-2);border-radius:20px;font-size:12px}
+.review-actions button:disabled{opacity:.5;cursor:default}
+.review-card small{display:block;color:var(--dim);font-size:11px;margin-top:.6rem}
+.album-comments{display:grid;gap:.8rem;margin-bottom:1rem}
+@media(max-width:700px){.review-grid{grid-template-columns:1fr}.review-card{padding:1rem}}
+
+</style>
 </head>
 <body>
 
@@ -837,7 +858,7 @@ const MARK_URL = "https://script.google.com/macros/s/AKfycbxvNggOJvLx8yY0JsKWdpX
 const MARK_KEY = "puppy";
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-08-18g";
+const BUILD = "2026-09-21-writing";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -3596,7 +3617,7 @@ function boot(rows,sample,header){
   paintProfiles();
   wireFilters();
   readHash();
-  if(!FOCUS)render();
+  render();
 
   let lastOcc=occasion();
   if(lastOcc){ PINNED=occasionText(lastOcc); setTimeout(()=>celebrate(lastOcc),700); }
@@ -4876,7 +4897,7 @@ function artistsHTML(){
   return tabs+pod+'<section class="artist">'+rows+'</section>';
 }
 function paintArtists(){
-  if(typeof VIEW==="undefined"||VIEW!=="artists")return false;
+  if(typeof VIEW==="undefined"||VIEW!=="artists"||FOCUS)return false;
   var out=document.getElementById("out");
   var list=artistTable();
   out.innerHTML=artistsHTML()+(typeof statsHTML==="function"?statsHTML():"");
@@ -5183,6 +5204,114 @@ if(who){
   who.insertBefore(btn,document.getElementById("gear"));
 }
 })();
+</script>
+<script>
+/* Shared saves activate only after this service confirms the writing protocol. */
+const REVIEW_API_URL = MARK_URL;
+const ReviewJournal = (() => {
+  const memory = new Map(), shared = new Map(), busy = new Set();
+  let connected=false, generation=0, reading=false, fieldId=0;
+  const key = r => JSON.stringify([r.kind,r.artist,r.album||"",r.who]);
+  const storageKey = r => "aoty-writing-v1:"+key(r);
+  const names = {anthony:"Anthony",annette:"Annette"};
+  function draft(r){
+    const k=key(r);
+    if(memory.has(k))return memory.get(k);
+    try{const value=JSON.parse(localStorage.getItem(storageKey(r)));if(value&&typeof value.text==="string"){memory.set(k,value);return value;}}catch(e){}
+    return null;
+  }
+  function keep(r){
+    memory.set(key(r),r);
+    try{localStorage.setItem(storageKey(r),JSON.stringify(r));return true;}catch(e){return false;}
+  }
+  function saved(r){
+    if(shared.has(key(r)))return shared.get(key(r));
+    const d=ROWS.find(d=>d.artist===r.artist&&d.album===r.album);
+    return {...r,title:"",text:r.kind==="album"&&d?(r.who==="anthony"?d.aText:d.nText):""};
+  }
+  function card(r){
+    const editable=mineIs(r.who), local=editable?draft(r):null;
+    const value=local||saved(r), id="writing-"+(++fieldId);
+    const isBusy=busy.has(key(r));
+    return `<article class="review-card" data-writing="${esc(JSON.stringify(r))}">
+      <div class="hd"><span class="mark" data-who="${r.who}">${INI[r.who]}</span><b>${names[r.who]}</b></div>
+      ${editable?`${r.kind==="artist"?`<label for="${id}-title">Review title</label><input id="${id}-title" data-writing-title maxlength="120" value="${esc(value.title||"")}" placeholder="Your overall impression">`:""}
+      <label for="${id}-body">${r.kind==="artist"?"Your full review":"Your album comment"}</label>
+      <textarea id="${id}-body" data-writing-body maxlength="12000" placeholder="${r.kind==="artist"?"Their sound, your favorite era, the albums that stayed with you…":"What did you think of this record?"}">${esc(value.text||"")}</textarea>
+      <div class="review-actions"><button type="button" data-writing-save ${isBusy?"disabled":""}>${isBusy?"Saving…":connected?"Save to sheet":"Save draft"}</button>
+      <span class="review-status" role="status">${local?"Draft in this browser":""}</span></div>
+      <small data-writing-connection>${connected?"Your saved writing is shared with both profiles.":"Drafts stay in this browser. Shared saving is waiting for the updated Google script."}</small>`
+      :`${value.title?`<h3>${esc(value.title)}</h3>`:""}<p class="review-copy">${esc(value.text||"No thoughts written yet.")}</p>`}
+    </article>`;
+  }
+  function cards(kind,artist,album){return ["anthony","annette"].map(who=>card({kind,artist,album:album||"",who})).join("");}
+  function artist(name){return `<section class="review-section" aria-label="Artist reviews"><p class="eyebrow">Beyond the numbers</p><h2>Our thoughts on ${esc(name)}</h2><p class="review-intro">Two perspectives on the artist as a whole.${store.get("aoty-me","")?"":" Choose your profile in Settings to write yours."}</p><div class="review-grid">${cards("artist",name,"")}</div></section>`;}
+  function album(d){return `<div class="album-comments">${cards("album",d.artist,d.album)}</div>`;}
+  function readCard(el){
+    return {...JSON.parse(el.dataset.writing),title:el.querySelector("[data-writing-title]")?.value||"",text:el.querySelector("[data-writing-body]").value};
+  }
+  function status(el,text){el.querySelector(".review-status").textContent=text;}
+  document.addEventListener("input",e=>{
+    const el=e.target.closest("[data-writing]");if(!el)return;
+    status(el,keep(readCard(el))?"Draft saved in this browser":"Browser storage unavailable—keep this page open");
+  });
+  document.addEventListener("click",async e=>{
+    const button=e.target.closest("[data-writing-save]");if(!button)return;
+    const el=button.closest("[data-writing]"), r=readCard(el), k=key(r);
+    if(!mineIs(r.who)||busy.has(k))return;
+    const persisted=keep(r);
+    if(!connected||usingSample){status(el,persisted?"Draft saved in this browser":"Could not save draft—browser storage is full or unavailable");return;}
+    busy.add(k);button.disabled=true;status(el,"Saving to sheet…");
+    try{
+      const response=await fetch(REVIEW_API_URL,{method:"POST",body:new URLSearchParams({what:"saveWriting",key:MARK_KEY,...r}),signal:AbortSignal.timeout(20000)});
+      const result=await response.json();
+      if(!response.ok||!result.ok||result.protocol!=="baby-writing-v1")throw new Error(result.error||"Save not confirmed");
+      generation++;
+      shared.set(k,r);
+      // A newer draft typed while this request ran must survive its acknowledgement.
+      const current=draft(r);
+      if(current&&current.text===r.text&&current.title===r.title){memory.delete(k);try{localStorage.removeItem(storageKey(r));}catch(e){}}
+      status(el,draft(r)?"Saved to sheet; newer draft not sent yet":"Saved to sheet");
+    }catch(error){status(el,"Save not confirmed. Your draft is kept here; try again.");}
+    finally{busy.delete(k);button.disabled=false;}
+  });
+  async function refresh(){
+    if(!REVIEW_API_URL||document.hidden||reading)return;
+    reading=true;const version=generation;
+    try{
+      const result=await jsonp(REVIEW_API_URL+"?"+new URLSearchParams({what:"writing",key:MARK_KEY,cb:Date.now()}));
+      if(!result.ok||result.protocol!=="baby-writing-v1"||!Array.isArray(result.records)||version!==generation)return;
+      connected=true;
+      shared.clear();result.records.forEach(r=>shared.set(key(r),r));
+      document.querySelectorAll("[data-writing]").forEach(el=>{
+        const r=JSON.parse(el.dataset.writing);
+        const button=el.querySelector('[data-writing-save]');
+        if(button&&!busy.has(key(r)))button.textContent='Save to sheet';
+        const hint=el.querySelector('[data-writing-connection]');if(hint)hint.textContent='Your saved writing is shared with both profiles.';
+        if(draft(r)||busy.has(key(r))||el.contains(document.activeElement))return;
+        el.outerHTML=card(r);
+      });dressAvatars();
+    }catch(e){} // Existing sheet text and drafts remain visible if the service is offline.
+    finally{reading=false;}
+  }
+  setInterval(refresh,15000);refresh();
+  return {artist,album};
+})();
+const baseArtistReviewRender=window.renderArtist;
+window.renderArtist=function(name){
+  baseArtistReviewRender(name);
+  document.getElementById("hero")?.insertAdjacentHTML("afterend",ReviewJournal.artist(name));
+  dressAvatars(document.getElementById("out"));
+};
+const baseAlbumReviewPanel=window.panelHTML;
+window.panelHTML=function(d){
+  const box=document.createElement("div");box.innerHTML=baseAlbumReviewPanel(d);
+  box.querySelectorAll(".take").forEach(el=>el.remove());
+  const target=box.querySelector(".takes,.detail-main");
+  if(target)target.insertAdjacentHTML("afterbegin",ReviewJournal.album(d));
+  return box.innerHTML;
+};
+
 </script>
 </body>
 </html>
