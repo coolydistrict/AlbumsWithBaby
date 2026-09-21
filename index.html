@@ -865,7 +865,7 @@ const MARK_URL = "https://script.google.com/macros/s/AKfycbxvNggOJvLx8yY0JsKWdpX
 const MARK_KEY = "puppy";
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-09-21-review-button";
+const BUILD = "2026-09-21-post";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -5240,14 +5240,14 @@ const ReviewJournal = (() => {
     const editable=mineIs(r.who), local=editable?draft(r):null;
     const value=local||saved(r), id="writing-"+(++fieldId);
     const isBusy=busy.has(key(r));
-    const completed=r.kind==="artist"&&!!(value.text||value.title)&&(!local||local.completed);
+    const completed=!!(value.text||value.title||local?.completed)&&(!local||local.completed);
     const showEditor=editable&&(!completed||editing.has(key(r)));
     return `<article class="review-card" data-writing="${esc(JSON.stringify(r))}">
       <div class="hd"><span class="mark" data-who="${r.who}">${INI[r.who]}</span><b>${names[r.who]}</b></div>
       ${showEditor?`${r.kind==="artist"?`<label for="${id}-title">Review title</label><input id="${id}-title" data-writing-title maxlength="120" value="${esc(value.title||"")}" placeholder="Your overall impression">`:""}
       <label for="${id}-body">${r.kind==="artist"?"Your full review":"Your album comment"}</label>
       <textarea id="${id}-body" data-writing-body maxlength="12000" placeholder="${r.kind==="artist"?"Their sound, your favorite era, the albums that stayed with you…":"What did you think of this record?"}">${esc(value.text||"")}</textarea>
-      <div class="review-actions"><button type="button" data-writing-save ${isBusy?"disabled":""}>${isBusy?"Saving…":connected?"Save to sheet":"Save draft"}</button>
+      <div class="review-actions"><button type="button" data-writing-save ${isBusy?"disabled":""}>${isBusy?"Posting…":"Post"}</button>
       <span class="review-status" role="status">${local?"Draft in this browser":""}</span></div>
       <small data-writing-connection>${connected?"Your saved writing is shared with both profiles.":"Drafts stay in this browser. Shared saving is waiting for the updated Google script."}</small>`
       :`${value.title?`<h3>${esc(value.title)}</h3>`:""}<p class="review-copy">${esc(value.text||"No thoughts written yet.")}</p>${editable?`<div class="review-actions"><button type="button" data-writing-edit>Edit</button><span class="review-status" role="status">${local?"Draft saved in this browser":"Saved to sheet"}</span></div>`:""}`}
@@ -5292,11 +5292,11 @@ const ReviewJournal = (() => {
     if(!mineIs(r.who)||busy.has(k))return;
     const persisted=keep(r);
     if(!connected||usingSample){
-      if(persisted&&r.kind==="artist"&&keep({...r,completed:true})){editing.delete(k);redraw(el,r);}
+      if(persisted&&keep({...r,completed:true})){editing.delete(k);redraw(el,r);}
       else status(el,persisted?"Draft saved in this browser":"Could not save draft—browser storage is full or unavailable");
       return;
     }
-    busy.add(k);button.disabled=true;status(el,"Saving to sheet…");let completedSave=false;
+    busy.add(k);button.disabled=true;button.textContent="Posting…";status(el,"Saving to sheet…");let completedSave=false;
     try{
       const response=await fetch(REVIEW_API_URL,{method:"POST",body:new URLSearchParams({what:"saveWriting",key:MARK_KEY,...r}),signal:AbortSignal.timeout(20000)});
       const result=await response.json();
@@ -5307,9 +5307,9 @@ const ReviewJournal = (() => {
       const current=draft(r);
       if(current&&current.text===r.text&&current.title===r.title){memory.delete(k);try{localStorage.removeItem(storageKey(r));}catch(e){}}
       status(el,draft(r)?"Saved to sheet; newer draft not sent yet":"Saved to sheet");
-      if(r.kind==="artist"&&!draft(r)){editing.delete(k);completedSave=true;}
+      if(!draft(r)){editing.delete(k);completedSave=true;}
     }catch(error){status(el,"Save not confirmed. Your draft is kept here; try again.");}
-    finally{busy.delete(k);button.disabled=false;if(completedSave)redraw(el,r);}
+    finally{busy.delete(k);button.disabled=false;button.textContent="Post";if(completedSave)redraw(el,r);}
   });
   async function refresh(){
     if(!REVIEW_API_URL||document.hidden||reading)return;
@@ -5322,7 +5322,7 @@ const ReviewJournal = (() => {
       document.querySelectorAll("[data-writing]").forEach(el=>{
         const r=JSON.parse(el.dataset.writing);
         const button=el.querySelector('[data-writing-save]');
-        if(button&&!busy.has(key(r)))button.textContent='Save to sheet';
+        if(button&&!busy.has(key(r)))button.textContent='Post';
         const hint=el.querySelector('[data-writing-connection]');if(hint)hint.textContent='Your saved writing is shared with both profiles.';
         if(draft(r)||busy.has(key(r))||editing.has(key(r))||el.contains(document.activeElement))return;
         el.outerHTML=card(r);
