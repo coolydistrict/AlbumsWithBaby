@@ -865,7 +865,7 @@ const MARK_URL = "https://script.google.com/macros/s/AKfycbxvNggOJvLx8yY0JsKWdpX
 const MARK_KEY = "puppy";
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-09-21-post";
+const BUILD = "2026-09-21-playback";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -1590,7 +1590,7 @@ function preview(btn,alts,override){
     if(!got){
       if(alts&&alts.length){ preview(btn,alts.slice(1),alts[0]); return; }   // try the next track
       if(!btn.isConnected)HOVER_ROW=null;            // hovering found nothing playable here
-      btn.classList.add("dead");btn.textContent="\u2013";
+      btn.classList.remove("dead");btn.textContent="\u25b6";
       btn.title="No clip for this song on iTunes or Deezer";
       note("No clip found for \u201c"+song+"\u201d");
       return;
@@ -5347,6 +5347,57 @@ window.panelHTML=function(d){
   const target=box.querySelector(".takes,.detail-main");
   if(target)target.insertAdjacentHTML("afterbegin",ReviewJournal.album(d));
   return box.innerHTML;
+};
+
+</script>
+<script>
+/* Some catalogue searches reject field filters while plain search still works.
+   Keep the artist/title matching checks so a broad search cannot play a cover. */
+window.deezerClip=function(song,artist,album){
+  const artistWords=String(artist).replace(/[^\p{L}\p{N}\s]/gu," ");
+  const q=(artistWords+" "+song).replace(/\s+/g," ").trim();
+  return dzFetch("https://api.deezer.com/search?output=jsonp&limit=25&q="+
+    encodeURIComponent(q)).then(r=>{
+      const got=dzRead(r);
+      return got.blocked?got:pickDz(got.data,song,artist,album);
+    });
+};
+
+window.clipOnce=function(song,artist,album){
+  return itunesClip(song,artist,album).then(a=>{
+    if(a&&a.url)return a;
+    return deezerClip(song,artist,album).then(b=>{
+      if(b&&b.url)return b;
+      if(b&&b.blocked)return {blocked:true,both:!!(a&&(a.blocked||a.skip)),why:b.why};
+      if(a&&(a.blocked||a.skip))return {blocked:true,why:"iTunes is unavailable and Deezer found no matching preview. Try again shortly."};
+      return null;
+    });
+  });
+};
+
+const previewLookups=new Map();
+window.findClip=function(song,artist,album){
+  const key=JSON.stringify([artist,album||"",song]);
+  if(CLIP.get(key)?.url)return Promise.resolve(CLIP.get(key));
+  if(previewLookups.has(key))return previewLookups.get(key);
+  const bare=tidyTitle(song);
+  const wordings=[song];
+  if(bare&&bare.toLowerCase()!==String(song).toLowerCase())wordings.push(bare);
+  let blocked=null;
+  const step=i=>{
+    if(i>=wordings.length)return Promise.resolve(blocked);
+    return clipOnce(wordings[i],artist,album).then(res=>{
+      if(res?.url)return res;
+      if(res?.blocked)blocked=res;
+      return step(i+1);
+    });
+  };
+  const lookup=step(0).then(res=>{
+    if(res?.url)CLIP.set(key,res);
+    return res; // Missing or unreachable previews remain retryable.
+  }).finally(()=>previewLookups.delete(key));
+  previewLookups.set(key,lookup);
+  return lookup;
 };
 
 </script>
