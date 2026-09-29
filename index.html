@@ -865,7 +865,7 @@ const MARK_URL = "https://script.google.com/macros/s/AKfycbxvNggOJvLx8yY0JsKWdpX
 const MARK_KEY = "puppy";
 /* Paste the link from the sheet's Albums menu > "Message link" here.
    Leave it empty and the built-in messages below are used instead. */
-const BUILD = "2026-09-21-playback";
+const BUILD = "2026-09-28-like-counts";
 
 /* Live reads, no five-minute cache. Needs the spreadsheet set to
    "Anyone with the link - Viewer". If that isn't on, or the request
@@ -2879,7 +2879,8 @@ function panelHTML(d){
     both?[`Average`,Math.round(d.avg),ramp(d.avg)]:null,
     both?[`Apart`,d.gap+" pts",gapHue(d.gap)]:null,
     rows.length?[`Tracks`,rows.length,null]:null,
-    liked?[`Liked`,liked,null]:null,
+    rows.length?[`Anthony liked`,rows.filter(r=>r.a==="y").length+" / "+rows.length,null]:null,
+    rows.length?[`Annette liked`,rows.filter(r=>r.n==="y").length+" / "+rows.length,null]:null,
     both&&shared?[`Agreed on`,shared,null]:null
   ].filter(Boolean);
   const strip=facts.length?`<div class="facts">${facts.map(([k,v,c])=>
